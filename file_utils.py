@@ -2,16 +2,10 @@
 
 import os
 import logging
-import fitz
-
 import fitz  # PyMuPDF
-
 import docx
 import pandas as pd
 from pptx import Presentation
-
-logger = logging.getLogger(__name__)
-
 
 logger = logging.getLogger(__name__)
 

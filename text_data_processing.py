@@ -1,14 +1,14 @@
 import os
-import time
 import logging
 
-from data_processing_common import sanitize_filename
+from data_processing_common import extract_file_metadata, sanitize_filename
+from file_utils import read_file_data
 
 logger = logging.getLogger(__name__)
 
 try:
     from error_handling import handle_model_error
-except Exception:
+except Exception:  # pragma: no cover - optional module
     handle_model_error = None
 
 try:
@@ -17,63 +17,40 @@ try:
 except Exception:
     _LLM_SOURCE = "local"
 
-    def _llm_fetch(text: str) -> dict:
-        return {}
+
+def extract_text(file_path: str) -> str:
+    """Извлечь текст из файла, если возможно."""
+    data = read_file_data(file_path)
+    return data or ""
 
 
-def process_single_text_file(args, silent: bool = False, log_file: str | None = None):
-    """Обработать один текстовый файл и сгенерировать метаданные."""
-    file_path, text = args
-    start_time = time.time()
-
-    ai_meta = safe_fetch_ai_metadata(text)
+def process_text_file(file_path: str, log_file: str | None = None):
+    """Извлечь текст, вызвать LLM и вернуть метаданные."""
+    text = extract_text(file_path)
+    file_meta = extract_file_metadata(file_path)
 
     try:
-        foldername, filename, description, ai_meta = generate_text_metadata(
-            text, file_path, precomputed_meta=ai_meta
-        )
-    except Exception as e:
+        ai_meta = _llm_fetch(text)
+    except Exception as e:  # pragma: no cover - network errors
         response = getattr(e, "response", "")
-        msg = f"[docrouter] LLM/metadata error for {file_path}: {e} | response={response}"
         if handle_model_error:
             handle_model_error(file_path, str(e), response, log_file=log_file)
         else:
+            msg = f"[docrouter] LLM error for {file_path}: {e} | response={response}"
             if log_file:
                 try:
                     with open(log_file, "a", encoding="utf-8") as f:
                         f.write(msg + "\n")
                 except Exception:
                     pass
-            if not silent:
-                logger.error(msg)
+            logger.error(msg)
         return None
-
-    time_taken = time.time() - start_time
-    summary = f"{file_path} -> {foldername}/{filename} ({time_taken:.2f}s, source={_LLM_SOURCE})"
-
-    if log_file:
-        with open(log_file, 'a', encoding='utf-8') as f:
-            f.write(summary + '\n')
-    if not silent:
-        logger.info(summary)
 
     return {
         "file_path": file_path,
-        "foldername": foldername,
-        "filename": filename,
-        "description": description,
-        "metadata": ai_meta,
+        "text": text,
+        "metadata": {"file": file_meta, "ai": ai_meta},
     }
-
-
-def process_text_files(text_tuples, silent: bool = False, log_file: str | None = None):
-    """Последовательная обработка набора файлов."""
-    results = []
-    for args in text_tuples:
-        data = process_single_text_file(args, silent=silent, log_file=log_file)
-        if data is not None:
-            results.append(data)
-    return results
 
 
 def generate_text_metadata(input_text: str, file_path: str, precomputed_meta: dict | None = None):
@@ -86,7 +63,8 @@ def generate_text_metadata(input_text: str, file_path: str, precomputed_meta: di
     except Exception:
         metadata = {
             "category": "Unsorted", "subcategory": "", "issuer": "", "person": "",
-            "doc_type": "", "date": "", "amount": "", "tags": [], "suggested_filename": "", "notes": ""
+            "doc_type": "", "date": "", "amount": "", "tags": [],
+            "suggested_filename": "", "notes": ""
         }
 
     description = (metadata.get("notes") or "").strip()
@@ -102,6 +80,7 @@ def generate_text_metadata(input_text: str, file_path: str, precomputed_meta: di
     filename = sanitize_filename(suggested, max_words=3)
 
     return foldername, filename, description, metadata
+
 
 def safe_fetch_ai_metadata(text: str) -> dict:
     """Обёртка над _llm_fetch с дефолтами."""
