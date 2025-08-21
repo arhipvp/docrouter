@@ -1,8 +1,6 @@
 import os
 import fitz  # PyMuPDF
 import docx
-import pandas as pd  # для Excel и CSV
-from pptx import Presentation  # для PPT/PPTX
 
 
 def read_text_file(file_path: str) -> str | None:
@@ -41,47 +39,15 @@ def read_pdf_file(file_path: str) -> str | None:
         return None
 
 
-def read_spreadsheet_file(file_path: str) -> str | None:
-    """Прочитать таблицу из Excel/CSV и вернуть как текст."""
-    try:
-        if file_path.lower().endswith('.csv'):
-            df = pd.read_csv(file_path)
-        else:
-            df = pd.read_excel(file_path)
-        return df.to_string()
-    except Exception as e:
-        print(f"Error reading spreadsheet file {file_path}: {e}")
-        return None
-
-
-def read_ppt_file(file_path: str) -> str | None:
-    """Прочитать текст из слайдов PowerPoint."""
-    try:
-        prs = Presentation(file_path)
-        chunks = []
-        for slide in prs.slides:
-            for shape in slide.shapes:
-                if hasattr(shape, "text"):
-                    chunks.append(shape.text)
-        return '\n'.join(chunks)
-    except Exception as e:
-        print(f"Error reading PowerPoint file {file_path}: {e}")
-        return None
-
-
 def read_file_data(file_path: str) -> str | None:
     """Выбрать способ чтения по расширению файла и вернуть текст."""
     ext = os.path.splitext(file_path.lower())[1]
-    if ext in ('.txt', '.md'):
+    if ext in ('.txt', '.md', '.csv'):
         return read_text_file(file_path)
     if ext in ('.docx', '.doc'):
         return read_docx_file(file_path)
     if ext == '.pdf':
         return read_pdf_file(file_path)
-    if ext in ('.xls', '.xlsx', '.csv'):
-        return read_spreadsheet_file(file_path)
-    if ext in ('.ppt', '.pptx'):
-        return read_ppt_file(file_path)
     return None  # Неподдерживаемый тип
 
 

@@ -2,10 +2,6 @@ pytesseract
 Pillow
 PyMuPDF
 python-docx
-pandas
-openpyxl
-xlrd
-python-pptx
 requests
 python-dotenv
 PyYAML
