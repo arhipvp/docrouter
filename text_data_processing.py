@@ -6,6 +6,12 @@ from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
 from rich.progress import Progress, TextColumn, BarColumn, TimeElapsedColumn
 from data_processing_common import sanitize_filename
+from llm_client import LLMClient
+
+API_KEY = os.getenv("OPENROUTER_API_KEY")
+MODEL = os.getenv("OPENROUTER_MODEL", "gpt-3.5-turbo")
+MAX_CONCURRENCY = int(os.getenv("LLM_MAX_CONCURRENCY", "2"))
+llm_client = LLMClient(API_KEY, MODEL, max_concurrent_requests=MAX_CONCURRENCY) if API_KEY else None
 
 
 def summarize_text_content(text):
@@ -63,7 +69,17 @@ def generate_text_metadata(input_text, file_path, progress, task_id):
     total_steps = 3
 
     # Step 1: Generate description
-    description = summarize_text_content(input_text)
+    if llm_client:
+        try:
+            prompt = (
+                "Summarize the following text in no more than three sentences:\n"
+                f"{input_text}"
+            )
+            description = llm_client.generate_sync(prompt)
+        except Exception:
+            description = summarize_text_content(input_text)
+    else:
+        description = summarize_text_content(input_text)
     progress.update(task_id, advance=1 / total_steps)
 
     # Remove unwanted words and stopwords
