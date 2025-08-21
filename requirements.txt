@@ -8,4 +8,3 @@ xlrd
 nltk
 rich
 python-pptx
-nexaai

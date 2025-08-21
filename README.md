@@ -52,12 +52,10 @@ After:
 ## Updates 🚀
 
 **[2024/09] v0.0.2**:
-* Featured by [Nexa Gallery](https://nexaai.com/gallery) and [Nexa SDK Cookbook](https://github.com/NexaAI/nexa-sdk/tree/main/examples)!
 * Dry Run Mode: check sorting results before committing changes
 * Silent Mode: save all logs to a txt file for quieter operation
-* Added file support:  `.md`, .`excel`, `.ppt`, and `.csv` 
+* Added file support:  `.md`, .`excel`, `.ppt`, and `.csv`
 * Three sorting options: by content, by date, and by type
-* The default text model is now [Llama3.2 3B](https://nexaai.com/meta/Llama3.2-3B-Instruct/gguf-q3_K_M/file)
 * Improved CLI interaction experience
 * Added real-time progress bar for file analysis
 
@@ -74,7 +72,6 @@ Please update the project by deleting the original project folder and reinstalli
 - [ ] Implement best practices like Johnny Decimal
 - [ ] Check file duplication
 - [ ] Dockerfile for easier installation
-- [ ] People from [Nexa](https://github.com/NexaAI/nexa-sdk) is helping me to make executables for macOS, Linux and Windows
 
 ## What It Does 🔍
 
@@ -82,14 +79,14 @@ This intelligent file organizer harnesses the power of advanced AI models, inclu
 
 
 * Scanning a specified input directory for files.
-* Content Understanding: 
-  - **Textual Analysis**: Uses the [Llama3.2 3B](https://nexaai.com/meta/Llama3.2-3B-Instruct/gguf-q3_K_M/file) to analyze and summarize text-based content, generating relevant descriptions and filenames.
-  - **Visual Content Analysis**: Uses the [LLaVA-v1.6](https://nexaai.com/liuhaotian/llava-v1.6-vicuna-7b/gguf-q4_0/file) , based on Vicuna-7B, to interpret visual files such as images, providing context-aware categorization and descriptions.
+* Content Understanding:
+  - **Textual Analysis**: Applies simple NLTK-based heuristics to summarize text content and generate descriptive filenames.
+  - **Visual Content Analysis**: Derives basic descriptions and categories from image filenames.
 
 * Understanding the content of your files (text, images, and more) to generate relevant descriptions, folder names, and filenames.
 * Organizing the files into a new directory structure based on the generated metadata.
 
-The best part? All AI processing happens 100% on your local device using the [Nexa SDK](https://github.com/NexaAI/nexa-sdk). No internet connection required, no data leaves your computer, and no AI API is needed - keeping your files completely private and secure.
+All processing happens locally on your device. No internet connection is required, and no external APIs are used, keeping your files private and secure.
 
 
 ## Supported File Types 📁
@@ -109,7 +106,6 @@ The best part? All AI processing happens 100% on your local device using the [Ne
 
 ## Installation 🛠
 
-> For SDK installation and model-related issues, please post on [here](https://github.com/NexaAI/nexa-sdk/issues).
 
 ### 1. Install Python
 
@@ -143,23 +139,7 @@ Activate the environment:
 conda activate local_file_organizer
 ```
 
-### 4. Install Nexa SDK ️
-
-#### CPU Installation
-To install the CPU version of Nexa SDK, run:
-```bash
-pip install nexaai --prefer-binary --index-url https://nexaai.github.io/nexa-sdk/whl/cpu --extra-index-url https://pypi.org/simple --no-cache-dir
-```
-
-#### GPU Installation (Metal - macOS)
-For the GPU version supporting Metal (macOS), run:
-```bash
-CMAKE_ARGS="-DGGML_METAL=ON -DSD_METAL=ON" pip install nexaai --prefer-binary --index-url https://nexaai.github.io/nexa-sdk/whl/metal --extra-index-url https://pypi.org/simple --no-cache-dir
-```
-For detailed installation instructions of Nexa SDK for **CUDA** and **AMD GPU** support, please refer to the [Installation section](https://github.com/NexaAI/nexa-sdk?tab=readme-ov-file#installation) in the main README.
-
-
-### 5. Install Dependencies 
+### 4. Install Dependencies
 
 1. Ensure you are in the project directory:
    ```zsh
@@ -175,23 +155,17 @@ For detailed installation instructions of Nexa SDK for **CUDA** and **AMD GPU** 
 **Note:** If you encounter issues with any packages, install them individually:
 
 ```zsh
-pip install nexa Pillow pytesseract PyMuPDF python-docx
+pip install Pillow pytesseract PyMuPDF python-docx
 ```
 
 With the environment activated and dependencies installed, run the script using:
 
-### 6. Running the Script🎉
+### 5. Running the Script🎉
 ```zsh
 python main.py
 ```
 
 ## Notes
-
-- **SDK Models:**
-  - The script uses `NexaVLMInference` and `NexaTextInference` models [usage](https://docs.nexaai.com/sdk/python-interface/gguf).
-  - Ensure you have access to these models and they are correctly set up.
-  - You may need to download model files or configure paths.
-
 
 - **Dependencies:**
   - **pytesseract:** Requires Tesseract OCR installed on your system.
