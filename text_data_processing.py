@@ -5,6 +5,12 @@ from rich.progress import Progress, TextColumn, BarColumn, TimeElapsedColumn
 # --- imports из обеих веток
 from data_processing_common import sanitize_filename, extract_file_metadata
 
+# Ошибки модели: опционально (ветка move-error-files-to-unsorted)
+try:
+    from error_handling import handle_model_error  # (file_path, error_str, response, log_file=None) -> None
+except Exception:
+    handle_model_error = None  # graceful fallback
+
 # Пытаемся использовать клиент OpenRouter; если его нет — fallback на локальный анализатор
 try:
     from openrouter_client import fetch_metadata_from_llm as _llm_fetch  # ожидается совместимый JSON
@@ -72,13 +78,35 @@ def process_single_text_file(args, silent: bool = False, log_file: str | None = 
         TimeElapsedColumn()
     ) as progress:
         task_id = progress.add_task(f"Processing {os.path.basename(file_path)}", total=1.0)
-        foldername, filename, description, ai_meta = generate_text_metadata(
-            text,
-            file_path,
-            progress,
-            task_id,
-            precomputed_meta=ai_meta
-        )
+
+        # Ветка move-error-files-to-unsorted ожидала жёсткий try/except вокруг генерации
+        try:
+            foldername, filename, description, ai_meta = generate_text_metadata(
+                text,
+                file_path,
+                progress,
+                task_id,
+                precomputed_meta=ai_meta
+            )
+        except Exception as e:
+            # Соберём ответ/детали, если модель что-то вернула
+            response = getattr(e, "response", "")
+            if handle_model_error:
+                # Пусть централизованный обработчик решает — логировать, переложить файл в Unsorted и т.п.
+                handle_model_error(file_path, str(e), response, log_file=log_file)
+            else:
+                # Фолбэк: минимальный лог в файл/stdout
+                msg = f"[docrouter] LLM/metadata error for {file_path}: {e} | response={response}"
+                if log_file:
+                    try:
+                        with open(log_file, "a", encoding="utf-8") as f:
+                            f.write(msg + "\n")
+                    except Exception:
+                        pass
+                else:
+                    print(msg)
+            # Прерываем обработку текущего файла
+            return None
 
     time_taken = time.time() - start_time
 
@@ -117,7 +145,8 @@ def process_text_files(text_tuples, silent: bool = False, log_file: str | None =
     results = []
     for args in text_tuples:
         data = process_single_text_file(args, silent=silent, log_file=log_file)
-        results.append(data)
+        if data is not None:  # пропускаем сбойные файлы (их обработал handle_model_error)
+            results.append(data)
     return results
 
 
