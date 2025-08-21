@@ -32,6 +32,16 @@ def sanitize_filename(name, max_length=50, max_words=5):
     # Limit length
     return limited_name[:max_length] if limited_name else 'untitled'
 
+
+def extract_file_metadata(file_path):
+    """Извлечь основные метаданные файла."""
+    stats = os.stat(file_path)
+    return {
+        "size": stats.st_size,
+        "created": datetime.datetime.fromtimestamp(stats.st_ctime).isoformat(),
+        "modified": datetime.datetime.fromtimestamp(stats.st_mtime).isoformat(),
+    }
+
 def process_files_by_date(file_paths, output_path, dry_run=False, silent=False, log_file=None):
     """Process files to organize them by date."""
     operations = []
