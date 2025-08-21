@@ -2,7 +2,6 @@ import os
 import re
 import json
 import logging
-import datetime  # Import datetime for date operations
 
 def sanitize_filename(name, max_length=50, max_words=5):
     """Sanitize the filename by removing unwanted words and characters."""
@@ -33,17 +32,6 @@ def sanitize_filename(name, max_length=50, max_words=5):
     # Limit length
     return limited_name[:max_length] if limited_name else 'untitled'
 
-
-def extract_file_metadata(file_path):
-    """Извлечь основные метаданные файла."""
-    stats = os.stat(file_path)
-    return {
-        "size": stats.st_size,
-        "created": datetime.datetime.fromtimestamp(stats.st_ctime).isoformat(),
-        "modified": datetime.datetime.fromtimestamp(stats.st_mtime).isoformat(),
-    }
-
-
 def build_storage_path(info, original_path, base_path="Archive", dry_run=False, logger=None):
     """Сформировать путь для сохранения файла по данным LLM."""
     category = info.get("category") or "Unsorted"
@@ -67,10 +55,12 @@ def build_storage_path(info, original_path, base_path="Archive", dry_run=False, 
     return dest_file
 
 
-def write_metadata(dest_file, info, file_meta, dry_run=False, logger=None):
+def write_metadata(dest_file, info, file_meta=None, dry_run=False, logger=None):
     """Записать метаданные в JSON рядом с файлом."""
     meta_path = dest_file + ".json"
-    data = {"llm": info, "file": file_meta}
+    data = {"llm": info}
+    if file_meta is not None:
+        data["file"] = file_meta
     if dry_run:
         if logger:
             logger.info("Dry-run: метаданные %s не записываются", meta_path)
