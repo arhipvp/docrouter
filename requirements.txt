@@ -9,5 +9,9 @@ nltk
 rich
 python-pptx
 
+requests
+
+
 python-dotenv
 PyYAML
+
