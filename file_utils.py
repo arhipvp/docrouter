@@ -1,9 +1,4 @@
 import os
-import re
-import shutil
-import json
-from PIL import Image
-import pytesseract
 import fitz  # PyMuPDF
 import docx
 import pandas as pd  # Import pandas to read Excel and CSV files
@@ -89,23 +84,6 @@ def read_file_data(file_path):
     else:
         return None  # Unsupported file type
 
-def display_directory_tree(path):
-    """Display the directory tree in a format similar to the 'tree' command, including the full path."""
-    def tree(dir_path, prefix=''):
-        contents = sorted([c for c in os.listdir(dir_path) if not c.startswith('.')])
-        pointers = ['├── '] * (len(contents) - 1) + ['└── '] if contents else []
-        for pointer, name in zip(pointers, contents):
-            full_path = os.path.join(dir_path, name)
-            print(prefix + pointer + name)
-            if os.path.isdir(full_path):
-                extension = '│   ' if pointer == '├── ' else '    '
-                tree(full_path, prefix + extension)
-    if os.path.isdir(path):
-        print(os.path.abspath(path))
-        tree(path)
-    else:
-        print(os.path.abspath(path))
-
 def collect_file_paths(base_path):
     """Collect all file paths from the base directory or single file, excluding hidden files."""
     if os.path.isfile(base_path):
@@ -117,67 +95,3 @@ def collect_file_paths(base_path):
                 if not file.startswith('.'):  # Exclude hidden files
                     file_paths.append(os.path.join(root, file))
         return file_paths
-
-def separate_files_by_type(file_paths):
-    """Separate files into images and text files based on their extensions."""
-    image_extensions = ('.png', '.jpg', '.jpeg', '.gif', '.bmp', '.tiff')
-    text_extensions = ('.txt', '.docx', '.doc', '.pdf', '.md', '.xls', '.xlsx', '.ppt', '.pptx', '.csv')
-    image_files = [fp for fp in file_paths if os.path.splitext(fp.lower())[1] in image_extensions]
-    text_files = [fp for fp in file_paths if os.path.splitext(fp.lower())[1] in text_extensions]
-
-    return image_files, text_files  # Return only two values
-
-# TODO:ebook: '.mobi', '.azw', '.azw3', '.epub',
-
-
-def build_path_from_metadata(metadata, base_dir):
-    """Собрать путь для хранения файла на основе данных из JSON.
-
-    Ожидается, что ``metadata`` содержит поля ``category``, ``subcategory``,
-    ``person`` или ``issuer`` и ``proposed_filename``. Отсутствующие значения
-    заменяются на разумные заглушки.
-
-    Args:
-        metadata (dict): Метаданные, полученные от модели.
-        base_dir (str): Корневая папка архива.
-
-    Returns:
-        str: Абсолютный путь к файлу без расширения.
-    """
-
-    category = metadata.get('category') or 'Unsorted'
-    subcategory = metadata.get('subcategory') or 'General'
-    person_or_org = metadata.get('person') or metadata.get('issuer') or 'Unknown'
-    filename = metadata.get('proposed_filename') or metadata.get('filename') or 'document'
-
-    return os.path.join(base_dir, category, subcategory, person_or_org, filename)
-
-
-def save_file_with_metadata(src_path, metadata, base_dir, move=False):
-    """Переместить или скопировать файл и сохранить рядом JSON с метаданными.
-
-    Args:
-        src_path (str): Исходный файл.
-        metadata (dict): Метаданные, описывающие файл.
-        base_dir (str): Корневой каталог назначения.
-        move (bool): Если ``True``, файл перемещается; иначе копируется.
-
-    Returns:
-        tuple[str, str]: Пути к сохранённому файлу и JSON с метаданными.
-    """
-
-    dest_base = build_path_from_metadata(metadata, base_dir)
-    extension = os.path.splitext(src_path)[1]
-    dest_path = dest_base + extension
-    os.makedirs(os.path.dirname(dest_path), exist_ok=True)
-
-    if move:
-        shutil.move(src_path, dest_path)
-    else:
-        shutil.copy2(src_path, dest_path)
-
-    metadata_path = dest_base + '.json'
-    with open(metadata_path, 'w', encoding='utf-8') as f:
-        json.dump(metadata, f, ensure_ascii=False, indent=2)
-
-    return dest_path, metadata_path
