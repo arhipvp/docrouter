@@ -1,12 +1,12 @@
-import logging
 import os
 from pathlib import Path
 import shutil
-from typing import Optional
 
 import yaml
 
-logger = logging.getLogger(__name__)
+from logger import get_logger
+
+logger = get_logger(__name__)
 
 
 def _str_to_bool(value: str) -> bool:
