@@ -6,6 +6,7 @@ from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
 from rich.progress import Progress, TextColumn, BarColumn, TimeElapsedColumn
 from data_processing_common import sanitize_filename  # Import sanitize_filename
+from error_handling import handle_model_error
 
 
 def process_single_image(image_path, silent=False, log_file=None):
@@ -19,7 +20,12 @@ def process_single_image(image_path, silent=False, log_file=None):
         TimeElapsedColumn()
     ) as progress:
         task_id = progress.add_task(f"Processing {os.path.basename(image_path)}", total=1.0)
-        foldername, filename, description = generate_image_metadata(image_path, progress, task_id)
+        try:
+            foldername, filename, description = generate_image_metadata(image_path, progress, task_id)
+        except Exception as e:
+            response = getattr(e, 'response', '')
+            handle_model_error(image_path, str(e), response, log_file=log_file)
+            return None
 
     end_time = time.time()
     time_taken = end_time - start_time
@@ -44,7 +50,8 @@ def process_image_files(image_paths, silent=False, log_file=None):
     data_list = []
     for image_path in image_paths:
         data = process_single_image(image_path, silent=silent, log_file=log_file)
-        data_list.append(data)
+        if data is not None:
+            data_list.append(data)
     return data_list
 
 

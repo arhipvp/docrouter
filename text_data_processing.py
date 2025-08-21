@@ -6,6 +6,7 @@ from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
 from rich.progress import Progress, TextColumn, BarColumn, TimeElapsedColumn
 from data_processing_common import sanitize_filename
+from error_handling import handle_model_error
 
 
 def summarize_text_content(text):
@@ -29,7 +30,12 @@ def process_single_text_file(args, silent=False, log_file=None):
         TimeElapsedColumn()
     ) as progress:
         task_id = progress.add_task(f"Processing {os.path.basename(file_path)}", total=1.0)
-        foldername, filename, description = generate_text_metadata(text, file_path, progress, task_id)
+        try:
+            foldername, filename, description = generate_text_metadata(text, file_path, progress, task_id)
+        except Exception as e:
+            response = getattr(e, 'response', '')
+            handle_model_error(file_path, str(e), response, log_file=log_file)
+            return None
 
     end_time = time.time()
     time_taken = end_time - start_time
@@ -53,7 +59,8 @@ def process_text_files(text_tuples, silent=False, log_file=None):
     results = []
     for args in text_tuples:
         data = process_single_text_file(args, silent=silent, log_file=log_file)
-        results.append(data)
+        if data is not None:
+            results.append(data)
     return results
 
 def generate_text_metadata(input_text, file_path, progress, task_id):
