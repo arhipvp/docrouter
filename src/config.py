@@ -30,7 +30,7 @@ def load_config() -> Config:
     - Если есть pydantic: читает .env и переменные окружения (нижний/верхний регистр).
     - Всегда поддерживает перекрытие через UPPER_CASE переменные.
     """
-    # Базовые значения из окружения (верхний регистр — совместимость со старым кодом)
+    # База из окружения (верхний/нижний регистры на всякий случай)
     base = Config(
         log_level=_get_first_env("LOG_LEVEL", "log_level", default="INFO") or "INFO",
         tesseract_lang=_get_first_env("TESSERACT_LANG", "tesseract_lang", default="eng") or "eng",
@@ -39,7 +39,7 @@ def load_config() -> Config:
         db_url=_get_first_env("DB_URL", "db_url"),
     )
 
-    # Попытка загрузить .env через pydantic (если установлен)
+    # Пытаемся подхватить .env через pydantic (если установлен)
     try:
         from pydantic import BaseSettings, Field  # type: ignore
 
@@ -50,13 +50,12 @@ def load_config() -> Config:
             tesseract_lang: str = Field(default="eng", env=["tesseract_lang", "TESSERACT_LANG"])
             output_dir: str = Field(default="Archive", env=["output_dir", "OUTPUT_DIR"])
 
-            class Config:  # pydantic v1
+            class Config:  # pydantic v1 совместимость
                 env_file = ".env"
                 env_file_encoding = "utf-8"
 
         s = Settings()
 
-        # Значения из Settings перекрывают base, затем снова даём шанс UPPER_CASE env (если нужно)
         cfg = Config(
             log_level=s.log_level or base.log_level,
             tesseract_lang=s.tesseract_lang or base.tesseract_lang,
@@ -65,21 +64,40 @@ def load_config() -> Config:
             db_url=s.db_url or base.db_url,
         )
 
-        # Финальное перекрытие через UPPER_CASE переменные (если заданы)
+        # Финальный приоритет: UPPER_CASE переменные окружения (если заданы)
         cfg.log_level = _get_first_env("LOG_LEVEL", default=cfg.log_level) or cfg.log_level
         cfg.tesseract_lang = _get_first_env("TESSERACT_LANG", default=cfg.tesseract_lang) or cfg.tesseract_lang
         cfg.output_dir = _get_first_env("OUTPUT_DIR", default=cfg.output_dir) or cfg.output_dir
         cfg.openrouter_api_key = _get_first_env("OPENROUTER_API_KEY", default=cfg.openrouter_api_key)
         cfg.db_url = _get_first_env("DB_URL", default=cfg.db_url)
 
-        # Чуть-чуть нормализации
-        cfg.log_level = (cfg.log_level or "INFO").upper().strip()
-        cfg.output_dir = (cfg.output_dir or "Archive").strip()
-
-        return cfg
-
     except Exception:
-        # pydantic не установлен — используем только окружение
-        base.log_level = (base.log_level or "INFO").upper().strip()
-        base.output_dir = (base.output_dir or "Archive").strip()
-        return base
+        # pydantic недоступен — используем только окружение
+        cfg = base
+
+    # Нормализация
+    cfg.log_level = (cfg.log_level or "INFO").upper().strip()
+    cfg.output_dir = (cfg.output_dir or "Archive").strip()
+
+    return cfg
+
+
+# --------- Backward compatibility / удобные алиасы ---------
+config: Config = load_config()
+
+LOG_LEVEL = config.log_level            # совместимо с старым кодом
+TESSERACT_LANG = config.tesseract_lang
+OUTPUT_DIR = config.output_dir
+OPENROUTER_API_KEY = config.openrouter_api_key
+DB_URL = config.db_url
+
+__all__ = [
+    "Config",
+    "load_config",
+    "config",
+    "LOG_LEVEL",
+    "TESSERACT_LANG",
+    "OUTPUT_DIR",
+    "OPENROUTER_API_KEY",
+    "DB_URL",
+]
