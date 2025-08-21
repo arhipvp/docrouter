@@ -127,7 +127,6 @@ def separate_files_by_type(file_paths):
 
     return image_files, text_files  # Return only two values
 
-# TODO:ebook: '.mobi', '.azw', '.azw3', '.epub',
 
 
 def build_path_from_metadata(metadata, base_dir):

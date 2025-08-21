@@ -1,17 +1,15 @@
 import os
 import time
+import logging
 from rich.progress import Progress, TextColumn, BarColumn, TimeElapsedColumn
 
-# --- imports из обеих веток
 from data_processing_common import sanitize_filename, extract_file_metadata
 
-# Ошибки модели: опционально (ветка move-error-files-to-unsorted)
 try:
     from error_handling import handle_model_error  # (file_path, error_str, response, log_file=None) -> None
 except Exception:
     handle_model_error = None  # graceful fallback
 
-# --- Параллельные запросы к LLM (ветка limit-parallel-requests-to-llm)
 try:
     from llm_client import LLMClient  # ожидается интерфейс .generate_sync(prompt: str) -> str
 except Exception:
@@ -21,6 +19,8 @@ API_KEY = os.getenv("OPENROUTER_API_KEY")
 MODEL = os.getenv("OPENROUTER_MODEL", "openai/gpt-4o-mini")
 MAX_CONCURRENCY = int(os.getenv("LLM_MAX_CONCURRENCY", "2"))
 llm_client = LLMClient(API_KEY, MODEL, max_concurrent_requests=MAX_CONCURRENCY) if (LLMClient and API_KEY) else None
+
+logger = logging.getLogger(__name__)
 
 # Пытаемся использовать клиент OpenRouter; если его нет — fallback на локальный анализатор
 try:
@@ -103,36 +103,28 @@ def process_single_text_file(args, silent: bool = False, log_file: str | None = 
             if handle_model_error:
                 handle_model_error(file_path, str(e), response, log_file=log_file)
             else:
-                msg = f"[docrouter] LLM/metadata error for {file_path}: {e} | response={response}"
+                msg = f"LLM/metadata error for {file_path}: {e} | response={response}"
                 if log_file:
                     try:
                         with open(log_file, "a", encoding="utf-8") as f:
                             f.write(msg + "\n")
                     except Exception:
                         pass
-                else:
-                    print(msg)
+                if not silent:
+                    logger.error(msg)
             return None  # прерываем обработку текущего файла
 
     time_taken = time.time() - start_time
 
-    message = (
-        f"File: {file_path}\n"
-        f"Time taken: {time_taken:.2f} seconds\n"
-        f"Description: {description}\n"
-        f"Folder name: {foldername}\n"
-        f"Generated filename: {filename}\n"
-        f"AI Source: {_LLM_SOURCE}\n"
-        f"File metadata: {file_meta}\n"
-        f"AI metadata: {ai_meta}\n"
+    summary = (
+        f"{file_path} -> {foldername}/{filename} ({time_taken:.2f}s, source={_LLM_SOURCE})"
     )
 
-    if silent:
-        if log_file:
-            with open(log_file, 'a', encoding='utf-8') as f:
-                f.write(message + '\n')
-    else:
-        print(message)
+    if log_file:
+        with open(log_file, 'a', encoding='utf-8') as f:
+            f.write(summary + '\n')
+    if not silent:
+        logger.info(summary)
 
     return {
         "file_path": file_path,

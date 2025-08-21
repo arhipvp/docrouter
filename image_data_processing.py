@@ -1,6 +1,7 @@
 import os
 import re
 import time
+import logging
 from PIL import Image
 import pytesseract
 from nltk.tokenize import word_tokenize
@@ -8,11 +9,12 @@ from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
 from rich.progress import Progress, TextColumn, BarColumn, TimeElapsedColumn
 
-from data_processing_common import sanitize_filename  # Import sanitize_filename
 from error_handling import handle_model_error
-
 from data_processing_common import sanitize_filename, extract_file_metadata
 from analysis_module import analyze_text_with_llm
+
+
+logger = logging.getLogger(__name__)
 
 
 
@@ -46,20 +48,12 @@ def process_single_image(image_path, silent=False, log_file=None):
 
     end_time = time.time()
     time_taken = end_time - start_time
-
-    message = (
-        f"File: {image_path}\nTime taken: {time_taken:.2f} seconds\n"
-        f"Description: {description}\nFolder name: {foldername}\n"
-        f"Generated filename: {filename}\n"
-        f"Metadata: {metadata}\n"
-        f"Analysis: {analysis}\n"
-    )
-    if silent:
-        if log_file:
-            with open(log_file, 'a') as f:
-                f.write(message + '\n')
-    else:
-        print(message)
+    summary = f"{image_path} -> {foldername}/{filename} ({time_taken:.2f}s)"
+    if log_file:
+        with open(log_file, 'a') as f:
+            f.write(summary + '\n')
+    if not silent:
+        logger.info(summary)
     return {
         'file_path': image_path,
         'foldername': foldername,
