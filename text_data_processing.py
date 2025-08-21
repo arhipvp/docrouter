@@ -1,5 +1,6 @@
 import os
 import time
+import logging
 from rich.progress import Progress, TextColumn, BarColumn, TimeElapsedColumn
 
 # --- imports из обеих веток
@@ -21,6 +22,8 @@ API_KEY = os.getenv("OPENROUTER_API_KEY")
 MODEL = os.getenv("OPENROUTER_MODEL", "openai/gpt-4o-mini")
 MAX_CONCURRENCY = int(os.getenv("LLM_MAX_CONCURRENCY", "2"))
 llm_client = LLMClient(API_KEY, MODEL, max_concurrent_requests=MAX_CONCURRENCY) if (LLMClient and API_KEY) else None
+
+logger = logging.getLogger(__name__)
 
 # Пытаемся использовать клиент OpenRouter; если его нет — fallback на локальный анализатор
 try:
@@ -111,7 +114,7 @@ def process_single_text_file(args, silent: bool = False, log_file: str | None = 
                     except Exception:
                         pass
                 else:
-                    print(msg)
+                    logger.error(msg)
             return None  # прерываем обработку текущего файла
 
     time_taken = time.time() - start_time
@@ -132,7 +135,7 @@ def process_single_text_file(args, silent: bool = False, log_file: str | None = 
             with open(log_file, 'a', encoding='utf-8') as f:
                 f.write(message + '\n')
     else:
-        print(message)
+        logger.info(message)
 
     return {
         "file_path": file_path,

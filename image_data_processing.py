@@ -1,18 +1,16 @@
 import os
 import re
 import time
+import logging
 from PIL import Image
 import pytesseract
-from nltk.tokenize import word_tokenize
-from nltk.corpus import stopwords
-from nltk.stem import WordNetLemmatizer
 from rich.progress import Progress, TextColumn, BarColumn, TimeElapsedColumn
 
-from data_processing_common import sanitize_filename  # Import sanitize_filename
-from error_handling import handle_model_error
-
 from data_processing_common import sanitize_filename, extract_file_metadata
+from error_handling import handle_model_error
 from analysis_module import analyze_text_with_llm
+
+logger = logging.getLogger(__name__)
 
 
 
@@ -59,7 +57,7 @@ def process_single_image(image_path, silent=False, log_file=None):
             with open(log_file, 'a') as f:
                 f.write(message + '\n')
     else:
-        print(message)
+        logger.info(message)
     return {
         'file_path': image_path,
         'foldername': foldername,
@@ -101,9 +99,7 @@ def generate_image_metadata(image_path, progress, task_id):
         'details', 'description', 'depicts', 'show', 'shows', 'display', 'illustrates', 'presents', 'features',
         'provides', 'covers', 'includes', 'demonstrates', 'describes'
     ])
-    stop_words = set(stopwords.words('english'))
-    all_unwanted_words = unwanted_words.union(stop_words)
-    lemmatizer = WordNetLemmatizer()
+    all_unwanted_words = unwanted_words
 
     # Function to clean and process text
     def clean_text(text, max_words):
@@ -114,10 +110,7 @@ def generate_image_metadata(image_path, progress, task_id):
         text = text.strip()
         # Split concatenated words (e.g., 'GoogleChrome' -> 'Google Chrome')
         text = re.sub(r'([a-z])([A-Z])', r'\1 \2', text)
-        # Tokenize and lemmatize words
-        words = word_tokenize(text)
-        words = [word.lower() for word in words if word.isalpha()]
-        words = [lemmatizer.lemmatize(word) for word in words]
+        words = re.findall(r'\b[a-zA-Z]+\b', text.lower())
         # Remove unwanted words and duplicates
         filtered_words = []
         seen = set()

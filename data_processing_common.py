@@ -1,7 +1,10 @@
 import os
 import re
 import datetime  # Import datetime for date operations
+import logging
 from rich.progress import Progress, TextColumn, BarColumn, TimeElapsedColumn
+
+logger = logging.getLogger(__name__)
 
 def sanitize_filename(name, max_length=50, max_words=5):
     """Sanitize the filename by removing unwanted words and characters."""
@@ -211,4 +214,4 @@ def execute_operations(operations, dry_run=False, silent=False, log_file=None):
                     with open(log_file, 'a') as f:
                         f.write(message + '\n')
             else:
-                print(message)
+                logger.info(message)
