@@ -8,11 +8,11 @@ from typing import Dict, Any
 
 from PIL import Image
 import pytesseract
-import urllib.request
-import urllib.error
 
 from file_utils import collect_file_paths, read_file_data
 from data_processing_common import sanitize_filename
+from openrouter_client import fetch_metadata_from_llm
+from error_handling import handle_model_error
 
 
 def extract_text_and_metadata(file_path: str) -> tuple[str, Dict[str, Any]]:
@@ -35,42 +35,6 @@ def extract_text_and_metadata(file_path: str) -> tuple[str, Dict[str, Any]]:
         if data:
             text = data
     return text, metadata
-
-
-def call_llm(text: str, metadata: Dict[str, Any], retries: int = 2) -> Dict[str, Any]:
-    """Call OpenRouter LLM to classify document and return structured JSON."""
-    api_key = os.getenv("OPENROUTER_API_KEY")
-    if not api_key:
-        raise RuntimeError("OPENROUTER_API_KEY not set")
-    url = "https://openrouter.ai/api/v1/chat/completions"
-    headers = {
-        "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json",
-    }
-    prompt = (
-        "You are a document classifier. Extract fields as JSON with keys:"
-        " category, subcategory, date, issuer, person, document_type, amount, tags,"
-        " suggested_filename, note. Return only valid JSON."
-        f"\nText: {text}\nMetadata: {metadata}"
-    )
-    model = os.getenv("OPENROUTER_MODEL", "openai/gpt-3.5-turbo")
-    for attempt in range(retries):
-        try:
-            payload = json.dumps({
-                "model": model,
-                "messages": [{"role": "user", "content": prompt}],
-                "temperature": 0,
-            }).encode("utf-8")
-            req = urllib.request.Request(url, data=payload, headers=headers)
-            with urllib.request.urlopen(req, timeout=60) as resp:
-                data = json.loads(resp.read().decode("utf-8"))
-            content = data["choices"][0]["message"]["content"]
-            return json.loads(content)
-        except Exception as err:
-            last_err = err
-    raise last_err
-
-
 def build_storage_path(base_path: str, info: Dict[str, Any], original_path: str) -> str:
     """Build destination path based on LLM info."""
     category = info.get("category") or "Unsorted"
@@ -90,10 +54,16 @@ def build_storage_path(base_path: str, info: Dict[str, Any], original_path: str)
 def process_file(file_path: str, output_path: str, dry_run: bool, logger: logging.Logger) -> None:
     text, metadata = extract_text_and_metadata(file_path)
     try:
-        llm_info = call_llm(text, metadata)
+        llm_info = fetch_metadata_from_llm(text)
     except Exception as e:
         logger.error("LLM failed for %s: %s", file_path, e)
-        llm_info = {"category": "Unsorted", "subcategory": "", "issuer": "", "person": "", "suggested_filename": os.path.splitext(os.path.basename(file_path))[0]}
+        handle_model_error(
+            file_path,
+            f"LLM error: {e}",
+            getattr(e, "response", ""),
+            unsorted_dir=os.path.join(output_path, "Unsorted"),
+        )
+        return
     destination = build_storage_path(output_path, llm_info, file_path)
     if dry_run:
         logger.info("Dry-run: would move %s -> %s", file_path, destination)
@@ -108,9 +78,12 @@ def process_file(file_path: str, output_path: str, dry_run: bool, logger: loggin
         logger.info("Wrote metadata %s", meta_path)
     except Exception as e:
         logger.error("Failed to move %s: %s", file_path, e)
-        unsorted_dir = os.path.join(output_path, "Unsorted")
-        os.makedirs(unsorted_dir, exist_ok=True)
-        shutil.move(file_path, os.path.join(unsorted_dir, os.path.basename(file_path)))
+        handle_model_error(
+            file_path,
+            f"File move error: {e}",
+            "",
+            unsorted_dir=os.path.join(output_path, "Unsorted"),
+        )
 
 
 def process_input_folder(input_path: str, output_path: str, dry_run: bool, logger: logging.Logger) -> None:
