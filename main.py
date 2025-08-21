@@ -12,7 +12,7 @@ import urllib.request
 import urllib.error
 
 from file_utils import collect_file_paths, read_file_data
-from data_processing_common import sanitize_filename
+from data_processing_common import build_storage_path, write_metadata
 
 
 def extract_text_and_metadata(file_path: str) -> tuple[str, Dict[str, Any]]:
@@ -71,22 +71,6 @@ def call_llm(text: str, metadata: Dict[str, Any], retries: int = 2) -> Dict[str,
     raise last_err
 
 
-def build_storage_path(base_path: str, info: Dict[str, Any], original_path: str) -> str:
-    """Build destination path based on LLM info."""
-    category = info.get("category") or "Unsorted"
-    subcategory = info.get("subcategory") or "General"
-    org = info.get("person") or info.get("issuer") or "Unknown"
-    filename = info.get("suggested_filename") or os.path.splitext(os.path.basename(original_path))[0]
-    filename = sanitize_filename(filename)
-    date_part = info.get("date")
-    if date_part:
-        filename = f"{date_part}__{filename}"
-    ext = os.path.splitext(original_path)[1]
-    dest_dir = os.path.join(base_path, category, subcategory, org)
-    dest_file = os.path.join(dest_dir, f"{filename}{ext}")
-    return dest_file
-
-
 def process_file(file_path: str, output_path: str, dry_run: bool, logger: logging.Logger) -> None:
     text, metadata = extract_text_and_metadata(file_path)
     try:
@@ -94,18 +78,15 @@ def process_file(file_path: str, output_path: str, dry_run: bool, logger: loggin
     except Exception as e:
         logger.error("LLM failed for %s: %s", file_path, e)
         llm_info = {"category": "Unsorted", "subcategory": "", "issuer": "", "person": "", "suggested_filename": os.path.splitext(os.path.basename(file_path))[0]}
-    destination = build_storage_path(output_path, llm_info, file_path)
-    if dry_run:
-        logger.info("Dry-run: would move %s -> %s", file_path, destination)
-        return
     try:
-        os.makedirs(os.path.dirname(destination), exist_ok=True)
+        destination = build_storage_path(llm_info, file_path, base_path=output_path, dry_run=dry_run, logger=logger)
+        if dry_run:
+            logger.info("Dry-run: would move %s -> %s", file_path, destination)
+            write_metadata(destination, llm_info, metadata, dry_run=True, logger=logger)
+            return
         shutil.move(file_path, destination)
         logger.info("Moved %s -> %s", file_path, destination)
-        meta_path = destination + ".json"
-        with open(meta_path, "w", encoding="utf-8") as f:
-            json.dump({"llm": llm_info, "file": metadata}, f, ensure_ascii=False, indent=2)
-        logger.info("Wrote metadata %s", meta_path)
+        write_metadata(destination, llm_info, metadata, dry_run=False, logger=logger)
     except Exception as e:
         logger.error("Failed to move %s: %s", file_path, e)
         unsorted_dir = os.path.join(output_path, "Unsorted")
