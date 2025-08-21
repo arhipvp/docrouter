@@ -1,8 +1,0 @@
-pytesseract
-Pillow
-
-PyMuPDF
-python-docx
-requests
-python-dotenv
-PyYAML
