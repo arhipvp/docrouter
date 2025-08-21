@@ -2,10 +2,15 @@
 
 import os
 import logging
+import fitz
+
 import fitz  # PyMuPDF
+
 import docx
-import pandas as pd  # для Excel и CSV
-from pptx import Presentation  # для PPT/PPTX
+import pandas as pd
+from pptx import Presentation
+
+logger = logging.getLogger(__name__)
 
 
 logger = logging.getLogger(__name__)
@@ -35,7 +40,7 @@ def read_pdf_file(file_path: str) -> str | None:
     """Прочитать текст из первых страниц PDF (через PyMuPDF)."""
     try:
         doc = fitz.open(file_path)
-        num_pages_to_read = 3  # можно настроить
+        num_pages_to_read = 3
         pages = []
         for i in range(min(num_pages_to_read, len(doc))):
             page = doc.load_page(i)
@@ -97,6 +102,6 @@ def collect_file_paths(base_path: str) -> list[str]:
     file_paths: list[str] = []
     for root, _, files in os.walk(base_path):
         for name in files:
-            if not name.startswith('.'):  # исключаем скрытые
+            if not name.startswith('.'):
                 file_paths.append(os.path.join(root, name))
     return file_paths
