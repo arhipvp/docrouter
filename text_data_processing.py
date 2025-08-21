@@ -3,6 +3,7 @@ import time
 import logging
 
 from data_processing_common import sanitize_filename, extract_file_metadata
+from config_loader import load_config, load_openrouter_settings
 
 # Логгер
 logger = logging.getLogger(__name__)
@@ -19,10 +20,16 @@ try:
 except Exception:
     LLMClient = None
 
-API_KEY = os.getenv("OPENROUTER_API_KEY")
-MODEL = os.getenv("OPENROUTER_MODEL", "openai/gpt-4o-mini")
-MAX_CONCURRENCY = int(os.getenv("LLM_MAX_CONCURRENCY", "2"))
-llm_client = LLMClient(API_KEY, MODEL, max_concurrent_requests=MAX_CONCURRENCY) if (LLMClient and API_KEY) else None
+CONFIG = load_config()
+OR_SETTINGS = load_openrouter_settings()
+API_KEY = OR_SETTINGS.get("api_key")
+MODEL = OR_SETTINGS.get("model")
+MAX_CONCURRENCY = OR_SETTINGS.get("max_concurrency", 2)
+llm_client = (
+    LLMClient(API_KEY, MODEL, max_concurrent_requests=MAX_CONCURRENCY)
+    if (LLMClient and API_KEY)
+    else None
+)
 
 # Источник AI-метаданных: OpenRouter или локальный анализатор
 try:

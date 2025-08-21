@@ -1,7 +1,8 @@
-import os
 import time
 import json
 import requests
+
+from config_loader import load_openrouter_settings
 
 OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"
 EXPECTED_FIELDS = [
@@ -22,8 +23,9 @@ def fetch_metadata_from_llm(text, max_retries=3):
 
     Retries the request if the model returns invalid JSON.
     """
-    api_key = os.getenv("OPENROUTER_API_KEY")
-    model = os.getenv("OPENROUTER_MODEL", "openrouter/llama3-8b")
+    settings = load_openrouter_settings()
+    api_key = settings.get("api_key")
+    model = settings.get("model")
     if not api_key:
         raise RuntimeError("OPENROUTER_API_KEY is not set")
 

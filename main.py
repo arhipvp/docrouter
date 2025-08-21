@@ -6,6 +6,8 @@ import shutil
 import time
 from typing import Dict, Any
 
+from config_loader import load_config, load_openrouter_settings
+
 from PIL import Image
 import pytesseract
 import urllib.request
@@ -37,9 +39,13 @@ def extract_text_and_metadata(file_path: str) -> tuple[str, Dict[str, Any]]:
     return text, metadata
 
 
+OPENROUTER = load_openrouter_settings()
+CONFIG = load_config()
+
+
 def call_llm(text: str, metadata: Dict[str, Any], retries: int = 2) -> Dict[str, Any]:
     """Call OpenRouter LLM to classify document and return structured JSON."""
-    api_key = os.getenv("OPENROUTER_API_KEY")
+    api_key = OPENROUTER.get("api_key")
     if not api_key:
         raise RuntimeError("OPENROUTER_API_KEY not set")
     url = "https://openrouter.ai/api/v1/chat/completions"
@@ -53,7 +59,7 @@ def call_llm(text: str, metadata: Dict[str, Any], retries: int = 2) -> Dict[str,
         " suggested_filename, note. Return only valid JSON."
         f"\nText: {text}\nMetadata: {metadata}"
     )
-    model = os.getenv("OPENROUTER_MODEL", "openai/gpt-3.5-turbo")
+    model = OPENROUTER.get("model")
     for attempt in range(retries):
         try:
             payload = json.dumps({

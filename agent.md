@@ -76,6 +76,29 @@
 
 Модель и ключ OpenRouter указываются в .env.
 
+Пример `.env`:
+
+```
+OPENROUTER_API_KEY=your_api_key_here
+OPENROUTER_MODEL=openrouter/llama3-8b
+LLM_MAX_CONCURRENCY=2
+```
+
+Пример `config.yml`:
+
+```
+categories:
+  - Receipts
+  - Insurance
+  - School
+people:
+  - Alice
+  - Bob
+vendors:
+  - Amazon
+  - IKEA
+```
+
 Производительность и лимиты
 
 Документы обрабатываются по очереди, чтобы не упираться в лимиты API.
