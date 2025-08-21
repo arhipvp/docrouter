@@ -8,10 +8,7 @@ xlrd
 nltk
 rich
 python-pptx
-
+aiohttp
 requests
-
-
 python-dotenv
 PyYAML
-

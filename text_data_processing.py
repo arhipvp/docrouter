@@ -11,6 +11,17 @@ try:
 except Exception:
     handle_model_error = None  # graceful fallback
 
+# --- Параллельные запросы к LLM (ветка limit-parallel-requests-to-llm)
+try:
+    from llm_client import LLMClient  # ожидается интерфейс .generate_sync(prompt: str) -> str
+except Exception:
+    LLMClient = None
+
+API_KEY = os.getenv("OPENROUTER_API_KEY")
+MODEL = os.getenv("OPENROUTER_MODEL", "openai/gpt-4o-mini")
+MAX_CONCURRENCY = int(os.getenv("LLM_MAX_CONCURRENCY", "2"))
+llm_client = LLMClient(API_KEY, MODEL, max_concurrent_requests=MAX_CONCURRENCY) if (LLMClient and API_KEY) else None
+
 # Пытаемся использовать клиент OpenRouter; если его нет — fallback на локальный анализатор
 try:
     from openrouter_client import fetch_metadata_from_llm as _llm_fetch  # ожидается совместимый JSON
@@ -79,7 +90,6 @@ def process_single_text_file(args, silent: bool = False, log_file: str | None = 
     ) as progress:
         task_id = progress.add_task(f"Processing {os.path.basename(file_path)}", total=1.0)
 
-        # Ветка move-error-files-to-unsorted ожидала жёсткий try/except вокруг генерации
         try:
             foldername, filename, description, ai_meta = generate_text_metadata(
                 text,
@@ -89,13 +99,10 @@ def process_single_text_file(args, silent: bool = False, log_file: str | None = 
                 precomputed_meta=ai_meta
             )
         except Exception as e:
-            # Соберём ответ/детали, если модель что-то вернула
             response = getattr(e, "response", "")
             if handle_model_error:
-                # Пусть централизованный обработчик решает — логировать, переложить файл в Unsorted и т.п.
                 handle_model_error(file_path, str(e), response, log_file=log_file)
             else:
-                # Фолбэк: минимальный лог в файл/stdout
                 msg = f"[docrouter] LLM/metadata error for {file_path}: {e} | response={response}"
                 if log_file:
                     try:
@@ -105,8 +112,7 @@ def process_single_text_file(args, silent: bool = False, log_file: str | None = 
                         pass
                 else:
                     print(msg)
-            # Прерываем обработку текущего файла
-            return None
+            return None  # прерываем обработку текущего файла
 
     time_taken = time.time() - start_time
 
@@ -184,6 +190,11 @@ def generate_text_metadata(
         }
     progress.update(task_id, advance=1 / total_steps)
 
+    # 1a) Описание: приоритет notes → LLMClient → локальная эвристика
+    description = (metadata.get("notes") or "").strip()
+    if not description:
+        description = try_summarize_with_client(input_text) or summarize_text_content(input_text)
+
     # 2) Папка
     parts = [
         metadata.get("category", ""),
@@ -200,13 +211,13 @@ def generate_text_metadata(
         suggested = os.path.splitext(os.path.basename(file_path))[0]
     filename = sanitize_filename(suggested, max_words=3)
 
-    description = metadata.get("notes", "")
     progress.update(task_id, advance=1 / total_steps)
 
     return foldername, filename, description, metadata
 
 
-# --- утилита
+# --- утилиты
+
 def safe_fetch_ai_metadata(text: str) -> dict:
     """Тонкая обертка над _llm_fetch с дефолтами."""
     try:
@@ -225,3 +236,47 @@ def safe_fetch_ai_metadata(text: str) -> dict:
     meta.setdefault("suggested_filename", "")
     meta.setdefault("notes", "")
     return meta
+
+
+def try_summarize_with_client(input_text: str) -> str:
+    """Попытаться получить краткое описание через LLMClient (ограничение параллелизма)."""
+    if not llm_client:
+        return ""
+    try:
+        prompt = (
+            "Summarize the following text in no more than three sentences:\n"
+            f"{input_text}"
+        )
+        out = llm_client.generate_sync(prompt) or ""
+        # небольшой санитайзинг: обрезка до ~150 слов
+        words = out.split()
+        if len(words) > 150:
+            out = " ".join(words[:150])
+        return out.strip()
+    except Exception:
+        return ""
+
+
+def summarize_text_content(text: str) -> str:
+    """
+    Быстрая локальная эвристика: первые 2–3 «предложения» (делим по .!?), максимум ~150 слов.
+    Без внешних зависимостей (nltk не нужен).
+    """
+    if not text:
+        return ""
+    # приблизительное разбиение на предложения
+    spl = []
+    buff = []
+    for ch in text:
+        buff.append(ch)
+        if ch in ".!?":
+            spl.append("".join(buff).strip())
+            buff = []
+    if buff:
+        spl.append("".join(buff).strip())
+
+    summary = " ".join(spl[:3]) if spl else text.strip().split("\n", 1)[0]
+    words = summary.split()
+    if len(words) > 150:
+        summary = " ".join(words[:150])
+    return summary.strip()
