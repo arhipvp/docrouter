@@ -1,7 +1,11 @@
+"""Утилиты для работы с файлами."""
+
 import os
 import logging
-
 import fitz
+
+import fitz  # PyMuPDF
+
 import docx
 import pandas as pd
 from pptx import Presentation
@@ -9,12 +13,14 @@ from pptx import Presentation
 logger = logging.getLogger(__name__)
 
 
+logger = logging.getLogger(__name__)
+
+
 def read_text_file(file_path: str) -> str | None:
-    """Прочитать содержимое текстового файла (ограничение по длине для скорости)."""
-    max_chars = 3000
+    """Прочитать содержимое текстового файла."""
     try:
         with open(file_path, 'r', encoding='utf-8', errors='ignore') as file:
-            return file.read(max_chars)
+            return file.read()
     except Exception as e:
         logger.error("Error reading text file %s: %s", file_path, e)
         return None
@@ -74,7 +80,7 @@ def read_ppt_file(file_path: str) -> str | None:
 
 
 def read_file_data(file_path: str) -> str | None:
-    """Выбрать способ чтения по расширению файла и вернуть текст."""
+    """Вернуть текст для поддерживаемых форматов файлов."""
     ext = os.path.splitext(file_path.lower())[1]
     if ext in ('.txt', '.md'):
         return read_text_file(file_path)
@@ -86,11 +92,11 @@ def read_file_data(file_path: str) -> str | None:
         return read_spreadsheet_file(file_path)
     if ext in ('.ppt', '.pptx'):
         return read_ppt_file(file_path)
-    return None  # Неподдерживаемый тип
+    return None
 
 
 def collect_file_paths(base_path: str) -> list[str]:
-    """Собрать все пути файлов из директории (или вернуть один путь), игнорируя скрытые файлы."""
+    """Собрать пути файлов из директории, игнорируя скрытые."""
     if os.path.isfile(base_path):
         return [base_path]
     file_paths: list[str] = []

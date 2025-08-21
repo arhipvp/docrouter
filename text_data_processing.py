@@ -2,7 +2,7 @@ import os
 import time
 import logging
 
-from data_processing_common import sanitize_filename, extract_file_metadata
+from data_processing_common import sanitize_filename
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +26,6 @@ def process_single_text_file(args, silent: bool = False, log_file: str | None = 
     file_path, text = args
     start_time = time.time()
 
-    file_meta = extract_file_metadata(file_path)
     ai_meta = safe_fetch_ai_metadata(text)
 
     try:
@@ -63,7 +62,7 @@ def process_single_text_file(args, silent: bool = False, log_file: str | None = 
         "foldername": foldername,
         "filename": filename,
         "description": description,
-        "metadata": {"file": file_meta, "ai": ai_meta},
+        "metadata": ai_meta,
     }
 
 

@@ -4,14 +4,14 @@ import logging
 from PIL import Image
 import pytesseract
 
-from data_processing_common import sanitize_filename, extract_file_metadata
+from data_processing_common import sanitize_filename
 from error_handling import handle_model_error
 
 logger = logging.getLogger(__name__)
 
 
 def process_single_image(image_path: str, silent: bool = False, log_file: str | None = None):
-    """Обработать одно изображение: OCR → базовые метаданные → простое имя и папка."""
+    """Обработать одно изображение: OCR → простое имя и папка."""
     start_time = time.time()
 
     # 1) OCR
@@ -22,10 +22,7 @@ def process_single_image(image_path: str, silent: bool = False, log_file: str | 
         handle_model_error(image_path, f"OCR error: {e}", response="", log_file=log_file)
         return None
 
-    # 2) Метаданные файла
-    metadata = extract_file_metadata(image_path)
-
-    # 3) Генерация имени/папки (без LLM, минимально)
+    # 2) Генерация имени/папки (без LLM, минимально)
     try:
         foldername, filename, description = generate_image_metadata(image_path)
     except Exception as e:
@@ -33,7 +30,7 @@ def process_single_image(image_path: str, silent: bool = False, log_file: str | 
         handle_model_error(image_path, str(e), response, log_file=log_file)
         return None
 
-    # 4) Лог
+    # 3) Лог
     time_taken = time.time() - start_time
     summary = f"{image_path} -> {foldername}/{filename} ({time_taken:.2f}s)"
     if log_file:
@@ -48,7 +45,6 @@ def process_single_image(image_path: str, silent: bool = False, log_file: str | 
         "filename": filename,
         "description": description,
         "text": extracted_text,
-        "metadata": metadata,
     }
 
 
