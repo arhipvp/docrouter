@@ -8,3 +8,6 @@ xlrd
 nltk
 rich
 python-pptx
+
+python-dotenv
+PyYAML
