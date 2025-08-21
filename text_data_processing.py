@@ -5,7 +5,8 @@ from nltk.tokenize import word_tokenize, sent_tokenize
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
 from rich.progress import Progress, TextColumn, BarColumn, TimeElapsedColumn
-from data_processing_common import sanitize_filename
+from data_processing_common import sanitize_filename, extract_file_metadata
+from analysis_module import analyze_text_with_llm
 
 
 def summarize_text_content(text):
@@ -22,6 +23,10 @@ def process_single_text_file(args, silent=False, log_file=None):
     file_path, text = args
     start_time = time.time()
 
+    # Analyze text with LLM and gather metadata
+    analysis = analyze_text_with_llm(text)
+    metadata = extract_file_metadata(file_path)
+
     # Create a Progress instance for this file
     with Progress(
         TextColumn("[progress.description]{task.description}"),
@@ -34,7 +39,13 @@ def process_single_text_file(args, silent=False, log_file=None):
     end_time = time.time()
     time_taken = end_time - start_time
 
-    message = f"File: {file_path}\nTime taken: {time_taken:.2f} seconds\nDescription: {description}\nFolder name: {foldername}\nGenerated filename: {filename}\n"
+    message = (
+        f"File: {file_path}\nTime taken: {time_taken:.2f} seconds\n"
+        f"Description: {description}\nFolder name: {foldername}\n"
+        f"Generated filename: {filename}\n"
+        f"Metadata: {metadata}\n"
+        f"Analysis: {analysis}\n"
+    )
     if silent:
         if log_file:
             with open(log_file, 'a') as f:
@@ -45,7 +56,9 @@ def process_single_text_file(args, silent=False, log_file=None):
         'file_path': file_path,
         'foldername': foldername,
         'filename': filename,
-        'description': description
+        'description': description,
+        'analysis': analysis,
+        'metadata': metadata,
     }
 
 def process_text_files(text_tuples, silent=False, log_file=None):
