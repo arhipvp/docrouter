@@ -1,127 +1,227 @@
-import re
 import os
 import time
-from nltk.tokenize import word_tokenize, sent_tokenize
-from nltk.corpus import stopwords
-from nltk.stem import WordNetLemmatizer
 from rich.progress import Progress, TextColumn, BarColumn, TimeElapsedColumn
-from data_processing_common import sanitize_filename
-from error_handling import handle_model_error
+
+# --- imports из обеих веток
+from data_processing_common import sanitize_filename, extract_file_metadata
+
+# Ошибки модели: опционально (ветка move-error-files-to-unsorted)
+try:
+    from error_handling import handle_model_error  # (file_path, error_str, response, log_file=None) -> None
+except Exception:
+    handle_model_error = None  # graceful fallback
+
+# Пытаемся использовать клиент OpenRouter; если его нет — fallback на локальный анализатор
+try:
+    from openrouter_client import fetch_metadata_from_llm as _llm_fetch  # ожидается совместимый JSON
+    _LLM_SOURCE = "openrouter"
+except Exception:
+    _LLM_SOURCE = "local"
+
+    def _llm_fetch(text: str) -> dict:
+        """
+        Fallback: используем analysis_module.analyze_text_with_llm(text)
+        и приводим результат к унифицированной схеме AI-метаданных.
+        """
+        try:
+            from analysis_module import analyze_text_with_llm
+        except Exception as e:  # нет даже локального анализатора
+            # Минимальный безопасный ответ
+            return {
+                "category": "Unsorted",
+                "subcategory": "",
+                "issuer": "",
+                "person": "",
+                "doc_type": "",
+                "date": "",
+                "amount": "",
+                "tags": [],
+                "suggested_filename": "",
+                "notes": f"no analyzer available: {e}"
+            }
+
+        raw = analyze_text_with_llm(text) or {}
+        # Нормализуем ключи под единую схему
+        return {
+            "category": raw.get("category") or raw.get("cat") or "Unsorted",
+            "subcategory": raw.get("subcategory", ""),
+            "issuer": raw.get("issuer") or raw.get("vendor", ""),
+            "person": raw.get("person", ""),
+            "doc_type": raw.get("doc_type") or raw.get("type", ""),
+            "date": raw.get("date", ""),
+            "amount": raw.get("amount", ""),
+            "tags": raw.get("tags", []) or [],
+            "suggested_filename": raw.get("suggested_filename", ""),
+            "notes": raw.get("notes") or raw.get("summary", "") or ""
+        }
 
 
-def summarize_text_content(text):
-    """Summarize the given text content using simple heuristics."""
-    sentences = sent_tokenize(text)
-    summary = " ".join(sentences[:3])
-    words = summary.split()
-    if len(words) > 150:
-        summary = " ".join(words[:150])
-    return summary
+def process_single_text_file(args, silent: bool = False, log_file: str | None = None):
+    """
+    Обработать один текстовый файл и сгенерировать метаданные.
 
-def process_single_text_file(args, silent=False, log_file=None):
-    """Process a single text file to generate metadata."""
+    args: tuple[str, str] -> (file_path, extracted_text)
+    """
     file_path, text = args
     start_time = time.time()
 
-    # Create a Progress instance for this file
+    # 1) Файловые метаданные (локально)
+    file_meta = extract_file_metadata(file_path)
+
+    # 2) AI-метаданные (через OpenRouter или локальный фолбэк)
+    ai_meta = safe_fetch_ai_metadata(text)
+
+    # 3) Прогресс-бар и построение итоговых полей
     with Progress(
         TextColumn("[progress.description]{task.description}"),
         BarColumn(),
         TimeElapsedColumn()
     ) as progress:
         task_id = progress.add_task(f"Processing {os.path.basename(file_path)}", total=1.0)
+
+        # Ветка move-error-files-to-unsorted ожидала жёсткий try/except вокруг генерации
         try:
-            foldername, filename, description = generate_text_metadata(text, file_path, progress, task_id)
+            foldername, filename, description, ai_meta = generate_text_metadata(
+                text,
+                file_path,
+                progress,
+                task_id,
+                precomputed_meta=ai_meta
+            )
         except Exception as e:
-            response = getattr(e, 'response', '')
-            handle_model_error(file_path, str(e), response, log_file=log_file)
+            # Соберём ответ/детали, если модель что-то вернула
+            response = getattr(e, "response", "")
+            if handle_model_error:
+                # Пусть централизованный обработчик решает — логировать, переложить файл в Unsorted и т.п.
+                handle_model_error(file_path, str(e), response, log_file=log_file)
+            else:
+                # Фолбэк: минимальный лог в файл/stdout
+                msg = f"[docrouter] LLM/metadata error for {file_path}: {e} | response={response}"
+                if log_file:
+                    try:
+                        with open(log_file, "a", encoding="utf-8") as f:
+                            f.write(msg + "\n")
+                    except Exception:
+                        pass
+                else:
+                    print(msg)
+            # Прерываем обработку текущего файла
             return None
 
-    end_time = time.time()
-    time_taken = end_time - start_time
+    time_taken = time.time() - start_time
 
-    message = f"File: {file_path}\nTime taken: {time_taken:.2f} seconds\nDescription: {description}\nFolder name: {foldername}\nGenerated filename: {filename}\n"
+    message = (
+        f"File: {file_path}\n"
+        f"Time taken: {time_taken:.2f} seconds\n"
+        f"Description: {description}\n"
+        f"Folder name: {foldername}\n"
+        f"Generated filename: {filename}\n"
+        f"AI Source: {_LLM_SOURCE}\n"
+        f"File metadata: {file_meta}\n"
+        f"AI metadata: {ai_meta}\n"
+    )
+
     if silent:
         if log_file:
-            with open(log_file, 'a') as f:
+            with open(log_file, 'a', encoding='utf-8') as f:
                 f.write(message + '\n')
     else:
         print(message)
+
     return {
-        'file_path': file_path,
-        'foldername': foldername,
-        'filename': filename,
-        'description': description
+        "file_path": file_path,
+        "foldername": foldername,
+        "filename": filename,
+        "description": description,
+        "metadata": {
+            "file": file_meta,
+            "ai": ai_meta,
+        },
     }
 
-def process_text_files(text_tuples, silent=False, log_file=None):
-    """Process text files sequentially."""
+
+def process_text_files(text_tuples, silent: bool = False, log_file: str | None = None):
+    """Последовательная обработка набора файлов."""
     results = []
     for args in text_tuples:
         data = process_single_text_file(args, silent=silent, log_file=log_file)
-        if data is not None:
+        if data is not None:  # пропускаем сбойные файлы (их обработал handle_model_error)
             results.append(data)
     return results
 
-def generate_text_metadata(input_text, file_path, progress, task_id):
-    """Generate description, folder name, and filename for a text document."""
 
-    # Total steps in processing a text file
-    total_steps = 3
+def generate_text_metadata(
+    input_text: str,
+    file_path: str,
+    progress: Progress,
+    task_id: int,
+    precomputed_meta: dict | None = None
+):
+    """
+    Построить описание, папку и имя файла на основе AI-метаданных.
+    Если precomputed_meta не передан — вызовет _llm_fetch(input_text).
+    """
+    total_steps = 2
 
-    # Step 1: Generate description
-    description = summarize_text_content(input_text)
+    # 1) Получаем AI-метаданные
+    try:
+        metadata = precomputed_meta if precomputed_meta is not None else _llm_fetch(input_text)
+        # Гарантируем наличие ключей
+        for k in ["category", "subcategory", "issuer", "person", "doc_type", "date", "amount", "tags", "suggested_filename", "notes"]:
+            metadata.setdefault(k, "" if k != "tags" else [])
+    except Exception:
+        metadata = {
+            "category": "Unsorted",
+            "subcategory": "",
+            "issuer": "",
+            "person": "",
+            "doc_type": "",
+            "date": "",
+            "amount": "",
+            "tags": [],
+            "suggested_filename": "",
+            "notes": ""
+        }
     progress.update(task_id, advance=1 / total_steps)
 
-    # Remove unwanted words and stopwords
-    unwanted_words = set([
-        'the', 'and', 'based', 'generated', 'this', 'is', 'filename', 'file', 'document', 'text', 'output', 'only', 'below', 'category',
-        'summary', 'key', 'details', 'information', 'note', 'notes', 'main', 'ideas', 'concepts', 'in', 'on', 'of', 'with', 'by', 'for',
-        'to', 'from', 'a', 'an', 'as', 'at', 'i', 'we', 'you', 'they', 'he', 'she', 'it', 'that', 'which', 'are', 'were', 'was', 'be',
-        'have', 'has', 'had', 'do', 'does', 'did', 'but', 'if', 'or', 'because', 'about', 'into', 'through', 'during', 'before', 'after',
-        'above', 'below', 'any', 'each', 'few', 'more', 'most', 'other', 'some', 'such', 'no', 'nor', 'not', 'only', 'own', 'same', 'so',
-        'than', 'too', 'very', 's', 't', 'can', 'will', 'just', 'don', 'should', 'now', 'new', 'depicts', 'show', 'shows', 'display',
-        'illustrates', 'presents', 'features', 'provides', 'covers', 'includes', 'discusses', 'demonstrates', 'describes'
-    ])
-    stop_words = set(stopwords.words('english'))
-    all_unwanted_words = unwanted_words.union(stop_words)
-    lemmatizer = WordNetLemmatizer()
+    # 2) Папка
+    parts = [
+        metadata.get("category", ""),
+        metadata.get("subcategory", ""),
+        metadata.get("person") or metadata.get("issuer", ""),
+    ]
+    parts = [sanitize_filename(p, max_words=2) for p in parts if p]
+    foldername = os.path.join(*parts) if parts else "Unsorted"
 
-    # Function to clean and process text
-    def clean_text(text, max_words):
-        # Remove special characters and numbers
-        text = re.sub(r'[^\w\s]', ' ', text)
-        text = re.sub(r'\d+', '', text)
-        text = text.strip()
-        # Split concatenated words (e.g., 'mathOperations' -> 'math Operations')
-        text = re.sub(r'([a-z])([A-Z])', r'\1 \2', text)
-        # Tokenize and lemmatize words
-        words = word_tokenize(text)
-        words = [word.lower() for word in words if word.isalpha()]
-        words = [lemmatizer.lemmatize(word) for word in words]
-        # Remove unwanted words and duplicates
-        filtered_words = []
-        seen = set()
-        for word in words:
-            if word not in all_unwanted_words and word not in seen:
-                filtered_words.append(word)
-                seen.add(word)
-        # Limit to max words
-        filtered_words = filtered_words[:max_words]
-        return '_'.join(filtered_words)
+    # 3) Имя файла
+    suggested = metadata.get("suggested_filename")
+    if not suggested:
+        # если ИИ не предложил имя — берем исходное без расширения
+        suggested = os.path.splitext(os.path.basename(file_path))[0]
+    filename = sanitize_filename(suggested, max_words=3)
 
-    # Step 2: Generate filename
-    filename = clean_text(description, max_words=3)
-    if not filename:
-        filename = 'document_' + os.path.splitext(os.path.basename(file_path))[0]
-    sanitized_filename = sanitize_filename(filename, max_words=3)
+    description = metadata.get("notes", "")
     progress.update(task_id, advance=1 / total_steps)
 
-    # Step 3: Generate folder name from summary
-    foldername = clean_text(description, max_words=2)
-    if not foldername:
-        foldername = 'documents'
-    sanitized_foldername = sanitize_filename(foldername, max_words=2)
-    progress.update(task_id, advance=1 / total_steps)
+    return foldername, filename, description, metadata
 
-    return sanitized_foldername, sanitized_filename, description
+
+# --- утилита
+def safe_fetch_ai_metadata(text: str) -> dict:
+    """Тонкая обертка над _llm_fetch с дефолтами."""
+    try:
+        meta = _llm_fetch(text) or {}
+    except Exception:
+        meta = {}
+    # Заполняем обязательные поля безопасными значениями
+    meta.setdefault("category", "Unsorted")
+    meta.setdefault("subcategory", "")
+    meta.setdefault("issuer", "")
+    meta.setdefault("person", "")
+    meta.setdefault("doc_type", "")
+    meta.setdefault("date", "")
+    meta.setdefault("amount", "")
+    meta.setdefault("tags", [])
+    meta.setdefault("suggested_filename", "")
+    meta.setdefault("notes", "")
+    return meta
