@@ -1,17 +1,48 @@
 from __future__ import annotations
-import os
+
+import json
+import shutil
 from pathlib import Path
-from typing import Dict
+from typing import Any, Dict
 
 
-def sort_file(file_path: str, metadata: Dict[str, str], dry_run: bool = False) -> str:
-    """Return the target path where the file would be moved.
+def place_file(src_path: str | Path, metadata: Dict[str, Any], dest_root: str | Path, dry_run: bool = False) -> Path:
+    """Перемещает файл в структуру папок на основе метаданных.
 
-    When ``dry_run`` is False, the file is actually moved to the new location.
+    Создаёт вложенные папки (категория/подкатегория/issuer),
+    переименовывает файл вида ``DATE__NAME.ext`` и сохраняет рядом JSON
+    с теми же метаданными.
+
+    При ``dry_run=True`` только выводит предполагаемые действия.
+
+    Возвращает путь, по которому файл будет или был размещён.
     """
-    base_dir = Path("sorted")
-    base_dir.mkdir(parents=True, exist_ok=True)
-    target_path = base_dir / metadata["file_name"]
-    if not dry_run:
-        os.replace(file_path, target_path)
-    return str(target_path)
+
+    src = Path(src_path)
+    ext = src.suffix
+    name = metadata.get("suggested_name") or src.stem
+    date = metadata.get("date", "unknown-date")
+
+    new_name = f"{date}__{name}{ext}"
+
+    dest_dir = Path(dest_root)
+    for key in ("category", "subcategory", "issuer"):
+        value = metadata.get(key)
+        if value:
+            dest_dir /= value
+
+    dest_file = dest_dir / new_name
+    json_file = dest_file.with_suffix(dest_file.suffix + ".json")
+
+    if dry_run:
+        print(f"Would move {src} -> {dest_file}")
+        print(f"Would write metadata JSON to {json_file}")
+        return dest_file
+
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    shutil.move(str(src), dest_file)
+
+    with open(json_file, "w", encoding="utf-8") as f:
+        json.dump(metadata, f, ensure_ascii=False, indent=2)
+
+    return dest_file
