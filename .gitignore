@@ -22,3 +22,6 @@ venv/
 # Ignore example output files
 organized_folder/
 operation_log.txt
+
+# Local environment variables
+.env
