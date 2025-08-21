@@ -2,7 +2,9 @@ pytesseract
 PyMuPDF
 python-docx
 pandas
-rich
+openpyxl
+xlrd
+nltk
 python-pptx
 aiohttp
 requests

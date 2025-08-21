@@ -19,7 +19,6 @@ def analyze_text_with_llm(text: str) -> Dict[str, str]:
     сюда следует добавить обращение к API и обработку ответа.
     """
 
-    # TODO: Replace with real LLM integration.
     summary = text.strip()[:100]
     return {"summary": summary}
 
