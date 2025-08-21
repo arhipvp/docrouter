@@ -10,7 +10,7 @@ from PIL import Image
 import pytesseract
 
 from file_utils import collect_file_paths, read_file_data
-from data_processing_common import sanitize_filename
+from data_processing_common import build_storage_path, write_metadata
 from openrouter_client import fetch_metadata_from_llm
 from error_handling import handle_model_error
 
@@ -37,25 +37,6 @@ def extract_text_and_metadata(file_path: str) -> tuple[str, Dict[str, Any]]:
     return text, metadata
 
 
-def build_storage_path(base_path: str, info: Dict[str, Any], original_path: str) -> str:
-    """Сформировать путь назначения на основе метаданных LLM."""
-    category = info.get("category") or "Unsorted"
-    subcategory = info.get("subcategory") or "General"
-    org = info.get("person") or info.get("issuer") or "Unknown"
-
-    filename = info.get("suggested_filename") or os.path.splitext(os.path.basename(original_path))[0]
-    filename = sanitize_filename(filename)
-
-    date_part = info.get("date")
-    if date_part:
-        filename = f"{date_part}__{filename}"
-
-    ext = os.path.splitext(original_path)[1]
-    dest_dir = os.path.join(base_path, category, subcategory, org)
-    dest_file = os.path.join(dest_dir, f"{filename}{ext}")
-    return dest_file
-
-
 def process_file(file_path: str, output_path: str, dry_run: bool, logger: logging.Logger) -> None:
     """Обработать один файл: извлечение текста → LLM → перемещение и сохранение .json."""
     text, metadata = extract_text_and_metadata(file_path)
@@ -72,10 +53,13 @@ def process_file(file_path: str, output_path: str, dry_run: bool, logger: loggin
         )
         return
 
-    destination = build_storage_path(output_path, llm_info, file_path)
+    # Построить путь назначения (общая утилита)
+    destination = build_storage_path(llm_info, file_path, base_path=output_path)
 
     if dry_run:
         logger.info("Dry-run: would move %s -> %s", file_path, destination)
+        # Записать метаданные в режиме dry-run (утилита сама решит, как логировать/писать)
+        write_metadata(destination, llm_info, metadata, dry_run=True, logger=logger)
         return
 
     try:
@@ -83,10 +67,8 @@ def process_file(file_path: str, output_path: str, dry_run: bool, logger: loggin
         shutil.move(file_path, destination)
         logger.info("Moved %s -> %s", file_path, destination)
 
-        meta_path = destination + ".json"
-        with open(meta_path, "w", encoding="utf-8") as f:
-            json.dump({"llm": llm_info, "file": metadata}, f, ensure_ascii=False, indent=2)
-        logger.info("Wrote metadata %s", meta_path)
+        # Сохранить метаданные рядом с файлом (через общую утилиту)
+        write_metadata(destination, llm_info, metadata, dry_run=False, logger=logger)
     except Exception as e:
         logger.error("Failed to move %s: %s", file_path, e)
         handle_model_error(
