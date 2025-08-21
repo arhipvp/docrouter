@@ -24,7 +24,12 @@ from image_data_processing import (
 )
 
 from output_filter import filter_specific_output  # Import the context manager
-from nexa.gguf import NexaVLMInference, NexaTextInference  # Import model classes
+try:
+    from nexa.gguf import NexaVLMInference, NexaTextInference  # Import model classes
+except ModuleNotFoundError as exc:
+    raise ModuleNotFoundError(
+        "Не найден модуль 'nexa'. Установите пакет 'nexaai' согласно инструкции в README.md"
+    ) from exc
 
 def ensure_nltk_data():
     """Ensure that NLTK data is downloaded efficiently and quietly."""
