@@ -6,7 +6,6 @@ pandas
 openpyxl
 xlrd
 nltk
-rich
 python-pptx
 aiohttp
 requests
