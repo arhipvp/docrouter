@@ -3,6 +3,8 @@ from pathlib import Path
 import requests
 import yaml
 
+from .metadata_schema import validate_metadata
+
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 
 
@@ -44,6 +46,8 @@ def analyze_text(text: str) -> dict:
         raise RuntimeError("OpenRouter request failed") from exc
 
     try:
-        return response.json()
+        data = response.json()
     except ValueError as exc:  # невалидный JSON
         raise RuntimeError("Invalid JSON received from OpenRouter") from exc
+
+    return validate_metadata(data)
