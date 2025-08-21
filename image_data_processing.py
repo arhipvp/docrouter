@@ -1,16 +1,29 @@
 import os
 import re
 import time
+from PIL import Image
+import pytesseract
 from nltk.tokenize import word_tokenize
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
 from rich.progress import Progress, TextColumn, BarColumn, TimeElapsedColumn
-from data_processing_common import sanitize_filename  # Import sanitize_filename
+from data_processing_common import sanitize_filename, extract_file_metadata
+from analysis_module import analyze_text_with_llm
 
 
 def process_single_image(image_path, silent=False, log_file=None):
     """Process a single image file to generate metadata."""
     start_time = time.time()
+
+    # Extract text using OCR
+    with Image.open(image_path) as img:
+        extracted_text = pytesseract.image_to_string(img)
+
+    # Analyze text with LLM
+    analysis = analyze_text_with_llm(extracted_text)
+
+    # Get file metadata
+    metadata = extract_file_metadata(image_path)
 
     # Create a Progress instance for this file
     with Progress(
@@ -24,7 +37,13 @@ def process_single_image(image_path, silent=False, log_file=None):
     end_time = time.time()
     time_taken = end_time - start_time
 
-    message = f"File: {image_path}\nTime taken: {time_taken:.2f} seconds\nDescription: {description}\nFolder name: {foldername}\nGenerated filename: {filename}\n"
+    message = (
+        f"File: {image_path}\nTime taken: {time_taken:.2f} seconds\n"
+        f"Description: {description}\nFolder name: {foldername}\n"
+        f"Generated filename: {filename}\n"
+        f"Metadata: {metadata}\n"
+        f"Analysis: {analysis}\n"
+    )
     if silent:
         if log_file:
             with open(log_file, 'a') as f:
@@ -35,7 +54,10 @@ def process_single_image(image_path, silent=False, log_file=None):
         'file_path': image_path,
         'foldername': foldername,
         'filename': filename,
-        'description': description
+        'description': description,
+        'text': extracted_text,
+        'analysis': analysis,
+        'metadata': metadata,
     }
 
 
