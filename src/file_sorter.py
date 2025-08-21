@@ -1,9 +1,16 @@
 from __future__ import annotations
 
 import json
+import logging
 import shutil
 from pathlib import Path
 from typing import Any, Dict
+
+from config import LOG_LEVEL
+from logging_config import setup_logging
+
+logger = logging.getLogger(__name__)
+setup_logging(LOG_LEVEL, None)
 
 
 def place_file(src_path: str | Path, metadata: Dict[str, Any], dest_root: str | Path, dry_run: bool = False) -> Path:
@@ -35,14 +42,16 @@ def place_file(src_path: str | Path, metadata: Dict[str, Any], dest_root: str | 
     json_file = dest_file.with_suffix(dest_file.suffix + ".json")
 
     if dry_run:
-        print(f"Would move {src} -> {dest_file}")
-        print(f"Would write metadata JSON to {json_file}")
+        logger.info("Would move %s -> %s", src, dest_file)
+        logger.info("Would write metadata JSON to %s", json_file)
         return dest_file
 
     dest_dir.mkdir(parents=True, exist_ok=True)
     shutil.move(str(src), dest_file)
+    logger.info("Moved %s -> %s", src, dest_file)
 
     with open(json_file, "w", encoding="utf-8") as f:
         json.dump(metadata, f, ensure_ascii=False, indent=2)
+    logger.debug("Wrote metadata to %s", json_file)
 
     return dest_file
