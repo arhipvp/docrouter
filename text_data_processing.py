@@ -9,13 +9,13 @@ logger = logging.getLogger(__name__)
 
 # Опциональный обработчик ошибок
 try:
-    from error_handling import handle_model_error  # (file_path, error_str, response, log_file=None) -> None
+    from error_handling import handle_model_error
 except Exception:
-    handle_model_error = None  # graceful fallback
+    handle_model_error = None
 
-# Опциональный клиент кратких резюме (с ограничением параллелизма)
+# Опциональный клиент LLM
 try:
-    from llm_client import LLMClient  # ожидается интерфейс .generate_sync(prompt: str) -> str
+    from llm_client import LLMClient
 except Exception:
     LLMClient = None
 
@@ -24,15 +24,14 @@ MODEL = os.getenv("OPENROUTER_MODEL", "openai/gpt-4o-mini")
 MAX_CONCURRENCY = int(os.getenv("LLM_MAX_CONCURRENCY", "2"))
 llm_client = LLMClient(API_KEY, MODEL, max_concurrent_requests=MAX_CONCURRENCY) if (LLMClient and API_KEY) else None
 
-# Источник AI-метаданных: OpenRouter, иначе локальный анализатор
+# Источник AI-метаданных: OpenRouter или локальный анализатор
 try:
-    from openrouter_client import fetch_metadata_from_llm as _llm_fetch  # возвращает совместимый JSON
+    from openrouter_client import fetch_metadata_from_llm as _llm_fetch
     _LLM_SOURCE = "openrouter"
 except Exception:
     _LLM_SOURCE = "local"
 
     def _llm_fetch(text: str) -> dict:
-        """Фолбэк: локальный анализатор (если есть) → унифицированная схема, иначе безопасные дефолты."""
         try:
             from analysis_module import analyze_text_with_llm
             raw = analyze_text_with_llm(text) or {}
@@ -64,25 +63,16 @@ except Exception:
 
 
 def process_single_text_file(args, silent: bool = False, log_file: str | None = None):
-    """
-    Обработать один текстовый файл и сгенерировать метаданные.
-    args: tuple[str, str] -> (file_path, extracted_text)
-    """
+    """Обработать один текстовый файл и сгенерировать метаданные."""
     file_path, text = args
     start_time = time.time()
 
-    # 1) Локальные метаданные файла
     file_meta = extract_file_metadata(file_path)
-
-    # 2) AI-метаданные
     ai_meta = safe_fetch_ai_metadata(text)
 
-    # 3) Построение итоговых полей
     try:
         foldername, filename, description, ai_meta = generate_text_metadata(
-            text,
-            file_path,
-            precomputed_meta=ai_meta
+            text, file_path, precomputed_meta=ai_meta
         )
     except Exception as e:
         response = getattr(e, "response", "")
@@ -98,7 +88,7 @@ def process_single_text_file(args, silent: bool = False, log_file: str | None = 
                     pass
             if not silent:
                 logger.error(msg)
-        return None  # прерываем обработку текущего файла
+        return None
 
     time_taken = time.time() - start_time
     summary = f"{file_path} -> {foldername}/{filename} ({time_taken:.2f}s, source={_LLM_SOURCE})"
@@ -128,45 +118,28 @@ def process_text_files(text_tuples, silent: bool = False, log_file: str | None =
     return results
 
 
-def generate_text_metadata(
-    input_text: str,
-    file_path: str,
-    precomputed_meta: dict | None = None
-):
-    """
-    Построить описание, папку и имя файла на основе AI-метаданных.
-    Если precomputed_meta не передан — вызовет _llm_fetch(input_text).
-    """
-    # 1) Получаем AI-метаданные
+def generate_text_metadata(input_text: str, file_path: str, precomputed_meta: dict | None = None):
+    """Построить описание, папку и имя файла на основе AI-метаданных."""
     try:
         metadata = precomputed_meta if precomputed_meta is not None else _llm_fetch(input_text)
-        for k in ["category", "subcategory", "issuer", "person", "doc_type", "date", "amount", "tags", "suggested_filename", "notes"]:
+        for k in ["category", "subcategory", "issuer", "person", "doc_type", "date", "amount",
+                  "tags", "suggested_filename", "notes"]:
             metadata.setdefault(k, "" if k != "tags" else [])
     except Exception:
         metadata = {
-            "category": "Unsorted",
-            "subcategory": "",
-            "issuer": "",
-            "person": "",
-            "doc_type": "",
-            "date": "",
-            "amount": "",
-            "tags": [],
-            "suggested_filename": "",
-            "notes": ""
+            "category": "Unsorted", "subcategory": "", "issuer": "", "person": "",
+            "doc_type": "", "date": "", "amount": "", "tags": [], "suggested_filename": "", "notes": ""
         }
 
-    # 1a) Описание: приоритет notes → LLMClient → локальная эвристика
     description = (metadata.get("notes") or "").strip()
     if not description:
         description = try_summarize_with_client(input_text) or summarize_text_content(input_text)
 
-    # 2) Папка
-    parts = [metadata.get("category", ""), metadata.get("subcategory", ""), metadata.get("person") or metadata.get("issuer", "")]
+    parts = [metadata.get("category", ""), metadata.get("subcategory", ""),
+             metadata.get("person") or metadata.get("issuer", "")]
     parts = [sanitize_filename(p, max_words=2) for p in parts if p]
     foldername = os.path.join(*parts) if parts else "Unsorted"
 
-    # 3) Имя файла
     suggested = metadata.get("suggested_filename") or os.path.splitext(os.path.basename(file_path))[0]
     filename = sanitize_filename(suggested, max_words=3)
 
