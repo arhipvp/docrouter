@@ -4,16 +4,13 @@ import logging
 
 from data_processing_common import sanitize_filename, extract_file_metadata
 
-# Логгер
 logger = logging.getLogger(__name__)
 
-# Опциональный обработчик ошибок
 try:
     from error_handling import handle_model_error
 except Exception:
     handle_model_error = None
 
-# Источник AI-метаданных: OpenRouter или заглушка
 try:
     from openrouter_client import fetch_metadata_from_llm as _llm_fetch
     _LLM_SOURCE = "openrouter"
@@ -106,9 +103,6 @@ def generate_text_metadata(input_text: str, file_path: str, precomputed_meta: di
     filename = sanitize_filename(suggested, max_words=3)
 
     return foldername, filename, description, metadata
-
-
-# --- утилиты
 
 def safe_fetch_ai_metadata(text: str) -> dict:
     """Обёртка над _llm_fetch с дефолтами."""

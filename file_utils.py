@@ -1,8 +1,12 @@
 import os
-import fitz  # PyMuPDF
+import logging
+
+import fitz
 import docx
-import pandas as pd  # для Excel и CSV
-from pptx import Presentation  # для PPT/PPTX
+import pandas as pd
+from pptx import Presentation
+
+logger = logging.getLogger(__name__)
 
 
 def read_text_file(file_path: str) -> str | None:
@@ -12,7 +16,7 @@ def read_text_file(file_path: str) -> str | None:
         with open(file_path, 'r', encoding='utf-8', errors='ignore') as file:
             return file.read(max_chars)
     except Exception as e:
-        print(f"Error reading text file {file_path}: {e}")
+        logger.error("Error reading text file %s: %s", file_path, e)
         return None
 
 
@@ -22,7 +26,7 @@ def read_docx_file(file_path: str) -> str | None:
         doc = docx.Document(file_path)
         return '\n'.join(p.text for p in doc.paragraphs)
     except Exception as e:
-        print(f"Error reading DOCX file {file_path}: {e}")
+        logger.error("Error reading DOCX file %s: %s", file_path, e)
         return None
 
 
@@ -30,14 +34,14 @@ def read_pdf_file(file_path: str) -> str | None:
     """Прочитать текст из первых страниц PDF (через PyMuPDF)."""
     try:
         doc = fitz.open(file_path)
-        num_pages_to_read = 3  # можно настроить
+        num_pages_to_read = 3
         pages = []
         for i in range(min(num_pages_to_read, len(doc))):
             page = doc.load_page(i)
             pages.append(page.get_text())
         return '\n'.join(pages)
     except Exception as e:
-        print(f"Error reading PDF file {file_path}: {e}")
+        logger.error("Error reading PDF file %s: %s", file_path, e)
         return None
 
 
@@ -50,7 +54,7 @@ def read_spreadsheet_file(file_path: str) -> str | None:
             df = pd.read_excel(file_path)
         return df.to_string()
     except Exception as e:
-        print(f"Error reading spreadsheet file {file_path}: {e}")
+        logger.error("Error reading spreadsheet file %s: %s", file_path, e)
         return None
 
 
@@ -65,7 +69,7 @@ def read_ppt_file(file_path: str) -> str | None:
                     chunks.append(shape.text)
         return '\n'.join(chunks)
     except Exception as e:
-        print(f"Error reading PowerPoint file {file_path}: {e}")
+        logger.error("Error reading PowerPoint file %s: %s", file_path, e)
         return None
 
 
@@ -92,6 +96,6 @@ def collect_file_paths(base_path: str) -> list[str]:
     file_paths: list[str] = []
     for root, _, files in os.walk(base_path):
         for name in files:
-            if not name.startswith('.'):  # исключаем скрытые
+            if not name.startswith('.'):
                 file_paths.append(os.path.join(root, name))
     return file_paths
