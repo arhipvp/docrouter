@@ -8,15 +8,15 @@ from typing import Dict, Any
 
 from PIL import Image
 import pytesseract
-import urllib.request
-import urllib.error
 
 from file_utils import collect_file_paths, read_file_data
 from data_processing_common import build_storage_path, write_metadata
+from openrouter_client import fetch_metadata_from_llm
+from error_handling import handle_model_error
 
 
 def extract_text_and_metadata(file_path: str) -> tuple[str, Dict[str, Any]]:
-    """Extract text (using OCR if needed) and gather basic file metadata."""
+    """Извлечь текст (OCR для изображений) и базовые метаданные файла."""
     metadata: Dict[str, Any] = {
         "original_name": os.path.basename(file_path),
         "size": os.path.getsize(file_path),
@@ -37,64 +37,50 @@ def extract_text_and_metadata(file_path: str) -> tuple[str, Dict[str, Any]]:
     return text, metadata
 
 
-def call_llm(text: str, metadata: Dict[str, Any], retries: int = 2) -> Dict[str, Any]:
-    """Call OpenRouter LLM to classify document and return structured JSON."""
-    api_key = os.getenv("OPENROUTER_API_KEY")
-    if not api_key:
-        raise RuntimeError("OPENROUTER_API_KEY not set")
-    url = "https://openrouter.ai/api/v1/chat/completions"
-    headers = {
-        "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json",
-    }
-    prompt = (
-        "You are a document classifier. Extract fields as JSON with keys:"
-        " category, subcategory, date, issuer, person, document_type, amount, tags,"
-        " suggested_filename, note. Return only valid JSON."
-        f"\nText: {text}\nMetadata: {metadata}"
-    )
-    model = os.getenv("OPENROUTER_MODEL", "openai/gpt-3.5-turbo")
-    for attempt in range(retries):
-        try:
-            payload = json.dumps({
-                "model": model,
-                "messages": [{"role": "user", "content": prompt}],
-                "temperature": 0,
-            }).encode("utf-8")
-            req = urllib.request.Request(url, data=payload, headers=headers)
-            with urllib.request.urlopen(req, timeout=60) as resp:
-                data = json.loads(resp.read().decode("utf-8"))
-            content = data["choices"][0]["message"]["content"]
-            return json.loads(content)
-        except Exception as err:
-            last_err = err
-    raise last_err
-
-
 def process_file(file_path: str, output_path: str, dry_run: bool, logger: logging.Logger) -> None:
+    """Обработать один файл: извлечение текста → LLM → перемещение и сохранение .json."""
     text, metadata = extract_text_and_metadata(file_path)
+
     try:
-        llm_info = call_llm(text, metadata)
+        llm_info = fetch_metadata_from_llm(text)
     except Exception as e:
         logger.error("LLM failed for %s: %s", file_path, e)
-        llm_info = {"category": "Unsorted", "subcategory": "", "issuer": "", "person": "", "suggested_filename": os.path.splitext(os.path.basename(file_path))[0]}
+        handle_model_error(
+            file_path,
+            f"LLM error: {e}",
+            getattr(e, "response", ""),
+            unsorted_dir=os.path.join(output_path, "Unsorted"),
+        )
+        return
+
+    # Построить путь назначения (общая утилита)
+    destination = build_storage_path(llm_info, file_path, base_path=output_path)
+
+    if dry_run:
+        logger.info("Dry-run: would move %s -> %s", file_path, destination)
+        # Записать метаданные в режиме dry-run (утилита сама решит, как логировать/писать)
+        write_metadata(destination, llm_info, metadata, dry_run=True, logger=logger)
+        return
+
     try:
-        destination = build_storage_path(llm_info, file_path, base_path=output_path, dry_run=dry_run, logger=logger)
-        if dry_run:
-            logger.info("Dry-run: would move %s -> %s", file_path, destination)
-            write_metadata(destination, llm_info, metadata, dry_run=True, logger=logger)
-            return
+        os.makedirs(os.path.dirname(destination), exist_ok=True)
         shutil.move(file_path, destination)
         logger.info("Moved %s -> %s", file_path, destination)
+
+        # Сохранить метаданные рядом с файлом (через общую утилиту)
         write_metadata(destination, llm_info, metadata, dry_run=False, logger=logger)
     except Exception as e:
         logger.error("Failed to move %s: %s", file_path, e)
-        unsorted_dir = os.path.join(output_path, "Unsorted")
-        os.makedirs(unsorted_dir, exist_ok=True)
-        shutil.move(file_path, os.path.join(unsorted_dir, os.path.basename(file_path)))
+        handle_model_error(
+            file_path,
+            f"File move error: {e}",
+            "",
+            unsorted_dir=os.path.join(output_path, "Unsorted"),
+        )
 
 
 def process_input_folder(input_path: str, output_path: str, dry_run: bool, logger: logging.Logger) -> None:
+    """Обойти входную директорию и обработать все файлы."""
     for path in collect_file_paths(input_path):
         try:
             process_file(path, output_path, dry_run, logger)
@@ -103,15 +89,19 @@ def process_input_folder(input_path: str, output_path: str, dry_run: bool, logge
 
 
 def setup_logger(log_file: str | None) -> logging.Logger:
+    """Инициализировать логгер консоль + файл (опционально)."""
     logger = logging.getLogger("docrouter")
     logger.setLevel(logging.INFO)
+
     console = logging.StreamHandler()
     console.setFormatter(logging.Formatter("%(levelname)s: %(message)s"))
     logger.addHandler(console)
+
     if log_file:
         file_handler = logging.FileHandler(log_file)
         file_handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s: %(message)s"))
         logger.addHandler(file_handler)
+
     return logger
 
 

@@ -13,18 +13,7 @@ try:
 except Exception:
     handle_model_error = None
 
-# Опциональный клиент LLM
-try:
-    from llm_client import LLMClient
-except Exception:
-    LLMClient = None
-
-API_KEY = os.getenv("OPENROUTER_API_KEY")
-MODEL = os.getenv("OPENROUTER_MODEL", "openai/gpt-4o-mini")
-MAX_CONCURRENCY = int(os.getenv("LLM_MAX_CONCURRENCY", "2"))
-llm_client = LLMClient(API_KEY, MODEL, max_concurrent_requests=MAX_CONCURRENCY) if (LLMClient and API_KEY) else None
-
-# Источник AI-метаданных: OpenRouter или локальный анализатор
+# Источник AI-метаданных: OpenRouter или заглушка
 try:
     from openrouter_client import fetch_metadata_from_llm as _llm_fetch
     _LLM_SOURCE = "openrouter"
@@ -32,34 +21,7 @@ except Exception:
     _LLM_SOURCE = "local"
 
     def _llm_fetch(text: str) -> dict:
-        try:
-            from analysis_module import analyze_text_with_llm
-            raw = analyze_text_with_llm(text) or {}
-            return {
-                "category": raw.get("category") or raw.get("cat") or "Unsorted",
-                "subcategory": raw.get("subcategory", ""),
-                "issuer": raw.get("issuer") or raw.get("vendor", ""),
-                "person": raw.get("person", ""),
-                "doc_type": raw.get("doc_type") or raw.get("type", ""),
-                "date": raw.get("date", ""),
-                "amount": raw.get("amount", ""),
-                "tags": raw.get("tags", []) or [],
-                "suggested_filename": raw.get("suggested_filename", ""),
-                "notes": raw.get("notes") or raw.get("summary", "") or ""
-            }
-        except Exception as e:
-            return {
-                "category": "Unsorted",
-                "subcategory": "",
-                "issuer": "",
-                "person": "",
-                "doc_type": "",
-                "date": "",
-                "amount": "",
-                "tags": [],
-                "suggested_filename": "",
-                "notes": f"no analyzer available: {e}"
-            }
+        return {}
 
 
 def process_single_text_file(args, silent: bool = False, log_file: str | None = None):
@@ -133,7 +95,7 @@ def generate_text_metadata(input_text: str, file_path: str, precomputed_meta: di
 
     description = (metadata.get("notes") or "").strip()
     if not description:
-        description = try_summarize_with_client(input_text) or summarize_text_content(input_text)
+        description = summarize_text_content(input_text)
 
     parts = [metadata.get("category", ""), metadata.get("subcategory", ""),
              metadata.get("person") or metadata.get("issuer", "")]
@@ -165,19 +127,6 @@ def safe_fetch_ai_metadata(text: str) -> dict:
     meta.setdefault("suggested_filename", "")
     meta.setdefault("notes", "")
     return meta
-
-
-def try_summarize_with_client(input_text: str) -> str:
-    """Краткое описание через LLMClient (если доступен)."""
-    if not llm_client:
-        return ""
-    try:
-        prompt = "Summarize the following text in no more than three sentences:\n" + input_text
-        out = (llm_client.generate_sync(prompt) or "").strip()
-        words = out.split()
-        return " ".join(words[:150]) if len(words) > 150 else out
-    except Exception:
-        return ""
 
 
 def summarize_text_content(text: str) -> str:
