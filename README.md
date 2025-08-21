@@ -15,5 +15,6 @@ cp env.example .env
 - `OPENROUTER_API_KEY` — ключ для доступа к OpenRouter;
 - `DB_URL` — строка подключения к базе данных;
 - `LOG_LEVEL` — уровень логирования (например, `INFO`);
-- `TESSERACT_LANG` — язык для OCR Tesseract (например, `eng`).
+- `TESSERACT_LANG` — язык для OCR Tesseract (например, `eng`);
+- `OUTPUT_DIR` — папка, куда будут сохраняться обработанные документы (например, `Archive`).
 
