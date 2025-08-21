@@ -163,53 +163,18 @@ def generate_text_metadata(
     task_id: int,
     precomputed_meta: dict | None = None
 ):
-    """
-    Построить описание, папку и имя файла на основе AI-метаданных.
-    Если precomputed_meta не передан — вызовет _llm_fetch(input_text).
-    """
+    """Minimal wrapper that relies on LLM for metadata generation."""
     total_steps = 2
 
-    # 1) Получаем AI-метаданные
-    try:
-        metadata = precomputed_meta if precomputed_meta is not None else _llm_fetch(input_text)
-        # Гарантируем наличие ключей
-        for k in ["category", "subcategory", "issuer", "person", "doc_type", "date", "amount", "tags", "suggested_filename", "notes"]:
-            metadata.setdefault(k, "" if k != "tags" else [])
-    except Exception:
-        metadata = {
-            "category": "Unsorted",
-            "subcategory": "",
-            "issuer": "",
-            "person": "",
-            "doc_type": "",
-            "date": "",
-            "amount": "",
-            "tags": [],
-            "suggested_filename": "",
-            "notes": ""
-        }
+    metadata = precomputed_meta if precomputed_meta is not None else _llm_fetch(input_text)
     progress.update(task_id, advance=1 / total_steps)
 
-    # 1a) Описание: приоритет notes → LLMClient → локальная эвристика
     description = (metadata.get("notes") or "").strip()
-    if not description:
-        description = try_summarize_with_client(input_text) or summarize_text_content(input_text)
-
-    # 2) Папка
-    parts = [
-        metadata.get("category", ""),
-        metadata.get("subcategory", ""),
-        metadata.get("person") or metadata.get("issuer", ""),
-    ]
-    parts = [sanitize_filename(p, max_words=2) for p in parts if p]
-    foldername = os.path.join(*parts) if parts else "Unsorted"
-
-    # 3) Имя файла
-    suggested = metadata.get("suggested_filename")
-    if not suggested:
-        # если ИИ не предложил имя — берем исходное без расширения
-        suggested = os.path.splitext(os.path.basename(file_path))[0]
-    filename = sanitize_filename(suggested, max_words=3)
+    filename = sanitize_filename(
+        metadata.get("suggested_filename") or os.path.splitext(os.path.basename(file_path))[0],
+        max_words=3,
+    )
+    foldername = sanitize_filename(metadata.get("category", "Unsorted"), max_words=2)
 
     progress.update(task_id, advance=1 / total_steps)
 
