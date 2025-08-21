@@ -6,9 +6,7 @@ import pytesseract
 from nltk.tokenize import word_tokenize
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
-from rich.progress import Progress, TextColumn, BarColumn, TimeElapsedColumn
 
-from data_processing_common import sanitize_filename  # Import sanitize_filename
 from error_handling import handle_model_error
 
 from data_processing_common import sanitize_filename, extract_file_metadata
@@ -30,19 +28,12 @@ def process_single_image(image_path, silent=False, log_file=None):
     # Get file metadata
     metadata = extract_file_metadata(image_path)
 
-    # Create a Progress instance for this file
-    with Progress(
-        TextColumn("[progress.description]{task.description}"),
-        BarColumn(),
-        TimeElapsedColumn()
-    ) as progress:
-        task_id = progress.add_task(f"Processing {os.path.basename(image_path)}", total=1.0)
-        try:
-            foldername, filename, description = generate_image_metadata(image_path, progress, task_id)
-        except Exception as e:
-            response = getattr(e, 'response', '')
-            handle_model_error(image_path, str(e), response, log_file=log_file)
-            return None
+    try:
+        foldername, filename, description = generate_image_metadata(image_path)
+    except Exception as e:
+        response = getattr(e, 'response', '')
+        handle_model_error(image_path, str(e), response, log_file=log_file)
+        return None
 
     end_time = time.time()
     time_taken = end_time - start_time
@@ -81,16 +72,12 @@ def process_image_files(image_paths, silent=False, log_file=None):
     return data_list
 
 
-def generate_image_metadata(image_path, progress, task_id):
+def generate_image_metadata(image_path):
     """Generate description, folder name, and filename for an image file."""
-
-    # Total steps in processing an image
-    total_steps = 3
 
     # Step 1: Generate description using file name
     base_name = os.path.splitext(os.path.basename(image_path))[0]
     description = base_name.replace('_', ' ')
-    progress.update(task_id, advance=1 / total_steps)
 
     # Remove any unwanted words and stopwords
     unwanted_words = set([
@@ -134,13 +121,11 @@ def generate_image_metadata(image_path, progress, task_id):
     if not filename:
         filename = 'image_' + base_name
     sanitized_filename = sanitize_filename(filename, max_words=3)
-    progress.update(task_id, advance=1 / total_steps)
 
     # Step 3: Generate folder name
     foldername = clean_text(base_name, max_words=2)
     if not foldername:
         foldername = 'images'
     sanitized_foldername = sanitize_filename(foldername, max_words=2)
-    progress.update(task_id, advance=1 / total_steps)
 
     return sanitized_foldername, sanitized_filename, description

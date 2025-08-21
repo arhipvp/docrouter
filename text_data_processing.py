@@ -1,6 +1,5 @@
 import os
 import time
-from rich.progress import Progress, TextColumn, BarColumn, TimeElapsedColumn
 
 # --- imports из обеих веток
 from data_processing_common import sanitize_filename, extract_file_metadata
@@ -82,37 +81,28 @@ def process_single_text_file(args, silent: bool = False, log_file: str | None = 
     # 2) AI-метаданные (через OpenRouter или локальный фолбэк)
     ai_meta = safe_fetch_ai_metadata(text)
 
-    # 3) Прогресс-бар и построение итоговых полей
-    with Progress(
-        TextColumn("[progress.description]{task.description}"),
-        BarColumn(),
-        TimeElapsedColumn()
-    ) as progress:
-        task_id = progress.add_task(f"Processing {os.path.basename(file_path)}", total=1.0)
-
-        try:
-            foldername, filename, description, ai_meta = generate_text_metadata(
-                text,
-                file_path,
-                progress,
-                task_id,
-                precomputed_meta=ai_meta
-            )
-        except Exception as e:
-            response = getattr(e, "response", "")
-            if handle_model_error:
-                handle_model_error(file_path, str(e), response, log_file=log_file)
+    # 3) Построение итоговых полей
+    try:
+        foldername, filename, description, ai_meta = generate_text_metadata(
+            text,
+            file_path,
+            precomputed_meta=ai_meta
+        )
+    except Exception as e:
+        response = getattr(e, "response", "")
+        if handle_model_error:
+            handle_model_error(file_path, str(e), response, log_file=log_file)
+        else:
+            msg = f"[docrouter] LLM/metadata error for {file_path}: {e} | response={response}"
+            if log_file:
+                try:
+                    with open(log_file, "a", encoding="utf-8") as f:
+                        f.write(msg + "\n")
+                except Exception:
+                    pass
             else:
-                msg = f"[docrouter] LLM/metadata error for {file_path}: {e} | response={response}"
-                if log_file:
-                    try:
-                        with open(log_file, "a", encoding="utf-8") as f:
-                            f.write(msg + "\n")
-                    except Exception:
-                        pass
-                else:
-                    print(msg)
-            return None  # прерываем обработку текущего файла
+                print(msg)
+        return None  # прерываем обработку текущего файла
 
     time_taken = time.time() - start_time
 
@@ -159,16 +149,12 @@ def process_text_files(text_tuples, silent: bool = False, log_file: str | None =
 def generate_text_metadata(
     input_text: str,
     file_path: str,
-    progress: Progress,
-    task_id: int,
     precomputed_meta: dict | None = None
 ):
     """
     Построить описание, папку и имя файла на основе AI-метаданных.
     Если precomputed_meta не передан — вызовет _llm_fetch(input_text).
     """
-    total_steps = 2
-
     # 1) Получаем AI-метаданные
     try:
         metadata = precomputed_meta if precomputed_meta is not None else _llm_fetch(input_text)
@@ -188,8 +174,6 @@ def generate_text_metadata(
             "suggested_filename": "",
             "notes": ""
         }
-    progress.update(task_id, advance=1 / total_steps)
-
     # 1a) Описание: приоритет notes → LLMClient → локальная эвристика
     description = (metadata.get("notes") or "").strip()
     if not description:
@@ -210,8 +194,6 @@ def generate_text_metadata(
         # если ИИ не предложил имя — берем исходное без расширения
         suggested = os.path.splitext(os.path.basename(file_path))[0]
     filename = sanitize_filename(suggested, max_words=3)
-
-    progress.update(task_id, advance=1 / total_steps)
 
     return foldername, filename, description, metadata
 
