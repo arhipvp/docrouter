@@ -1,5 +1,6 @@
 import pytest
-import requests
+
+requests = pytest.importorskip("requests")
 from src.llm_client import analyze_text
 
 

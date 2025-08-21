@@ -2,8 +2,10 @@ from pathlib import Path
 import sys
 import types
 
-from PIL import Image, ImageDraw
 import pytest
+
+pytest.importorskip("PIL")
+from PIL import Image, ImageDraw
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from extractor import extract_text
