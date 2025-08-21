@@ -1,12 +1,11 @@
 pytesseract
+Pillow
 PyMuPDF
 python-docx
 pandas
 openpyxl
 xlrd
-nltk
 python-pptx
-aiohttp
 requests
 python-dotenv
 PyYAML
