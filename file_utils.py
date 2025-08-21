@@ -1,6 +1,7 @@
 import os
 import re
 import shutil
+import json
 from PIL import Image
 import pytesseract
 import fitz  # PyMuPDF
@@ -127,3 +128,56 @@ def separate_files_by_type(file_paths):
     return image_files, text_files  # Return only two values
 
 # TODO:ebook: '.mobi', '.azw', '.azw3', '.epub',
+
+
+def build_path_from_metadata(metadata, base_dir):
+    """Собрать путь для хранения файла на основе данных из JSON.
+
+    Ожидается, что ``metadata`` содержит поля ``category``, ``subcategory``,
+    ``person`` или ``issuer`` и ``proposed_filename``. Отсутствующие значения
+    заменяются на разумные заглушки.
+
+    Args:
+        metadata (dict): Метаданные, полученные от модели.
+        base_dir (str): Корневая папка архива.
+
+    Returns:
+        str: Абсолютный путь к файлу без расширения.
+    """
+
+    category = metadata.get('category') or 'Unsorted'
+    subcategory = metadata.get('subcategory') or 'General'
+    person_or_org = metadata.get('person') or metadata.get('issuer') or 'Unknown'
+    filename = metadata.get('proposed_filename') or metadata.get('filename') or 'document'
+
+    return os.path.join(base_dir, category, subcategory, person_or_org, filename)
+
+
+def save_file_with_metadata(src_path, metadata, base_dir, move=False):
+    """Переместить или скопировать файл и сохранить рядом JSON с метаданными.
+
+    Args:
+        src_path (str): Исходный файл.
+        metadata (dict): Метаданные, описывающие файл.
+        base_dir (str): Корневой каталог назначения.
+        move (bool): Если ``True``, файл перемещается; иначе копируется.
+
+    Returns:
+        tuple[str, str]: Пути к сохранённому файлу и JSON с метаданными.
+    """
+
+    dest_base = build_path_from_metadata(metadata, base_dir)
+    extension = os.path.splitext(src_path)[1]
+    dest_path = dest_base + extension
+    os.makedirs(os.path.dirname(dest_path), exist_ok=True)
+
+    if move:
+        shutil.move(src_path, dest_path)
+    else:
+        shutil.copy2(src_path, dest_path)
+
+    metadata_path = dest_base + '.json'
+    with open(metadata_path, 'w', encoding='utf-8') as f:
+        json.dump(metadata, f, ensure_ascii=False, indent=2)
+
+    return dest_path, metadata_path

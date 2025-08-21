@@ -1,0 +1,28 @@
+"""LLM analysis module.
+
+Этот модуль предоставляет функцию-обёртку для анализа текста при
+помощи LLM. В текущей версии используется заглушка, которую при
+необходимости можно заменить реальным вызовом к OpenRouter или другой
+службе ИИ.
+"""
+
+from __future__ import annotations
+
+from typing import Dict
+
+
+def analyze_text_with_llm(text: str) -> Dict[str, str]:
+    """Отправляет текст в LLM и возвращает результаты анализа.
+
+    Поскольку в тестовой среде отсутствует доступ к внешним сервисам,
+    функция возвращает простую заглушку. При интеграции с реальным LLM
+    сюда следует добавить обращение к API и обработку ответа.
+    """
+
+    # TODO: Replace with real LLM integration.
+    summary = text.strip()[:100]
+    return {"summary": summary}
+
+
+__all__ = ["analyze_text_with_llm"]
+
