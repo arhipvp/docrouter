@@ -9,7 +9,7 @@ from fastapi import FastAPI, UploadFile, File, HTTPException
 
 from config import load_config
 from file_utils import extract_text
-from generate_metadata import generate_metadata
+import metadata_generation
 from file_sorter import place_file
 
 app = FastAPI()
@@ -36,7 +36,7 @@ async def upload_file(file: UploadFile = File(...), dry_run: bool = False):
             dest.write(contents)
 
         text = extract_text(temp_path, language=config.TESSERACT_LANG)
-        metadata = generate_metadata(str(temp_path))
+        metadata = metadata_generation.generate_metadata(text)
         metadata["extracted_text"] = text
 
         dest_path = place_file(str(temp_path), metadata, config.OUTPUT_DIR, dry_run=dry_run)
