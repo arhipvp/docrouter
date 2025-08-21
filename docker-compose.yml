@@ -1,0 +1,12 @@
+version: "3.9"
+services:
+  docrouter:
+    build: .
+    container_name: docrouter
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./data:/data
+      - ./prompts:/app/prompts:ro

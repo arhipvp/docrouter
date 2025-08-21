@@ -1,0 +1,25 @@
+[project]
+name = "docrouter"
+version = "0.3.0"
+description = "Local OCR + Family document routing (with per-vendor buckets)"
+authors = [{name="You"}]
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi",
+  "uvicorn[standard]",
+  "python-multipart",
+  "pydantic>=2",
+  "Pillow",
+  "python-dotenv",
+  "httpx",
+  "langdetect",
+]
+[project.scripts]
+docrouter = "docrouter.app:main"
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+[tool.setuptools]
+package-dir = {"" = "src"}
+[tool.setuptools.packages.find]
+where = ["src"]
