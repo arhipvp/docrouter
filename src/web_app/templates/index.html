@@ -20,7 +20,9 @@
             </select>
             <input type="submit" value="Upload" />
         </form>
+
         <progress id="upload-progress" max="100" value="0"></progress>
+
         <div id="image-upload-block">
             <h2>Загрузить набор изображений</h2>
             <div id="image-drop-area">
@@ -30,12 +32,14 @@
             <ul id="selected-images"></ul>
             <button id="upload-images-btn" type="button">Загрузить набор изображений</button>
         </div>
+
         <h2>Структура папок</h2>
         <div id="folder-controls">
             <input type="text" id="new-folder-name" placeholder="Имя папки">
             <button id="create-folder-btn">Создать папку</button>
         </div>
         <ul id="folder-tree"></ul>
+
         <div id="folder-ops">
             <h3>Управление папками</h3>
             <form id="create-folder-form">
@@ -53,7 +57,10 @@
             </form>
             <div id="folder-message"></div>
         </div>
+
         <h2>Загруженные файлы</h2>
+
+        <!-- Оба селектора сохранены -->
         <label for="display-lang">Язык отображения:</label>
         <select id="display-lang">
             <option value="">Оригинал</option>
@@ -61,7 +68,15 @@
             <option value="rus">Русский</option>
             <option value="deu">Deutsch</option>
         </select>
+
+        <label for="tag-language">Язык тегов:</label>
+        <select id="tag-language">
+            <option value="ru" selected>Русский</option>
+            <option value="en">English</option>
+        </select>
+
         <ul id="files"></ul>
+
         <div id="ai-exchange">
             <h3>Отправлено</h3>
             <pre id="ai-sent"></pre>
@@ -69,6 +84,7 @@
             <pre id="ai-received"></pre>
         </div>
     </div>
+
     <div id="edit-modal" class="modal">
         <div class="modal-content">
             <span class="close" data-close="edit-modal">&times;</span>
@@ -83,6 +99,7 @@
             </form>
         </div>
     </div>
+
     <div id="missing-modal" class="modal">
         <div class="modal-content">
             <h3>Создать недостающие папки?</h3>
@@ -90,6 +107,7 @@
             <button id="missing-confirm">Продолжить</button>
         </div>
     </div>
+
     <div id="rename-modal" class="modal">
         <div class="modal-content">
             <span class="close" data-close="rename-modal">&times;</span>
@@ -98,6 +116,7 @@
             <button id="rename-confirm">Сохранить</button>
         </div>
     </div>
+
     <div id="delete-modal" class="modal">
         <div class="modal-content">
             <span class="close" data-close="delete-modal">&times;</span>
@@ -105,10 +124,22 @@
             <button id="delete-confirm">Удалить</button>
         </div>
     </div>
+
     <div id="preview-modal" class="modal">
         <div class="modal-content">
             <span class="close" data-close="preview-modal">&times;</span>
             <iframe id="preview-frame"></iframe>
+        </div>
+    </div>
+
+    <div id="chat-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" data-close="chat-modal">&times;</span>
+            <div id="chat-history"></div>
+            <form id="chat-form">
+                <input type="text" id="chat-input" placeholder="Сообщение" />
+                <button type="submit">Отправить</button>
+            </form>
         </div>
     </div>
 </body>

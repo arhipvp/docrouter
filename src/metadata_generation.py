@@ -72,7 +72,7 @@ class OpenRouterAnalyzer(MetadataAnalyzer):
             f"{tree_json}\n"
             "Если ни одна папка не подходит, предложи новую category/subcategory.\n"
             "Return a JSON object with the fields: category, subcategory, needs_new_folder (boolean), issuer, person, doc_type,\n"
-            "date, amount, tags (list of strings), suggested_filename, description.\n"
+            "date, amount, tags_ru (list of strings), tags_en (list of strings), suggested_filename, description.\n"
             f"Document text:\n{text}"
         )
 
@@ -118,6 +118,8 @@ class RegexAnalyzer(MetadataAnalyzer):
             "date": date_match.group(1) if date_match else None,
             "amount": amount_match.group(1) if amount_match else None,
             "tags": [],
+            "tags_ru": [],
+            "tags_en": [],
             "suggested_filename": None,
             "description": None,
         }
@@ -139,8 +141,8 @@ def generate_metadata(
 
     The returned dictionary always contains the following fields:
     ``category``, ``subcategory``, ``issuer``, ``person``, ``doc_type``,
-    ``date``, ``amount``, ``tags``, ``suggested_filename``,
-    ``description``, ``needs_new_folder``.
+    ``date``, ``amount``, ``tags``, ``tags_ru``, ``tags_en``,
+    ``suggested_filename``, ``description``, ``needs_new_folder``.
     """
 
     if analyzer is None:
@@ -169,6 +171,8 @@ def generate_metadata(
         "date": None,
         "amount": None,
         "tags": [],
+        "tags_ru": [],
+        "tags_en": [],
         "suggested_filename": None,
         "description": None,
         "needs_new_folder": False,

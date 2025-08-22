@@ -31,6 +31,8 @@ def add_file(
         "id": file_id,
         "filename": filename,
         "metadata": metadata,
+        "tags_ru": metadata.get("tags_ru", []),
+        "tags_en": metadata.get("tags_en", []),
         "path": path,
         "status": status,
         "prompt": prompt,
@@ -38,6 +40,7 @@ def add_file(
         "missing": missing or [],
         "translated_text": translated_text,
         "translation_lang": translation_lang,
+        "chat_history": [],
     }
     if sources is not None:
         _storage[file_id]["sources"] = sources
@@ -66,12 +69,17 @@ def update_file(
     translation_lang: str | None = None,
 ) -> None:
     """Обновить данные существующей записи."""
-
-    if file_id not in _storage:
+    record = _storage.get(file_id)
+    if record is None:
         return
-    record = _storage[file_id]
+
     if metadata:
         record.setdefault("metadata", {}).update(metadata)
+        if "tags_ru" in metadata:
+            record["tags_ru"] = metadata["tags_ru"]
+        if "tags_en" in metadata:
+            record["tags_en"] = metadata["tags_en"]
+
     if path is not None:
         record["path"] = path
     if status is not None:
@@ -90,7 +98,6 @@ def update_file(
         record["translation_lang"] = translation_lang
 
 
-
 def delete_file(file_id: str) -> None:
     """Удалить запись о файле."""
     _storage.pop(file_id, None)
@@ -100,3 +107,20 @@ def list_files() -> list[Dict[str, Any]]:
     """Получить список всех файлов."""
     return list(_storage.values())
 
+
+def add_chat_message(file_id: str, role: str, message: str) -> List[Dict[str, str]]:
+    """Добавить запись в историю чата."""
+    record = _storage.get(file_id)
+    if record is None:
+        return []
+    history: List[Dict[str, str]] = record.setdefault("chat_history", [])
+    history.append({"role": role, "message": message})
+    return history
+
+
+def get_chat_history(file_id: str) -> List[Dict[str, str]]:
+    """Получить историю чата по файлу."""
+    record = _storage.get(file_id)
+    if record is None:
+        return []
+    return record.setdefault("chat_history", [])
