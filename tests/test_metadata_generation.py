@@ -1,7 +1,12 @@
 import json
 from typing import Any, Dict
 
-from metadata_generation import generate_metadata, OpenRouterAnalyzer, RegexAnalyzer
+from metadata_generation import (
+    generate_metadata,
+    OpenRouterAnalyzer,
+    RegexAnalyzer,
+    summarize_text,
+)
 
 
 def test_generate_metadata_without_api_key(monkeypatch):
@@ -81,3 +86,10 @@ def test_folder_tree_in_prompt(monkeypatch):
     assert instruction in captured["prompt"]
     assert instruction in result["prompt"]
     assert result["metadata"]["needs_new_folder"] is True
+
+
+def test_summarize_text_without_api_key(monkeypatch):
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+    text = "abc" * 100
+    summary = summarize_text(text)
+    assert summary == text[:200]

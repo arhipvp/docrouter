@@ -50,7 +50,8 @@ document.addEventListener('DOMContentLoaded', () => {
       li.dataset.id = f.id;
 
       const category = f.metadata?.category ?? '';
-      li.innerHTML = `<strong>${f.filename}</strong> — ${category} — ${f.status} `;
+      const summary = f.summary ? ` — <em>${f.summary}</em>` : '';
+      li.innerHTML = `<strong>${f.filename}</strong> — ${category} — ${f.status}${summary} `;
 
       // скачать
       const link = document.createElement('a');

@@ -89,6 +89,7 @@ def test_upload_retrieve_and_download(tmp_path, monkeypatch):
 
     monkeypatch.setattr(server, "extract_text", _mock_extract_text)
     monkeypatch.setattr(server.metadata_generation, "generate_metadata", _mock_generate_metadata)
+    monkeypatch.setattr(server.metadata_generation, "summarize_text", lambda text: "SUMMARY")
     server.config.output_dir = str(tmp_path)
 
     with LiveClient(app) as client:
@@ -109,6 +110,7 @@ def test_upload_retrieve_and_download(tmp_path, monkeypatch):
             "prompt",
             "raw_response",
             "missing",
+            "summary",
         } <= set(data.keys())
         file_id = data["id"]
         assert data["filename"] == "example.txt"
@@ -119,6 +121,7 @@ def test_upload_retrieve_and_download(tmp_path, monkeypatch):
         assert captured["language"] == "deu"
         assert data["prompt"] == "PROMPT"
         assert data["raw_response"] == "{\"date\": \"2024-01-01\"}"
+        assert data["summary"] == "SUMMARY"
 
         # Чтение метаданных
         meta = client.get(f"/metadata/{file_id}")
@@ -149,6 +152,7 @@ def test_upload_images_returns_sources(tmp_path, monkeypatch):
     monkeypatch.setattr(server, "merge_images_to_pdf", _mock_merge)
     monkeypatch.setattr(server, "extract_text", _mock_extract_text)
     monkeypatch.setattr(server.metadata_generation, "generate_metadata", _mock_generate_metadata)
+    monkeypatch.setattr(server.metadata_generation, "summarize_text", lambda text: "SUMMARY")
     server.config.output_dir = str(tmp_path)
 
     with LiveClient(app) as client:
@@ -166,6 +170,7 @@ def test_upload_images_returns_sources(tmp_path, monkeypatch):
         assert data["sources"] == ["a.jpg", "b.jpg"]
         assert data["metadata"]["language"] == "deu"
         assert captured["language"] == "deu"
+        assert data["summary"] == "SUMMARY"
         file_id = data["id"]
 
         record = server.database.get_file(file_id)
@@ -193,6 +198,7 @@ def test_upload_images_download_and_metadata(tmp_path, monkeypatch):
     monkeypatch.setattr(server, "merge_images_to_pdf", _mock_merge)
     monkeypatch.setattr(server, "extract_text", _mock_extract_text)
     monkeypatch.setattr(server.metadata_generation, "generate_metadata", _mock_generate_metadata)
+    monkeypatch.setattr(server.metadata_generation, "summarize_text", lambda text: "SUMMARY")
     server.config.output_dir = str(tmp_path)
 
     img1 = io.BytesIO()
@@ -215,6 +221,7 @@ def test_upload_images_download_and_metadata(tmp_path, monkeypatch):
         assert data["filename"].endswith(".pdf")
         assert data["sources"] == ["a.jpg", "b.jpg"]
         assert data["metadata"]["extracted_text"] == "page1\npage2"
+        assert data["summary"] == "SUMMARY"
 
         file_id = data["id"]
 
@@ -239,6 +246,7 @@ def test_details_endpoint_returns_full_record(tmp_path, monkeypatch):
 
     monkeypatch.setattr(server, "extract_text", _mock_extract_text)
     monkeypatch.setattr(server.metadata_generation, "generate_metadata", _mock_generate_metadata)
+    monkeypatch.setattr(server.metadata_generation, "summarize_text", lambda text: "SUMMARY")
     server.config.output_dir = str(tmp_path)
 
     with LiveClient(app) as client:
@@ -375,6 +383,7 @@ def test_upload_pending_then_finalize(tmp_path, monkeypatch):
 
     monkeypatch.setattr(server, "extract_text", _mock_extract_text)
     monkeypatch.setattr(server.metadata_generation, "generate_metadata", _metadata_pending)
+    monkeypatch.setattr(server.metadata_generation, "summarize_text", lambda text: "SUMMARY")
 
     with LiveClient(app) as client:
         resp = client.post("/upload", files={"file": ("doc.txt", b"content")})
@@ -386,6 +395,7 @@ def test_upload_pending_then_finalize(tmp_path, monkeypatch):
             "Финансы/Банки",
             "Финансы/Банки/Sparkasse",
         ]
+        assert data["summary"] == "SUMMARY"
         file_id = data["id"]
 
         resp_folder = client.post("/folders", params={"path": data["missing"][-1]})

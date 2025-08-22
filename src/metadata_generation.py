@@ -32,6 +32,7 @@ __all__ = [
     "MetadataAnalyzer",
     "OpenRouterAnalyzer",
     "RegexAnalyzer",
+    "summarize_text",
 ]
 
 
@@ -122,6 +123,44 @@ class RegexAnalyzer(MetadataAnalyzer):
             "description": None,
         }
         return {"prompt": None, "raw_response": None, "metadata": metadata}
+
+
+def summarize_text(text: str, api_key: Optional[str] = None, model: Optional[str] = None) -> str:
+    """Summarize *text* using an OpenRouter-hosted LLM.
+
+    If no API key is configured or the request fails, a simple fallback
+    returns the first 200 characters of the text.
+    """
+
+    key = api_key or OPENROUTER_API_KEY
+    if not key:
+        return text[:200]
+
+    mdl = model or OPENROUTER_MODEL or "openai/chatgpt-4o-mini"
+    base = OPENROUTER_BASE_URL or "https://openrouter.ai/api/v1"
+    api_url = base.rstrip("/") + "/chat/completions"
+    prompt = (
+        "Сделай краткое резюме следующего документа (макс. 3 предложения):\n"
+        f"{text}"
+    )
+    payload = {
+        "model": mdl,
+        "messages": [{"role": "user", "content": prompt}],
+        "temperature": 0.2,
+    }
+    headers = {
+        "Authorization": f"Bearer {key}",
+        "HTTP-Referer": OPENROUTER_SITE_URL or "https://github.com/docrouter",
+        "X-Title": OPENROUTER_SITE_NAME or "DocRouter Summarizer",
+    }
+
+    try:
+        response = requests.post(api_url, json=payload, headers=headers, timeout=60)
+        response.raise_for_status()
+        return response.json()["choices"][0]["message"]["content"].strip()
+    except Exception as exc:  # pragma: no cover - network failures
+        logger.error("Failed to summarize text: %s", exc)
+        return text[:200]
 
 
 def generate_metadata(

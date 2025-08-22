@@ -103,6 +103,7 @@ async def upload_file(
         metadata = meta_result["metadata"]
         metadata["extracted_text"] = text
         metadata["language"] = lang
+        summary = metadata_generation.summarize_text(text)
 
         # Раскладываем файл по директориям без создания недостающих
         dest_path, missing = place_file(
@@ -126,8 +127,9 @@ async def upload_file(
             "pending",
             meta_result.get("prompt"),
             meta_result.get("raw_response"),
+            summary=summary,
         )
-        return {"id": file_id, "status": "pending", "missing": missing}
+        return {"id": file_id, "status": "pending", "missing": missing, "summary": summary}
 
     status = "dry_run" if dry_run else "processed"
 
@@ -141,6 +143,7 @@ async def upload_file(
         meta_result.get("prompt"),
         meta_result.get("raw_response"),
         [],  # missing
+        summary=summary,
     )
 
     return {
@@ -152,6 +155,7 @@ async def upload_file(
         "missing": [],
         "prompt": meta_result.get("prompt"),
         "raw_response": meta_result.get("raw_response"),
+        "summary": summary,
     }
 
 
@@ -194,6 +198,7 @@ async def upload_images(
         metadata = meta_result["metadata"]
         metadata["extracted_text"] = text
         metadata["language"] = lang
+        summary = metadata_generation.summarize_text(text)
 
         dest_path, missing = place_file(
             str(pdf_path),
@@ -219,8 +224,9 @@ async def upload_images(
             meta_result.get("raw_response"),
             missing,
             sources=sources,
+            summary=summary,
         )
-        return {"id": file_id, "status": "pending", "missing": missing, "sources": sources}
+        return {"id": file_id, "status": "pending", "missing": missing, "sources": sources, "summary": summary}
 
     status = "dry_run" if dry_run else "processed"
     database.add_file(
@@ -233,6 +239,7 @@ async def upload_images(
         meta_result.get("raw_response"),
         [],
         sources=sources,
+        summary=summary,
     )
 
     return {
@@ -245,6 +252,7 @@ async def upload_images(
         "prompt": meta_result.get("prompt"),
         "raw_response": meta_result.get("raw_response"),
         "sources": sources,
+        "summary": summary,
     }
 
 
@@ -306,6 +314,7 @@ async def update_file(file_id: str, data: dict = Body(...)):
     prompt = data.get("prompt")
     raw_response = data.get("raw_response")
     missing = data.get("missing")
+    summary = data.get("summary")
 
     old_path = Path(record.get("path", ""))
     if not old_path.exists():
@@ -343,6 +352,7 @@ async def update_file(file_id: str, data: dict = Body(...)):
         prompt=prompt,
         raw_response=raw_response,
         missing=missing,
+        summary=summary,
     )
     return database.get_file(file_id)
 
