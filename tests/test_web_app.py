@@ -10,8 +10,6 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "..", "src"))
 
 # Настраиваем окружение ДО импорта сервера
 os.environ["DB_URL"] = ":memory:"             # in-memory БД для тестов
-os.environ["DOCROUTER_USER"] = "user"         # Basic Auth логин
-os.environ["DOCROUTER_PASS"] = "pass"         # Basic Auth пароль
 
 # Импортируем сервер
 from web_app import server  # noqa: E402
@@ -66,14 +64,14 @@ def _mock_generate_metadata(text: str):
     }
 
 
-def test_upload_retrieve_and_download_auth_ok(tmp_path, monkeypatch):
+def test_upload_retrieve_and_download(tmp_path, monkeypatch):
     # Подменяем метаданные и директорию вывода
     monkeypatch.setattr(server.metadata_generation, "generate_metadata", _mock_generate_metadata)
     server.config.output_dir = str(tmp_path)
 
     with LiveClient(app) as client:
-        # Загрузка (защищено Basic Auth)
-        resp = client.post("/upload", files={"file": ("example.txt", b"content")}, auth=("user", "pass"))
+        # Загрузка
+        resp = client.post("/upload", files={"file": ("example.txt", b"content")})
         assert resp.status_code == 200
         data = resp.json()
         assert {"id", "metadata", "path", "status"} <= set(data.keys())
@@ -81,34 +79,22 @@ def test_upload_retrieve_and_download_auth_ok(tmp_path, monkeypatch):
         assert data["status"] in {"dry_run", "processed"}
         assert data["metadata"]["extracted_text"].strip() == "content"
 
-        # Чтение метаданных (защищено Basic Auth)
-        meta = client.get(f"/metadata/{file_id}", auth=("user", "pass"))
+        # Чтение метаданных
+        meta = client.get(f"/metadata/{file_id}")
         assert meta.status_code == 200
         assert meta.json() == data["metadata"]
 
-        # Скачивание файла (защищено Basic Auth)
-        download = client.get(f"/download/{file_id}", auth=("user", "pass"))
+        # Скачивание файла
+        download = client.get(f"/download/{file_id}")
         assert download.status_code == 200
         assert download.content == b"content"
-
-
-def test_invalid_credentials_and_no_auth(tmp_path):
-    server.config.output_dir = str(tmp_path)
-    with LiveClient(app) as client:
-        # Неверный пароль
-        resp_bad = client.post("/upload", files={"file": ("example.txt", b"content")}, auth=("user", "wrong"))
-        assert resp_bad.status_code == 401
-
-        # Без авторизации
-        resp_noauth = client.post("/upload", files={"file": ("example.txt", b"content")})
-        assert resp_noauth.status_code == 401
 
 
 def test_download_file_not_found_returns_404(tmp_path):
     server.config.output_dir = str(tmp_path)
     with LiveClient(app) as client:
         # Загружаем корректно
-        resp = client.post("/upload", files={"file": ("example.txt", b"content")}, auth=("user", "pass"))
+        resp = client.post("/upload", files={"file": ("example.txt", b"content")})
         assert resp.status_code == 200
         file_id = resp.json()["id"]
 
@@ -119,11 +105,11 @@ def test_download_file_not_found_returns_404(tmp_path):
         if os.path.exists(path):
             os.remove(path)
 
-        resp_missing = client.get(f"/download/{file_id}", auth=("user", "pass"))
+        resp_missing = client.get(f"/download/{file_id}")
         assert resp_missing.status_code == 404
 
         # Несуществующий ID
-        resp_unknown = client.get("/download/unknown", auth=("user", "pass"))
+        resp_unknown = client.get("/download/unknown")
         assert resp_unknown.status_code == 404
 
 
