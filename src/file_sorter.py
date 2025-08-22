@@ -5,7 +5,7 @@ import logging
 import re
 import shutil
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -49,16 +49,21 @@ def get_folder_tree(root_dir: str | Path) -> List[Dict[str, Any]]:
     return [build(p) for p in sorted(root.iterdir()) if p.is_dir()]
 
 
-def place_file(src_path: str | Path, metadata: Dict[str, Any], dest_root: str | Path, dry_run: bool = False) -> Path:
+def place_file(
+    src_path: str | Path,
+    metadata: Dict[str, Any],
+    dest_root: str | Path,
+    dry_run: bool = False,
+    create_missing: bool = True,
+) -> Tuple[Path, List[str]]:
     """Перемещает файл в структуру папок на основе метаданных.
 
     Создаёт вложенные папки (категория/подкатегория/issuer),
     переименовывает файл вида ``DATE__NAME.ext`` и сохраняет рядом JSON
     с теми же метаданными.
 
-    При ``dry_run=True`` только выводит предполагаемые действия.
-
-    Возвращает путь, по которому файл будет или был размещён.
+    При ``dry_run=True`` или ``create_missing=False`` возвращает путь
+    и список отсутствующих каталогов без физического перемещения файла.
     """
 
     src = Path(src_path)
@@ -69,19 +74,23 @@ def place_file(src_path: str | Path, metadata: Dict[str, Any], dest_root: str | 
 
     new_name = f"{date}__{name}{ext}"
 
-    dest_dir = Path(dest_root)
+    base_dir = Path(dest_root)
+    dest_dir = base_dir
+    missing: List[str] = []
     for key in ("category", "subcategory", "issuer"):
         value = metadata.get(key)
         if value:
             dest_dir /= value
+            if not dest_dir.exists():
+                missing.append(str(dest_dir.relative_to(base_dir)))
 
     dest_file = dest_dir / new_name
     json_file = dest_file.with_suffix(dest_file.suffix + ".json")
 
-    if dry_run:
+    if dry_run or (missing and not create_missing):
         logger.info("Would move %s -> %s", src, dest_file)
         logger.info("Would write metadata JSON to %s", json_file)
-        return dest_file
+        return dest_file, missing
 
     dest_dir.mkdir(parents=True, exist_ok=True)
     shutil.move(str(src), dest_file)
@@ -91,4 +100,4 @@ def place_file(src_path: str | Path, metadata: Dict[str, Any], dest_root: str | 
         json.dump(metadata, f, ensure_ascii=False, indent=2)
     logger.debug("Wrote metadata to %s", json_file)
 
-    return dest_file
+    return dest_file, []
