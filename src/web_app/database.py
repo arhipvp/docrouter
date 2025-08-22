@@ -2,7 +2,7 @@ from __future__ import annotations
 
 """Простейшее хранилище метаданных в памяти."""
 
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, List
 
 # Внутренний словарь для хранения записей
 _storage: Dict[str, Dict[str, Any]] = {}
@@ -21,6 +21,7 @@ def add_file(
     status: str,
     prompt: Any | None = None,
     raw_response: Any | None = None,
+    missing: Optional[List[str]] = None,
 ) -> None:
     """Сохранить информацию о файле."""
     _storage[file_id] = {
@@ -31,6 +32,7 @@ def add_file(
         "status": status,
         "prompt": prompt,
         "raw_response": raw_response,
+        "missing": missing or [],
     }
 
 
@@ -51,6 +53,7 @@ def update_file(
     status: str,
     prompt: Any | None = None,
     raw_response: Any | None = None,
+    missing: Optional[List[str]] = None,
 ) -> None:
     """Обновить данные существующей записи."""
     if file_id in _storage:
@@ -61,6 +64,7 @@ def update_file(
                 "status": status,
                 "prompt": prompt,
                 "raw_response": raw_response,
+                "missing": missing or [],
             }
         )
 

@@ -5,11 +5,11 @@ import logging
 import re
 import shutil
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple
 
 logger = logging.getLogger(__name__)
 
-
+# Запрещённые для имён файлов символы (Windows-совместимо)
 INVALID_CHARS_PATTERN = re.compile(r'[<>:"/\\|?*]')
 
 
@@ -55,52 +55,75 @@ def place_file(
     dest_root: str | Path,
     dry_run: bool = False,
     create_missing: bool = True,
-) -> tuple[Path, list[str]]:
-    """Перемещает файл в структуру папок на основе метаданных.
+) -> Tuple[Path, List[str]]:
+    """Переместить файл в структуру папок на основе *metadata*.
 
-    Создаёт вложенные папки (категория/подкатегория/issuer),
-    переименовывает файл вида ``DATE__NAME.ext`` и сохраняет рядом JSON
-    с теми же метаданными.
+    Структура: ``<dest_root>/<category>/<subcategory>/<issuer>/<DATE>__<NAME>.<ext>``.
+    Рядом с файлом сохраняется ``.json`` с теми же метаданными.
 
-    При ``dry_run=True`` только выводит предполагаемые действия.
+    Возвращает кортеж ``(dest_file, missing)``, где:
+      - ``dest_file`` — предполагаемый/фактический путь к файлу,
+      - ``missing`` — список отсутствующих каталогов (пути относительно ``dest_root``).
 
-    :param create_missing: если ``False``, то директории не создаются,
-        а возвращается список отсутствующих путей.
+    Поведение:
+      - При ``dry_run=True`` ничего не создаётся и не перемещается — только расчёт путей.
+      - Если имеются отсутствующие каталоги и ``create_missing=False``, перенос не выполняется.
+      - Если каталоги отсутствуют и ``create_missing=True``, они создаются перед переносом.
 
-    Возвращает кортеж ``(путь_к_файлу, missing)``.
+    :param src_path: путь к исходному файлу.
+    :param metadata: словарь с ключами: ``category``, ``subcategory``, ``issuer``,
+                     ``date`` (YYYY-MM-DD), ``suggested_name``.
+    :param dest_root: корень архива.
+    :param dry_run: «сухой прогон» без изменений на диске.
+    :param create_missing: создавать недостающие каталоги.
+    :return: (путь к файлу назначения, список отсутствующих каталогов).
     """
-
     src = Path(src_path)
+    base_dir = Path(dest_root)
+
     ext = src.suffix
     name = metadata.get("suggested_name") or src.stem
-    name = sanitize_filename(name)
+    name = sanitize_filename(str(name))
     date = metadata.get("date", "unknown-date")
 
     new_name = f"{date}__{name}{ext}"
 
-    dest_dir = Path(dest_root)
-    missing: list[str] = []
+    dest_dir = base_dir
+    missing: List[str] = []
+
     for key in ("category", "subcategory", "issuer"):
         value = metadata.get(key)
         if value:
-            dest_dir /= value
+            dest_dir /= str(value)
             if not dest_dir.exists():
-                missing.append(str(dest_dir.relative_to(dest_root)))
+                # сохраняем отсутствующую директорию как путь относительно корня
+                missing.append(str(dest_dir.relative_to(base_dir)))
 
     dest_file = dest_dir / new_name
     json_file = dest_file.with_suffix(dest_file.suffix + ".json")
 
-    if dry_run or (missing and not create_missing):
+    # Сухой прогон — только расчёт
+    if dry_run:
         logger.info("Would move %s -> %s", src, dest_file)
         logger.info("Would write metadata JSON to %s", json_file)
         return dest_file, missing
 
-    dest_dir.mkdir(parents=True, exist_ok=True)
-    shutil.move(str(src), dest_file)
+    # Если нельзя создавать каталоги и они отсутствуют — выходим
+    if missing and not create_missing:
+        logger.debug("Missing directories (no create): %s", missing)
+        return dest_file, missing
+
+    # Создаём недостающие каталоги при необходимости
+    if missing and create_missing:
+        dest_dir.mkdir(parents=True, exist_ok=True)
+
+    # Перемещаем файл
+    shutil.move(str(src), str(dest_file))
     logger.info("Moved %s -> %s", src, dest_file)
 
+    # Пишем метаданные
     with open(json_file, "w", encoding="utf-8") as f:
         json.dump(metadata, f, ensure_ascii=False, indent=2)
     logger.debug("Wrote metadata to %s", json_file)
 
-    return dest_file, missing
+    return dest_file, []

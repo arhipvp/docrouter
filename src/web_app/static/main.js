@@ -5,6 +5,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const progress = document.getElementById('upload-progress');
   const sent = document.getElementById('ai-sent');
   const received = document.getElementById('ai-received');
+  const missingModal = document.getElementById('missing-modal');
+  const missingList = document.getElementById('missing-list');
+  const missingConfirm = document.getElementById('missing-confirm');
 
   // UI на формах (вариант codex)
   const createForm = document.getElementById('create-folder-form');
@@ -148,12 +151,39 @@ document.addEventListener('DOMContentLoaded', () => {
     xhr.onload = () => {
       if (xhr.status === 200) {
         const result = JSON.parse(xhr.responseText);
-        sent.textContent = result.prompt || '';
-        received.textContent = result.raw_response || '';
-        form.reset();
-        progress.value = 0;
-        refreshFiles();
-        refreshFolderTree();
+        if (result.status === 'pending') {
+          missingList.innerHTML = '';
+          (result.missing || []).forEach((path) => {
+            const li = document.createElement('li');
+            li.textContent = path;
+            missingList.appendChild(li);
+          });
+          missingModal.style.display = 'flex';
+          missingConfirm.onclick = async () => {
+            try {
+              for (const path of result.missing || []) {
+                await fetch(`/folders?path=${encodeURIComponent(path)}`, { method: 'POST' });
+              }
+              await fetch(`/files/${result.id}/finalize`, { method: 'POST' });
+              missingModal.style.display = 'none';
+              sent.textContent = result.prompt || '';
+              received.textContent = result.raw_response || '';
+              form.reset();
+              progress.value = 0;
+              refreshFiles();
+              refreshFolderTree();
+            } catch (err) {
+              alert('Ошибка обработки');
+            }
+          };
+        } else {
+          sent.textContent = result.prompt || '';
+          received.textContent = result.raw_response || '';
+          form.reset();
+          progress.value = 0;
+          refreshFiles();
+          refreshFolderTree();
+        }
       } else {
         alert('Ошибка загрузки');
       }
