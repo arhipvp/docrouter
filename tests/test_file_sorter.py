@@ -72,5 +72,6 @@ def test_place_file_returns_missing_dirs(tmp_path):
         "Финансы/Банки",
         "Финансы/Банки/Sparkasse",
     ]
+    # файл не должен быть перемещён
     assert not dest.exists()
     assert src.exists()

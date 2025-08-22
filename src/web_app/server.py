@@ -112,9 +112,13 @@ async def upload_file(
         logger.exception("Upload/processing failed for %s", file.filename)
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
-    status = "dry_run" if dry_run and not missing else "processed"
-    if missing and not dry_run:
+    # Статус
+    if dry_run:
+        status = "dry_run"
+    elif missing:
         status = "pending"
+    else:
+        status = "processed"
 
     # Сохраняем запись в БД
     database.add_file(

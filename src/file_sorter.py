@@ -9,7 +9,6 @@ from typing import Any, Dict, List, Tuple
 
 logger = logging.getLogger(__name__)
 
-
 INVALID_CHARS_PATTERN = re.compile(r'[<>:"/\\|?*]')
 
 
@@ -62,10 +61,15 @@ def place_file(
     переименовывает файл вида ``DATE__NAME.ext`` и сохраняет рядом JSON
     с теми же метаданными.
 
-    При ``dry_run=True`` или ``create_missing=False`` возвращает путь
-    и список отсутствующих каталогов без физического перемещения файла.
-    """
+    Возвращает кортеж ``(dest_file, missing)``, где:
+      - ``dest_file`` — предполагаемый/фактический путь к файлу,
+      - ``missing`` — список отсутствующих каталогов (относительно ``dest_root``).
 
+    Поведение:
+      - При ``dry_run=True`` ничего не создаёт и не перемещает, только расчёт путей.
+      - При ``create_missing=False`` и наличии отсутствующих каталогов файл не переносится.
+      - Если каталоги существуют (или были созданы при ``create_missing=True``), файл переносится и пишется JSON.
+    """
     src = Path(src_path)
     ext = src.suffix
     name = metadata.get("suggested_name") or src.stem
@@ -82,20 +86,32 @@ def place_file(
         if value:
             dest_dir /= value
             if not dest_dir.exists():
+                # сохраняем отсутствующую директорию как путь относительно корня
                 missing.append(str(dest_dir.relative_to(base_dir)))
 
     dest_file = dest_dir / new_name
     json_file = dest_file.with_suffix(dest_file.suffix + ".json")
 
-    if dry_run or (missing and not create_missing):
+    # Сухой прогон — только расчёт
+    if dry_run:
         logger.info("Would move %s -> %s", src, dest_file)
         logger.info("Would write metadata JSON to %s", json_file)
         return dest_file, missing
 
-    dest_dir.mkdir(parents=True, exist_ok=True)
+    # Если нельзя создавать каталоги и они отсутствуют — выходим
+    if missing and not create_missing:
+        logger.debug("Missing directories (no create): %s", missing)
+        return dest_file, missing
+
+    # Создаём недостающие каталоги при необходимости
+    if missing and create_missing:
+        dest_dir.mkdir(parents=True, exist_ok=True)
+
+    # Перемещаем файл
     shutil.move(str(src), dest_file)
     logger.info("Moved %s -> %s", src, dest_file)
 
+    # Пишем метаданные
     with open(json_file, "w", encoding="utf-8") as f:
         json.dump(metadata, f, ensure_ascii=False, indent=2)
     logger.debug("Wrote metadata to %s", json_file)

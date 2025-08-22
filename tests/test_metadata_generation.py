@@ -12,6 +12,7 @@ def test_generate_metadata_without_api_key(monkeypatch):
     assert meta["date"] == "2023-05-17"
     assert meta["amount"] == "123.45"
     assert meta["category"] is None
+    assert meta["needs_new_folder"] is False
     assert result["prompt"] is None
     assert result["raw_response"] is None
 
@@ -35,6 +36,7 @@ def test_fallback_to_regex_on_analyze_error(monkeypatch):
 
     assert called.get("called")
     assert result["metadata"]["category"] == "regex"
+    assert result["metadata"]["needs_new_folder"] is False
 
 
 def test_folder_tree_in_prompt(monkeypatch):
@@ -45,7 +47,15 @@ def test_folder_tree_in_prompt(monkeypatch):
             pass
 
         def json(self) -> Dict[str, Any]:  # type: ignore[override]
-            return {"choices": [{"message": {"content": json.dumps({})}}]}
+            return {
+                "choices": [
+                    {
+                        "message": {
+                            "content": json.dumps({"needs_new_folder": True})
+                        }
+                    }
+                ]
+            }
 
     def fake_post(url, json, headers, timeout):  # type: ignore[no-redef]
         captured["prompt"] = json["messages"][0]["content"]
@@ -64,7 +74,10 @@ def test_folder_tree_in_prompt(monkeypatch):
         }
     ]
     result = generate_metadata("text", analyzer=analyzer, folder_tree=tree)
-
+    instruction = "Если ни одна папка не подходит, предложи новую category/subcategory."
     tree_json = json.dumps(tree, ensure_ascii=False)
     assert tree_json in captured["prompt"]
     assert tree_json in result["prompt"]
+    assert instruction in captured["prompt"]
+    assert instruction in result["prompt"]
+    assert result["metadata"]["needs_new_folder"] is True
