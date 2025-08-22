@@ -5,6 +5,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const progress = document.getElementById('upload-progress');
   const sent = document.getElementById('ai-sent');
   const received = document.getElementById('ai-received');
+  const createForm = document.getElementById('create-folder-form');
+  const renameForm = document.getElementById('rename-folder-form');
+  const deleteForm = document.getElementById('delete-folder-form');
+  const folderMessage = document.getElementById('folder-message');
 
   async function refreshFiles() {
     const resp = await fetch('/files');
@@ -45,6 +49,39 @@ document.addEventListener('DOMContentLoaded', () => {
     renderTree(folderTree, tree);
   }
 
+  async function createFolder(path) {
+    const resp = await fetch(`/folders?path=${encodeURIComponent(path)}`, {
+      method: 'POST'
+    });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({ detail: 'Ошибка создания папки' }));
+      throw new Error(err.detail || 'Ошибка создания папки');
+    }
+    await refreshFolderTree();
+  }
+
+  async function renameFolder(oldPath, newName) {
+    const encoded = oldPath.split('/').map(encodeURIComponent).join('/');
+    const resp = await fetch(`/folders/${encoded}?new_name=${encodeURIComponent(newName)}`, {
+      method: 'PATCH'
+    });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({ detail: 'Ошибка переименования' }));
+      throw new Error(err.detail || 'Ошибка переименования');
+    }
+    await refreshFolderTree();
+  }
+
+  async function deleteFolder(path) {
+    const encoded = path.split('/').map(encodeURIComponent).join('/');
+    const resp = await fetch(`/folders/${encoded}`, { method: 'DELETE' });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({ detail: 'Ошибка удаления' }));
+      throw new Error(err.detail || 'Ошибка удаления');
+    }
+    await refreshFolderTree();
+  }
+
   form.addEventListener('submit', (e) => {
     e.preventDefault();
     const data = new FormData(form);
@@ -71,6 +108,47 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     };
     xhr.send(data);
+  });
+
+  createForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const path = document.getElementById('create-folder-path').value.trim();
+    if (!path) return;
+    try {
+      await createFolder(path);
+      folderMessage.textContent = 'Папка создана';
+      createForm.reset();
+    } catch (err) {
+      folderMessage.textContent = err.message;
+    }
+  });
+
+  renameForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const oldPath = document.getElementById('rename-folder-old').value.trim();
+    const newName = document.getElementById('rename-folder-new').value.trim();
+    if (!oldPath || !newName) return;
+    try {
+      await renameFolder(oldPath, newName);
+      folderMessage.textContent = 'Папка переименована';
+      renameForm.reset();
+    } catch (err) {
+      folderMessage.textContent = err.message;
+    }
+  });
+
+  deleteForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const path = document.getElementById('delete-folder-path').value.trim();
+    if (!path) return;
+    if (!confirm('Удалить папку?')) return;
+    try {
+      await deleteFolder(path);
+      folderMessage.textContent = 'Папка удалена';
+      deleteForm.reset();
+    } catch (err) {
+      folderMessage.textContent = err.message;
+    }
   });
 
   refreshFiles();
