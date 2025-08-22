@@ -40,7 +40,7 @@ class MetadataAnalyzer(ABC):
 
     @abstractmethod
     def analyze(self, text: str) -> Dict[str, Any]:
-        """Analyze *text* and return a metadata dictionary."""
+        """Analyze *text* and return a dict with keys ``prompt``, ``raw_response`` and ``metadata``."""
 
 
 class OpenRouterAnalyzer(MetadataAnalyzer):
@@ -87,9 +87,10 @@ class OpenRouterAnalyzer(MetadataAnalyzer):
         response.raise_for_status()
         content = response.json()["choices"][0]["message"]["content"]
         try:
-            return json.loads(content)
+            metadata = json.loads(content)
         except json.JSONDecodeError as exc:
             raise RuntimeError("Invalid JSON from OpenRouter") from exc
+        return {"prompt": prompt, "raw_response": content, "metadata": metadata}
 
 
 class RegexAnalyzer(MetadataAnalyzer):
@@ -104,7 +105,7 @@ class RegexAnalyzer(MetadataAnalyzer):
     def analyze(self, text: str) -> Dict[str, Any]:
         date_match = self.DATE_RE.search(text)
         amount_match = self.AMOUNT_RE.search(text)
-        return {
+        metadata = {
             "category": None,
             "subcategory": None,
             "issuer": None,
@@ -116,6 +117,7 @@ class RegexAnalyzer(MetadataAnalyzer):
             "suggested_filename": None,
             "description": None,
         }
+        return {"prompt": None, "raw_response": None, "metadata": metadata}
 
 
 def generate_metadata(text: str, analyzer: Optional[MetadataAnalyzer] = None) -> Dict[str, Any]:
@@ -139,7 +141,7 @@ def generate_metadata(text: str, analyzer: Optional[MetadataAnalyzer] = None) ->
             logger.error("Failed to initialize OpenRouterAnalyzer: %s", exc)
             analyzer = RegexAnalyzer()
     try:
-        metadata = analyzer.analyze(text)
+        result = analyzer.analyze(text)
     except Exception as exc:
         logger.error(
             "Analyzer %s failed: %s. Falling back to RegexAnalyzer",
@@ -147,7 +149,8 @@ def generate_metadata(text: str, analyzer: Optional[MetadataAnalyzer] = None) ->
             exc,
         )
         analyzer = RegexAnalyzer()
-        metadata = analyzer.analyze(text)
+        result = analyzer.analyze(text)
+    metadata = result.get("metadata", {})
     defaults = {
         "category": None,
         "subcategory": None,
@@ -161,4 +164,8 @@ def generate_metadata(text: str, analyzer: Optional[MetadataAnalyzer] = None) ->
         "description": None,
     }
     defaults.update(metadata or {})
-    return defaults
+    return {
+        "prompt": result.get("prompt"),
+        "raw_response": result.get("raw_response"),
+        "metadata": defaults,
+    }

@@ -83,7 +83,8 @@ async def upload_file(
         # Извлечение текста + генерация метаданных
         lang = language or config.tesseract_lang
         text = extract_text(temp_path, language=lang)
-        metadata = metadata_generation.generate_metadata(text)
+        meta_result = metadata_generation.generate_metadata(text)
+        metadata = meta_result["metadata"]
         metadata["extracted_text"] = text
         metadata["language"] = lang
 
@@ -97,7 +98,15 @@ async def upload_file(
     status = "dry_run" if dry_run else "processed"
 
     # Сохраняем запись в БД
-    database.add_file(file_id, file.filename, metadata, str(dest_path), status)
+    database.add_file(
+        file_id,
+        file.filename,
+        metadata,
+        str(dest_path),
+        status,
+        meta_result.get("prompt"),
+        meta_result.get("raw_response"),
+    )
 
     return {
         "id": file_id,
@@ -105,6 +114,8 @@ async def upload_file(
         "metadata": metadata,
         "path": str(dest_path),
         "status": status,
+        "prompt": meta_result.get("prompt"),
+        "raw_response": meta_result.get("raw_response"),
     }
 
 

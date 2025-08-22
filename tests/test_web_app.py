@@ -51,16 +51,20 @@ class LiveClient:
 def _mock_generate_metadata(text: str):
     """Детерминированные метаданные для стабильных проверок."""
     return {
-        "category": None,
-        "subcategory": None,
-        "issuer": None,
-        "person": None,
-        "doc_type": None,
-        "date": "2024-01-01",
-        "amount": None,
-        "tags": [],
-        "suggested_filename": None,
-        "description": None,
+        "prompt": "PROMPT",
+        "raw_response": "{\"date\": \"2024-01-01\"}",
+        "metadata": {
+            "category": None,
+            "subcategory": None,
+            "issuer": None,
+            "person": None,
+            "doc_type": None,
+            "date": "2024-01-01",
+            "amount": None,
+            "tags": [],
+            "suggested_filename": None,
+            "description": None,
+        },
     }
 
 
@@ -86,13 +90,15 @@ def test_upload_retrieve_and_download(tmp_path, monkeypatch):
         )
         assert resp.status_code == 200
         data = resp.json()
-        assert {"id", "filename", "metadata", "path", "status"} <= set(data.keys())
+        assert {"id", "filename", "metadata", "path", "status", "prompt", "raw_response"} <= set(data.keys())
         file_id = data["id"]
         assert data["filename"] == "example.txt"
         assert data["status"] in {"dry_run", "processed"}
         assert data["metadata"]["extracted_text"].strip() == "content"
         assert data["metadata"]["language"] == "deu"
         assert captured["language"] == "deu"
+        assert data["prompt"] == "PROMPT"
+        assert data["raw_response"] == "{\"date\": \"2024-01-01\"}"
 
         # Чтение метаданных
         meta = client.get(f"/metadata/{file_id}")

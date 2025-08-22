@@ -14,7 +14,13 @@ def init_db() -> None:
 
 
 def add_file(
-    file_id: str, filename: str, metadata: Dict[str, Any], path: str, status: str
+    file_id: str,
+    filename: str,
+    metadata: Dict[str, Any],
+    path: str,
+    status: str,
+    prompt: Any | None = None,
+    raw_response: Any | None = None,
 ) -> None:
     """Сохранить информацию о файле."""
     _storage[file_id] = {
@@ -23,6 +29,8 @@ def add_file(
         "metadata": metadata,
         "path": path,
         "status": status,
+        "prompt": prompt,
+        "raw_response": raw_response,
     }
 
 
@@ -31,11 +39,24 @@ def get_file(file_id: str) -> Optional[Dict[str, Any]]:
     return _storage.get(file_id)
 
 
-def update_file(file_id: str, metadata: Dict[str, Any], path: str, status: str) -> None:
+def update_file(
+    file_id: str,
+    metadata: Dict[str, Any],
+    path: str,
+    status: str,
+    prompt: Any | None = None,
+    raw_response: Any | None = None,
+) -> None:
     """Обновить данные существующей записи."""
     if file_id in _storage:
         _storage[file_id].update(
-            {"metadata": metadata, "path": path, "status": status}
+            {
+                "metadata": metadata,
+                "path": path,
+                "status": status,
+                "prompt": prompt,
+                "raw_response": raw_response,
+            }
         )
 
 
