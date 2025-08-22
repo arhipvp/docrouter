@@ -26,6 +26,7 @@ def add_file(
     translated_text: str | None = None,
     translation_lang: str | None = None,
     embedding: list[float] | None = None,
+    suggested_path: str | None = None,
 ) -> None:
     """Сохранить информацию о файле."""
     _storage[file_id] = {
@@ -51,6 +52,8 @@ def add_file(
         _storage[file_id]["sources"] = sources
     if embedding is not None:
         _storage[file_id]["embedding"] = embedding
+    if suggested_path is not None:
+        _storage[file_id]["suggested_path"] = suggested_path
 
 
 def get_file(file_id: str) -> Optional[Dict[str, Any]]:
@@ -75,6 +78,7 @@ def update_file(
     translated_text: str | None = None,
     translation_lang: str | None = None,
     embedding: list[float] | None = None,
+    suggested_path: str | None = None,
 ) -> None:
     """Обновить данные существующей записи."""
     record = _storage.get(file_id)
@@ -114,6 +118,8 @@ def update_file(
         record["translation_lang"] = translation_lang
     if embedding is not None:
         record["embedding"] = embedding
+    if suggested_path is not None:
+        record["suggested_path"] = suggested_path
 
 
 def delete_file(file_id: str) -> None:

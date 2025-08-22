@@ -128,9 +128,16 @@ async def upload_file(
             "pending",
             meta_result.get("prompt"),
             meta_result.get("raw_response"),
+            missing,
             embedding=embedding,
+            suggested_path=str(dest_path),
         )
-        return {"id": file_id, "status": "pending", "missing": missing}
+        return {
+            "id": file_id,
+            "status": "pending",
+            "missing": missing,
+            "suggested_path": str(dest_path),
+        }
 
     status = "dry_run" if dry_run else "processed"
 
@@ -145,6 +152,7 @@ async def upload_file(
         meta_result.get("raw_response"),
         [],  # missing
         embedding=embedding,
+        suggested_path=str(dest_path),
     )
 
     return {
@@ -158,6 +166,7 @@ async def upload_file(
         "missing": [],
         "prompt": meta_result.get("prompt"),
         "raw_response": meta_result.get("raw_response"),
+        "suggested_path": str(dest_path),
     }
 
 
@@ -227,8 +236,15 @@ async def upload_images(
             missing,
             sources=sources,
             embedding=embedding,
+            suggested_path=str(dest_path),
         )
-        return {"id": file_id, "status": "pending", "missing": missing, "sources": sources}
+        return {
+            "id": file_id,
+            "status": "pending",
+            "missing": missing,
+            "sources": sources,
+            "suggested_path": str(dest_path),
+        }
 
     status = "dry_run" if dry_run else "processed"
     database.add_file(
@@ -242,6 +258,7 @@ async def upload_images(
         [],
         sources=sources,
         embedding=embedding,
+        suggested_path=str(dest_path),
     )
 
     return {
@@ -256,6 +273,7 @@ async def upload_images(
         "prompt": meta_result.get("prompt"),
         "raw_response": meta_result.get("raw_response"),
         "sources": sources,
+        "suggested_path": str(dest_path),
     }
 
 
@@ -499,6 +517,7 @@ async def finalize_file(
         record.get("prompt"),
         record.get("raw_response"),
         still_missing,
+        suggested_path=str(dest_path),
     )
     return database.get_file(file_id)
 
