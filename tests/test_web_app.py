@@ -47,6 +47,12 @@ class LiveClient:
     def post(self, path, **kwargs):
         return self.session.post(self.base_url + path, **kwargs)
 
+    def patch(self, path, **kwargs):
+        return self.session.patch(self.base_url + path, **kwargs)
+
+    def delete(self, path, **kwargs):
+        return self.session.delete(self.base_url + path, **kwargs)
+
 
 def _mock_generate_metadata(text: str, folder_tree=None):
     """Детерминированные метаданные для стабильных проверок."""
@@ -191,3 +197,19 @@ def test_files_endpoint_lists_uploaded_files(tmp_path):
         assert file_id in ids
         names = [item["filename"] for item in files]
         assert "example.txt" in names
+
+
+def test_folder_crud_operations(tmp_path):
+    server.config.output_dir = str(tmp_path)
+    with LiveClient(app) as client:
+        resp = client.post("/folders", params={"path": "a/b"})
+        assert resp.status_code == 200
+        assert resp.json() == {"a": {"b": {}}}
+
+        resp = client.patch("/folders/a/b", params={"new_name": "c"})
+        assert resp.status_code == 200
+        assert resp.json() == {"a": {"c": {}}}
+
+        resp = client.delete("/folders/a/c")
+        assert resp.status_code == 200
+        assert resp.json() == {"a": {}}

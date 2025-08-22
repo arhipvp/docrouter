@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import shutil
 import uuid
 from pathlib import Path
 
@@ -63,6 +64,15 @@ logger = logging.getLogger(__name__)
 database.init_db()
 UPLOAD_DIR = Path("uploads")
 UPLOAD_DIR.mkdir(exist_ok=True)
+
+
+def _resolve_in_output(relative: str) -> Path:
+    """Преобразовать относительный путь в путь внутри output_dir."""
+    base = Path(config.output_dir).resolve()
+    target = (base / relative).resolve()
+    if not target.is_relative_to(base):
+        raise HTTPException(status_code=400, detail="Path outside output_dir")
+    return target
 
 
 # --------- Маршруты ----------
@@ -159,4 +169,41 @@ async def list_files():
 @app.get("/folder-tree")
 async def folder_tree():
     """Вернуть структуру папок в выходном каталоге."""
+    return get_folder_tree(config.output_dir)
+
+
+@app.post("/folders")
+async def create_folder(path: str):
+    """Создать каталог внутри output_dir."""
+    target = _resolve_in_output(path)
+    if target.exists():
+        raise HTTPException(status_code=409, detail="Folder already exists")
+    target.mkdir(parents=True, exist_ok=False)
+    return get_folder_tree(config.output_dir)
+
+
+@app.patch("/folders/{folder_path:path}")
+async def rename_folder(folder_path: str, new_name: str):
+    """Переименовать каталог."""
+    src = _resolve_in_output(folder_path)
+    if not src.exists():
+        raise HTTPException(status_code=404, detail="Folder not found")
+    dest_relative = str(Path(folder_path).parent / new_name)
+    dest = _resolve_in_output(dest_relative)
+    if dest.exists():
+        raise HTTPException(status_code=409, detail="Target already exists")
+    src.rename(dest)
+    return get_folder_tree(config.output_dir)
+
+
+@app.delete("/folders/{folder_path:path}")
+async def delete_folder(folder_path: str):
+    """Удалить каталог."""
+    target = _resolve_in_output(folder_path)
+    base = Path(config.output_dir).resolve()
+    if target == base:
+        raise HTTPException(status_code=400, detail="Cannot delete root folder")
+    if not target.exists():
+        raise HTTPException(status_code=404, detail="Folder not found")
+    shutil.rmtree(target)
     return get_folder_tree(config.output_dir)
