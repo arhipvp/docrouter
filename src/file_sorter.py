@@ -2,11 +2,25 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import shutil
 from pathlib import Path
 from typing import Any, Dict
 
 logger = logging.getLogger(__name__)
+
+
+INVALID_CHARS_PATTERN = re.compile(r'[<>:"/\\|?*]')
+
+
+def sanitize_filename(name: str, replacement: str = "_") -> str:
+    """Заменяет недопустимые символы в имени файла.
+
+    :param name: исходное имя (без расширения).
+    :param replacement: символ для подстановки.
+    :return: скорректированное имя.
+    """
+    return INVALID_CHARS_PATTERN.sub(replacement, name)
 
 
 def place_file(src_path: str | Path, metadata: Dict[str, Any], dest_root: str | Path, dry_run: bool = False) -> Path:
@@ -24,6 +38,7 @@ def place_file(src_path: str | Path, metadata: Dict[str, Any], dest_root: str | 
     src = Path(src_path)
     ext = src.suffix
     name = metadata.get("suggested_name") or src.stem
+    name = sanitize_filename(name)
     date = metadata.get("date", "unknown-date")
 
     new_name = f"{date}__{name}{ext}"
