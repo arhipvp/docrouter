@@ -35,3 +35,15 @@ export DOCROUTER_PASS=mypass
 
 Все метаданные хранятся в памяти процесса и теряются после перезапуска сервера.
 
+## Docker
+
+Для запуска в контейнере подготовлен `docker-compose.yml`.
+Скопируйте `env.example` в `.env` и поднимите сервис:
+
+```bash
+cp env.example .env
+docker compose up --build
+```
+
+Приложение будет доступно по адресу [http://localhost:8000](http://localhost:8000).
+
