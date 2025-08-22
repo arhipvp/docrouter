@@ -5,11 +5,14 @@ document.addEventListener('DOMContentLoaded', () => {
   const progress = document.getElementById('upload-progress');
   const sent = document.getElementById('ai-sent');
   const received = document.getElementById('ai-received');
+
+  // UI на формах (вариант codex)
   const createForm = document.getElementById('create-folder-form');
   const renameForm = document.getElementById('rename-folder-form');
   const deleteForm = document.getElementById('delete-folder-form');
   const folderMessage = document.getElementById('folder-message');
 
+  // -------- Файлы --------
   async function refreshFiles() {
     const resp = await fetch('/files');
     if (!resp.ok) return;
@@ -27,14 +30,32 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  function renderTree(container, tree) {
+  // -------- Дерево папок --------
+  function renderTree(container, tree, basePath = '') {
     Object.keys(tree).forEach(key => {
       const li = document.createElement('li');
-      li.textContent = key;
+      const currentPath = basePath ? `${basePath}/${key}` : key;
+
+      const nameSpan = document.createElement('span');
+      nameSpan.textContent = key;
+      li.appendChild(nameSpan);
+
+      const renameBtn = document.createElement('button');
+      renameBtn.textContent = '✎';
+      renameBtn.classList.add('rename-btn');
+      renameBtn.dataset.path = currentPath;
+      li.appendChild(renameBtn);
+
+      const deleteBtn = document.createElement('button');
+      deleteBtn.textContent = '🗑';
+      deleteBtn.classList.add('delete-btn');
+      deleteBtn.dataset.path = currentPath;
+      li.appendChild(deleteBtn);
+
       const children = tree[key];
       if (children && Object.keys(children).length > 0) {
         const ul = document.createElement('ul');
-        renderTree(ul, children);
+        renderTree(ul, children, currentPath);
         li.appendChild(ul);
       }
       container.appendChild(li);
@@ -49,6 +70,7 @@ document.addEventListener('DOMContentLoaded', () => {
     renderTree(folderTree, tree);
   }
 
+  // -------- Операции с папками (серверные вызовы) --------
   async function createFolder(path) {
     const resp = await fetch(`/folders?path=${encodeURIComponent(path)}`, {
       method: 'POST'
@@ -82,6 +104,35 @@ document.addEventListener('DOMContentLoaded', () => {
     await refreshFolderTree();
   }
 
+  // -------- Хэндлеры на дереве (кнопки ✎ и 🗑) --------
+  folderTree.addEventListener('click', async (e) => {
+    const target = e.target;
+    if (target.classList.contains('rename-btn')) {
+      const path = target.dataset.path;
+      const suggested = path.split('/').pop() || '';
+      const newName = prompt('Новое имя папки:', suggested);
+      if (!newName) return;
+      try {
+        await renameFolder(path, newName.trim());
+        folderMessage.textContent = 'Папка переименована';
+      } catch (err) {
+        folderMessage.textContent = err.message;
+      }
+    }
+    if (target.classList.contains('delete-btn')) {
+      const path = target.dataset.path;
+      if (!path) return;
+      if (!confirm(`Удалить папку: ${path}?`)) return;
+      try {
+        await deleteFolder(path);
+        folderMessage.textContent = 'Папка удалена';
+      } catch (err) {
+        folderMessage.textContent = err.message;
+      }
+    }
+  });
+
+  // -------- Загрузка файла --------
   form.addEventListener('submit', (e) => {
     e.preventDefault();
     const data = new FormData(form);
@@ -110,6 +161,7 @@ document.addEventListener('DOMContentLoaded', () => {
     xhr.send(data);
   });
 
+  // -------- Формы для операций с папками --------
   createForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const path = document.getElementById('create-folder-path').value.trim();
@@ -151,6 +203,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  // Первичная загрузка
   refreshFiles();
   refreshFolderTree();
 });

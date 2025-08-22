@@ -204,12 +204,34 @@ def test_folder_crud_operations(tmp_path):
     with LiveClient(app) as client:
         resp = client.post("/folders", params={"path": "a/b"})
         assert resp.status_code == 200
-        assert resp.json() == {"a": {"b": {}}}
+        assert resp.json() == [
+            {
+                "name": "a",
+                "path": "a",
+                "children": [
+                    {"name": "b", "path": "a/b", "children": []}
+                ],
+            }
+        ]
 
         resp = client.patch("/folders/a/b", params={"new_name": "c"})
         assert resp.status_code == 200
-        assert resp.json() == {"a": {"c": {}}}
+        assert resp.json() == [
+            {
+                "name": "a",
+                "path": "a",
+                "children": [
+                    {"name": "c", "path": "a/c", "children": []}
+                ],
+            }
+        ]
 
         resp = client.delete("/folders/a/c")
         assert resp.status_code == 200
-        assert resp.json() == {"a": {}}
+        assert resp.json() == [
+            {
+                "name": "a",
+                "path": "a",
+                "children": [],
+            }
+        ]

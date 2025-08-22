@@ -168,7 +168,10 @@ async def list_files():
 
 @app.get("/folder-tree")
 async def folder_tree():
-    """Вернуть структуру папок в выходном каталоге."""
+    """Вернуть структуру папок в выходном каталоге.
+
+    Каждый элемент содержит поля ``name``, ``path`` и ``children``.
+    """
     return get_folder_tree(config.output_dir)
 
 
