@@ -3,7 +3,11 @@ FROM python:3.11-slim
 # Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     tesseract-ocr \
+    tesseract-ocr-rus \
     && rm -rf /var/lib/apt/lists/*
+
+# Ensure Tesseract can locate language data
+ENV TESSDATA_PREFIX=/usr/share/tesseract-ocr/5/tessdata
 
 WORKDIR /app
 
