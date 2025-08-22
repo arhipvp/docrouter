@@ -1,3 +1,4 @@
+import io
 import os
 import sys
 import threading
@@ -6,6 +7,7 @@ from pathlib import Path
 
 import requests
 import uvicorn
+from PIL import Image
 
 # Добавляем путь к src ДО импорта сервера
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", "src"))
@@ -169,6 +171,60 @@ def test_upload_images_returns_sources(tmp_path, monkeypatch):
         record = server.database.get_file(file_id)
         assert record and record["sources"] == ["a.jpg", "b.jpg"]
         assert Path(record["path"]).exists()
+
+
+def test_upload_images_download_and_metadata(tmp_path, monkeypatch):
+    server.database.init_db()
+
+    captured = {}
+
+    pdf_bytes = b"PDF"
+
+    def _mock_merge(paths):
+        captured["paths"] = [Path(p).name for p in paths]
+        tmp_file = tmp_path / "tmp.pdf"
+        tmp_file.write_bytes(pdf_bytes)
+        return tmp_file
+
+    def _mock_extract_text(path, language="eng"):
+        captured["language"] = language
+        return "page1\npage2"
+
+    monkeypatch.setattr(server, "merge_images_to_pdf", _mock_merge)
+    monkeypatch.setattr(server, "extract_text", _mock_extract_text)
+    monkeypatch.setattr(server.metadata_generation, "generate_metadata", _mock_generate_metadata)
+    server.config.output_dir = str(tmp_path)
+
+    img1 = io.BytesIO()
+    Image.new("RGB", (1, 1), color="red").save(img1, format="JPEG")
+    img2 = io.BytesIO()
+    Image.new("RGB", (1, 1), color="blue").save(img2, format="JPEG")
+
+    with LiveClient(app) as client:
+        files = [
+            ("files", ("b.jpg", img1.getvalue(), "image/jpeg")),
+            ("files", ("a.jpg", img2.getvalue(), "image/jpeg")),
+        ]
+        resp = client.post(
+            "/upload/images",
+            data={"language": "deu"},
+            files=files,
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["filename"].endswith(".pdf")
+        assert data["sources"] == ["a.jpg", "b.jpg"]
+        assert data["metadata"]["extracted_text"] == "page1\npage2"
+
+        file_id = data["id"]
+
+        download = client.get(f"/download/{file_id}")
+        assert download.status_code == 200
+        assert download.content == pdf_bytes
+
+        meta = client.get(f"/metadata/{file_id}")
+        assert meta.status_code == 200
+        assert meta.json()["extracted_text"] == "page1\npage2"
 
 
 def test_details_endpoint_returns_full_record(tmp_path, monkeypatch):
