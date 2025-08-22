@@ -5,15 +5,14 @@ document.addEventListener('DOMContentLoaded', () => {
   const progress = document.getElementById('upload-progress');
   const sent = document.getElementById('ai-sent');
   const received = document.getElementById('ai-received');
-  const createFolderBtn = document.getElementById('create-folder-btn');
-  const newFolderInput = document.getElementById('new-folder-name');
-  const renameModal = document.getElementById('rename-modal');
-  const deleteModal = document.getElementById('delete-modal');
-  const renameInput = document.getElementById('rename-input');
-  const renameConfirm = document.getElementById('rename-confirm');
-  const deleteConfirm = document.getElementById('delete-confirm');
-  const deleteTarget = document.getElementById('delete-target');
 
+  // UI на формах (вариант codex)
+  const createForm = document.getElementById('create-folder-form');
+  const renameForm = document.getElementById('rename-folder-form');
+  const deleteForm = document.getElementById('delete-folder-form');
+  const folderMessage = document.getElementById('folder-message');
+
+  // -------- Файлы --------
   async function refreshFiles() {
     const resp = await fetch('/files');
     if (!resp.ok) return;
@@ -31,10 +30,12 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // -------- Дерево папок --------
   function renderTree(container, tree, basePath = '') {
     Object.keys(tree).forEach(key => {
       const li = document.createElement('li');
       const currentPath = basePath ? `${basePath}/${key}` : key;
+
       const nameSpan = document.createElement('span');
       nameSpan.textContent = key;
       li.appendChild(nameSpan);
@@ -69,58 +70,69 @@ document.addEventListener('DOMContentLoaded', () => {
     renderTree(folderTree, tree);
   }
 
-  createFolderBtn.addEventListener('click', async () => {
-    const name = newFolderInput.value.trim();
-    if (!name) return;
-    await fetch(`/folders?path=${encodeURIComponent(name)}`, { method: 'POST' });
-    newFolderInput.value = '';
-    refreshFolderTree();
-  });
-
-  folderTree.addEventListener('click', (e) => {
-    if (e.target.classList.contains('rename-btn')) {
-      const path = e.target.dataset.path;
-      renameModal.dataset.path = path;
-      renameInput.value = path.split('/').pop();
-      renameModal.style.display = 'flex';
-    }
-    if (e.target.classList.contains('delete-btn')) {
-      const path = e.target.dataset.path;
-      deleteModal.dataset.path = path;
-      deleteTarget.textContent = path;
-      deleteModal.style.display = 'flex';
-    }
-  });
-
-  document.querySelectorAll('.modal .close').forEach(btn => {
-    btn.addEventListener('click', () => {
-      btn.closest('.modal').style.display = 'none';
+  // -------- Операции с папками (серверные вызовы) --------
+  async function createFolder(path) {
+    const resp = await fetch(`/folders?path=${encodeURIComponent(path)}`, {
+      method: 'POST'
     });
-  });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({ detail: 'Ошибка создания папки' }));
+      throw new Error(err.detail || 'Ошибка создания папки');
+    }
+    await refreshFolderTree();
+  }
 
-  window.addEventListener('click', (e) => {
-    if (e.target.classList.contains('modal')) {
-      e.target.style.display = 'none';
+  async function renameFolder(oldPath, newName) {
+    const encoded = oldPath.split('/').map(encodeURIComponent).join('/');
+    const resp = await fetch(`/folders/${encoded}?new_name=${encodeURIComponent(newName)}`, {
+      method: 'PATCH'
+    });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({ detail: 'Ошибка переименования' }));
+      throw new Error(err.detail || 'Ошибка переименования');
+    }
+    await refreshFolderTree();
+  }
+
+  async function deleteFolder(path) {
+    const encoded = path.split('/').map(encodeURIComponent).join('/');
+    const resp = await fetch(`/folders/${encoded}`, { method: 'DELETE' });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({ detail: 'Ошибка удаления' }));
+      throw new Error(err.detail || 'Ошибка удаления');
+    }
+    await refreshFolderTree();
+  }
+
+  // -------- Хэндлеры на дереве (кнопки ✎ и 🗑) --------
+  folderTree.addEventListener('click', async (e) => {
+    const target = e.target;
+    if (target.classList.contains('rename-btn')) {
+      const path = target.dataset.path;
+      const suggested = path.split('/').pop() || '';
+      const newName = prompt('Новое имя папки:', suggested);
+      if (!newName) return;
+      try {
+        await renameFolder(path, newName.trim());
+        folderMessage.textContent = 'Папка переименована';
+      } catch (err) {
+        folderMessage.textContent = err.message;
+      }
+    }
+    if (target.classList.contains('delete-btn')) {
+      const path = target.dataset.path;
+      if (!path) return;
+      if (!confirm(`Удалить папку: ${path}?`)) return;
+      try {
+        await deleteFolder(path);
+        folderMessage.textContent = 'Папка удалена';
+      } catch (err) {
+        folderMessage.textContent = err.message;
+      }
     }
   });
 
-  renameConfirm.addEventListener('click', async () => {
-    const path = renameModal.dataset.path;
-    const newName = renameInput.value.trim();
-    if (!path || !newName) return;
-    await fetch(`/folders/${encodeURIComponent(path)}?new_name=${encodeURIComponent(newName)}`, { method: 'PATCH' });
-    renameModal.style.display = 'none';
-    refreshFolderTree();
-  });
-
-  deleteConfirm.addEventListener('click', async () => {
-    const path = deleteModal.dataset.path;
-    if (!path) return;
-    await fetch(`/folders/${encodeURIComponent(path)}`, { method: 'DELETE' });
-    deleteModal.style.display = 'none';
-    refreshFolderTree();
-  });
-
+  // -------- Загрузка файла --------
   form.addEventListener('submit', (e) => {
     e.preventDefault();
     const data = new FormData(form);
@@ -149,6 +161,49 @@ document.addEventListener('DOMContentLoaded', () => {
     xhr.send(data);
   });
 
+  // -------- Формы для операций с папками --------
+  createForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const path = document.getElementById('create-folder-path').value.trim();
+    if (!path) return;
+    try {
+      await createFolder(path);
+      folderMessage.textContent = 'Папка создана';
+      createForm.reset();
+    } catch (err) {
+      folderMessage.textContent = err.message;
+    }
+  });
+
+  renameForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const oldPath = document.getElementById('rename-folder-old').value.trim();
+    const newName = document.getElementById('rename-folder-new').value.trim();
+    if (!oldPath || !newName) return;
+    try {
+      await renameFolder(oldPath, newName);
+      folderMessage.textContent = 'Папка переименована';
+      renameForm.reset();
+    } catch (err) {
+      folderMessage.textContent = err.message;
+    }
+  });
+
+  deleteForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const path = document.getElementById('delete-folder-path').value.trim();
+    if (!path) return;
+    if (!confirm('Удалить папку?')) return;
+    try {
+      await deleteFolder(path);
+      folderMessage.textContent = 'Папка удалена';
+      deleteForm.reset();
+    } catch (err) {
+      folderMessage.textContent = err.message;
+    }
+  });
+
+  // Первичная загрузка
   refreshFiles();
   refreshFolderTree();
 });
