@@ -39,7 +39,7 @@ class MetadataAnalyzer(ABC):
     """Abstract base class for metadata analyzers."""
 
     @abstractmethod
-    def analyze(self, text: str) -> Dict[str, Any]:
+    def analyze(self, text: str, folder_tree: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Analyze *text* and return a dict with keys ``prompt``, ``raw_response`` and ``metadata``."""
 
 
@@ -64,9 +64,12 @@ class OpenRouterAnalyzer(MetadataAnalyzer):
         self.site_url = site_url or OPENROUTER_SITE_URL or "https://github.com/docrouter"
         self.site_name = site_name or OPENROUTER_SITE_NAME or "DocRouter Metadata Generator"
 
-    def analyze(self, text: str) -> Dict[str, Any]:
+    def analyze(self, text: str, folder_tree: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        tree_json = json.dumps(folder_tree or {}, ensure_ascii=False)
         prompt = (
             "You are an assistant that extracts structured metadata from documents.\n"
+            "Existing folder tree (JSON):\n"
+            f"{tree_json}\n"
             "Return a JSON object with the fields: category, subcategory, issuer, person, doc_type,\n"
             "date, amount, tags (list of strings), suggested_filename, description.\n"
             f"Document text:\n{text}"
@@ -102,7 +105,7 @@ class RegexAnalyzer(MetadataAnalyzer):
     DATE_RE = re.compile(r"(\d{4}-\d{2}-\d{2})")
     AMOUNT_RE = re.compile(r"([0-9]+(?:[.,][0-9]{2})?)")
 
-    def analyze(self, text: str) -> Dict[str, Any]:
+    def analyze(self, text: str, folder_tree: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         date_match = self.DATE_RE.search(text)
         amount_match = self.AMOUNT_RE.search(text)
         metadata = {
@@ -120,7 +123,12 @@ class RegexAnalyzer(MetadataAnalyzer):
         return {"prompt": None, "raw_response": None, "metadata": metadata}
 
 
-def generate_metadata(text: str, analyzer: Optional[MetadataAnalyzer] = None) -> Dict[str, Any]:
+def generate_metadata(
+    text: str,
+    analyzer: Optional[MetadataAnalyzer] = None,
+    *,
+    folder_tree: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
     """Generate metadata for *text* using the provided *analyzer*.
 
     If *analyzer* is ``None`` the function tries to create an
@@ -141,7 +149,7 @@ def generate_metadata(text: str, analyzer: Optional[MetadataAnalyzer] = None) ->
             logger.error("Failed to initialize OpenRouterAnalyzer: %s", exc)
             analyzer = RegexAnalyzer()
     try:
-        result = analyzer.analyze(text)
+        result = analyzer.analyze(text, folder_tree=folder_tree)
     except Exception as exc:
         logger.error(
             "Analyzer %s failed: %s. Falling back to RegexAnalyzer",
@@ -149,7 +157,7 @@ def generate_metadata(text: str, analyzer: Optional[MetadataAnalyzer] = None) ->
             exc,
         )
         analyzer = RegexAnalyzer()
-        result = analyzer.analyze(text)
+        result = analyzer.analyze(text, folder_tree=folder_tree)
     metadata = result.get("metadata", {})
     defaults = {
         "category": None,

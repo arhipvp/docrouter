@@ -48,7 +48,7 @@ class LiveClient:
         return self.session.post(self.base_url + path, **kwargs)
 
 
-def _mock_generate_metadata(text: str):
+def _mock_generate_metadata(text: str, folder_tree=None):
     """Детерминированные метаданные для стабильных проверок."""
     return {
         "prompt": "PROMPT",

@@ -23,6 +23,25 @@ def sanitize_filename(name: str, replacement: str = "_") -> str:
     return INVALID_CHARS_PATTERN.sub(replacement, name)
 
 
+def get_folder_tree(root_dir: str | Path) -> Dict[str, Any]:
+    """Построить словарь с деревом папок, начиная с *root_dir*.
+
+    В результирующем словаре ключами являются имена директорий, а
+    значениями — такие же словари для вложенных директорий.
+
+    :param root_dir: корневая директория, которую нужно просканировать.
+    :return: вложенный словарь, описывающий структуру папок.
+    """
+    root = Path(root_dir)
+    tree: Dict[str, Any] = {}
+    if not root.exists():
+        return tree
+    for path in sorted(root.iterdir()):
+        if path.is_dir():
+            tree[path.name] = get_folder_tree(path)
+    return tree
+
+
 def place_file(src_path: str | Path, metadata: Dict[str, Any], dest_root: str | Path, dry_run: bool = False) -> Path:
     """Перемещает файл в структуру папок на основе метаданных.
 

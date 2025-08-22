@@ -1,3 +1,6 @@
+import json
+from typing import Any, Dict
+
 from metadata_generation import generate_metadata, OpenRouterAnalyzer, RegexAnalyzer
 
 
@@ -14,14 +17,14 @@ def test_generate_metadata_without_api_key(monkeypatch):
 
 
 def test_fallback_to_regex_on_analyze_error(monkeypatch):
-    def fail(self, text):  # type: ignore[no-redef]
+    def fail(self, text, folder_tree=None):  # type: ignore[no-redef]
         raise RuntimeError("boom")
 
     monkeypatch.setattr(OpenRouterAnalyzer, "analyze", fail)
 
     called: dict[str, bool] = {}
 
-    def fake_regex(self, text):  # type: ignore[no-redef]
+    def fake_regex(self, text, folder_tree=None):  # type: ignore[no-redef]
         called["called"] = True
         return {"prompt": None, "raw_response": None, "metadata": {"category": "regex"}}
 
@@ -32,3 +35,28 @@ def test_fallback_to_regex_on_analyze_error(monkeypatch):
 
     assert called.get("called")
     assert result["metadata"]["category"] == "regex"
+
+
+def test_folder_tree_in_prompt(monkeypatch):
+    captured: dict[str, str] = {}
+
+    class DummyResponse:
+        def raise_for_status(self) -> None:
+            pass
+
+        def json(self) -> Dict[str, Any]:  # type: ignore[override]
+            return {"choices": [{"message": {"content": json.dumps({})}}]}
+
+    def fake_post(url, json, headers, timeout):  # type: ignore[no-redef]
+        captured["prompt"] = json["messages"][0]["content"]
+        return DummyResponse()
+
+    monkeypatch.setattr("metadata_generation.requests.post", fake_post)
+
+    analyzer = OpenRouterAnalyzer(api_key="test")
+    tree = {"Финансы": {"Банки": {}}}
+    result = generate_metadata("text", analyzer=analyzer, folder_tree=tree)
+
+    tree_json = json.dumps(tree, ensure_ascii=False)
+    assert tree_json in captured["prompt"]
+    assert tree_json in result["prompt"]
