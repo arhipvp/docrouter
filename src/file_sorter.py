@@ -9,6 +9,7 @@ from typing import Any, Dict, List, Tuple
 
 logger = logging.getLogger(__name__)
 
+# Запрещённые для имён файлов символы (Windows-совместимо)
 INVALID_CHARS_PATTERN = re.compile(r'[<>:"/\\|?*]')
 
 
@@ -55,36 +56,45 @@ def place_file(
     dry_run: bool = False,
     create_missing: bool = True,
 ) -> Tuple[Path, List[str]]:
-    """Перемещает файл в структуру папок на основе метаданных.
+    """Переместить файл в структуру папок на основе *metadata*.
 
-    Создаёт вложенные папки (категория/подкатегория/issuer),
-    переименовывает файл вида ``DATE__NAME.ext`` и сохраняет рядом JSON
-    с теми же метаданными.
+    Структура: ``<dest_root>/<category>/<subcategory>/<issuer>/<DATE>__<NAME>.<ext>``.
+    Рядом с файлом сохраняется ``.json`` с теми же метаданными.
 
     Возвращает кортеж ``(dest_file, missing)``, где:
       - ``dest_file`` — предполагаемый/фактический путь к файлу,
-      - ``missing`` — список отсутствующих каталогов (относительно ``dest_root``).
+      - ``missing`` — список отсутствующих каталогов (пути относительно ``dest_root``).
 
     Поведение:
-      - При ``dry_run=True`` ничего не создаёт и не перемещает, только расчёт путей.
-      - При ``create_missing=False`` и наличии отсутствующих каталогов файл не переносится.
-      - Если каталоги существуют (или были созданы при ``create_missing=True``), файл переносится и пишется JSON.
+      - При ``dry_run=True`` ничего не создаётся и не перемещается — только расчёт путей.
+      - Если имеются отсутствующие каталоги и ``create_missing=False``, перенос не выполняется.
+      - Если каталоги отсутствуют и ``create_missing=True``, они создаются перед переносом.
+
+    :param src_path: путь к исходному файлу.
+    :param metadata: словарь с ключами: ``category``, ``subcategory``, ``issuer``,
+                     ``date`` (YYYY-MM-DD), ``suggested_name``.
+    :param dest_root: корень архива.
+    :param dry_run: «сухой прогон» без изменений на диске.
+    :param create_missing: создавать недостающие каталоги.
+    :return: (путь к файлу назначения, список отсутствующих каталогов).
     """
     src = Path(src_path)
+    base_dir = Path(dest_root)
+
     ext = src.suffix
     name = metadata.get("suggested_name") or src.stem
-    name = sanitize_filename(name)
+    name = sanitize_filename(str(name))
     date = metadata.get("date", "unknown-date")
 
     new_name = f"{date}__{name}{ext}"
 
-    base_dir = Path(dest_root)
     dest_dir = base_dir
     missing: List[str] = []
+
     for key in ("category", "subcategory", "issuer"):
         value = metadata.get(key)
         if value:
-            dest_dir /= value
+            dest_dir /= str(value)
             if not dest_dir.exists():
                 # сохраняем отсутствующую директорию как путь относительно корня
                 missing.append(str(dest_dir.relative_to(base_dir)))
@@ -108,7 +118,7 @@ def place_file(
         dest_dir.mkdir(parents=True, exist_ok=True)
 
     # Перемещаем файл
-    shutil.move(str(src), dest_file)
+    shutil.move(str(src), str(dest_file))
     logger.info("Moved %s -> %s", src, dest_file)
 
     # Пишем метаданные

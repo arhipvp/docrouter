@@ -5,7 +5,7 @@ import shutil
 import uuid
 from pathlib import Path
 
-from fastapi import FastAPI, UploadFile, File, HTTPException, Request, Form
+from fastapi import FastAPI, UploadFile, File, HTTPException, Request, Form, Body
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 try:
@@ -46,11 +46,12 @@ async def serve_index(request: Request):
     """Отдать форму загрузки."""
     if templates is not None:
         return templates.TemplateResponse("index.html", {"request": request})
-    # Фолбэк без Jinja2 — просто отдаём содержимое файла как HTML.
     index_path = TEMPLATES_DIR / "index.html"
+    if not index_path.exists():  # страховка
+        return HTMLResponse("<h1>Docrouter</h1><p>templates/index.html не найден</p>")
     return HTMLResponse(index_path.read_text(encoding="utf-8"))
 
- 
+
 # --------- Конфиг и логирование ----------
 config = load_config()
 try:
@@ -70,6 +71,7 @@ def _resolve_in_output(relative: str) -> Path:
     """Преобразовать относительный путь в путь внутри output_dir."""
     base = Path(config.output_dir).resolve()
     target = (base / relative).resolve()
+    # Защита от выхода за пределы output_dir
     if not target.is_relative_to(base):
         raise HTTPException(status_code=400, detail="Path outside output_dir")
     return target
@@ -112,13 +114,19 @@ async def upload_file(
         logger.exception("Upload/processing failed for %s", file.filename)
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
-    # Статус
-    if dry_run:
-        status = "dry_run"
-    elif missing:
-        status = "pending"
-    else:
-        status = "processed"
+    if missing:
+        database.add_file(
+            file_id,
+            file.filename,
+            metadata,
+            str(temp_path),
+            "pending",
+            meta_result.get("prompt"),
+            meta_result.get("raw_response"),
+        )
+        return {"id": file_id, "status": "pending", "missing": missing}
+
+    status = "dry_run" if dry_run else "processed"
 
     # Сохраняем запись в БД
     database.add_file(
@@ -129,7 +137,7 @@ async def upload_file(
         status,
         meta_result.get("prompt"),
         meta_result.get("raw_response"),
-        missing,
+        [],  # missing
     )
 
     return {
@@ -138,7 +146,7 @@ async def upload_file(
         "metadata": metadata,
         "path": str(dest_path),
         "status": status,
-        "missing": missing,
+        "missing": [],
         "prompt": meta_result.get("prompt"),
         "raw_response": meta_result.get("raw_response"),
     }
@@ -146,7 +154,6 @@ async def upload_file(
 
 @app.get("/metadata/{file_id}")
 async def get_metadata(file_id: str):
-    """Получить сохранённые метаданные по ID файла."""
     record = database.get_file(file_id)
     if not record:
         raise HTTPException(status_code=404, detail="Metadata not found")
@@ -155,7 +162,6 @@ async def get_metadata(file_id: str):
 
 @app.get("/download/{file_id}")
 async def download_file(file_id: str):
-    """Скачать обработанный файл по ID."""
     record = database.get_file(file_id)
     if not record:
         raise HTTPException(status_code=404, detail="File not found")
@@ -167,7 +173,6 @@ async def download_file(file_id: str):
 
 @app.get("/files/{file_id}/details")
 async def get_file_details(file_id: str):
-    """Вернуть полную запись о файле."""
     record = database.get_details(file_id)
     if not record:
         raise HTTPException(status_code=404, detail="File not found")
@@ -176,16 +181,12 @@ async def get_file_details(file_id: str):
 
 @app.get("/files")
 async def list_files():
-    """Вернуть список всех загруженных файлов."""
     return database.list_files()
 
 
 @app.get("/folder-tree")
 async def folder_tree():
-    """Вернуть структуру папок в выходном каталоге.
-
-    Каждый элемент содержит поля ``name``, ``path`` и ``children``.
-    """
+    """Вернуть структуру папок в выходном каталоге."""
     return get_folder_tree(config.output_dir)
 
 
@@ -201,7 +202,6 @@ async def create_folder(path: str):
 
 @app.patch("/folders/{folder_path:path}")
 async def rename_folder(folder_path: str, new_name: str):
-    """Переименовать каталог."""
     src = _resolve_in_output(folder_path)
     if not src.exists():
         raise HTTPException(status_code=404, detail="Folder not found")
@@ -215,7 +215,6 @@ async def rename_folder(folder_path: str, new_name: str):
 
 @app.delete("/folders/{folder_path:path}")
 async def delete_folder(folder_path: str):
-    """Удалить каталог."""
     target = _resolve_in_output(folder_path)
     base = Path(config.output_dir).resolve()
     if target == base:
@@ -226,23 +225,45 @@ async def delete_folder(folder_path: str):
     return get_folder_tree(config.output_dir)
 
 
+# ---------- ЕДИНЫЙ finalize ----------
 @app.post("/files/{file_id}/finalize")
-async def finalize_file(file_id: str):
-    """Переместить ранее загруженный файл после создания недостающих папок."""
+async def finalize_file(
+    file_id: str,
+    missing: list[str] | None = Body(default=None),
+):
+    """
+    Завершить обработку «отложенного» файла:
+    - при наличии `missing` — создать указанные каталоги внутри output_dir;
+    - перенести файл в целевую структуру (create_missing=True);
+    - обновить запись в БД.
+    """
     record = database.get_file(file_id)
     if not record:
         raise HTTPException(status_code=404, detail="File not found")
     if record.get("status") != "pending":
+        # Возвращаем текущую запись, ничего не делаем
         return record
 
-    src = UPLOAD_DIR / f"{file_id}_{record['filename']}"
-    dest_path, missing = place_file(
-        src,
+    # Если фронт подсказал недостающие, создадим их тут (без дергания собственного эндпоинта)
+    if missing:
+        for rel in missing:
+            target = _resolve_in_output(rel)
+            target.mkdir(parents=True, exist_ok=True)
+
+    # Путь к временно загруженному файлу
+    temp_path = record.get("path")
+    if not temp_path:
+        # Фолбэк: старый путь формата uploads/<uuid>_<filename>
+        temp_path = str(UPLOAD_DIR / f"{file_id}_{record['filename']}")
+
+    dest_path, still_missing = place_file(
+        str(temp_path),
         record["metadata"],
         config.output_dir,
         dry_run=False,
         create_missing=True,
     )
+
     database.update_file(
         file_id,
         record["metadata"],
@@ -250,6 +271,6 @@ async def finalize_file(file_id: str):
         "processed",
         record.get("prompt"),
         record.get("raw_response"),
-        missing,
+        still_missing,
     )
     return database.get_file(file_id)
