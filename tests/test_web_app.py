@@ -134,6 +134,7 @@ def test_root_returns_form_unprotected():
         assert resp.status_code == 200
         assert '<form action="/upload" method="post" enctype="multipart/form-data">' in resp.text
         assert 'name="language"' in resp.text
+        assert 'id="upload-progress"' in resp.text
 
 
 def test_files_endpoint_lists_uploaded_files(tmp_path):

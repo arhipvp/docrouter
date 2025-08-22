@@ -1,6 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
   const form = document.querySelector('form');
   const list = document.getElementById('files');
+  const progress = document.getElementById('upload-progress');
 
   async function refreshFiles() {
     const resp = await fetch('/files');
@@ -18,16 +19,28 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  form.addEventListener('submit', async (e) => {
+  form.addEventListener('submit', (e) => {
     e.preventDefault();
     const data = new FormData(form);
-    const resp = await fetch('/upload', { method: 'POST', body: data });
-    if (resp.ok) {
-      form.reset();
-      refreshFiles();
-    } else {
-      alert('Ошибка загрузки');
-    }
+    progress.value = 0;
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', '/upload');
+    xhr.upload.addEventListener('progress', (ev) => {
+      if (ev.lengthComputable) {
+        progress.max = ev.total;
+        progress.value = ev.loaded;
+      }
+    });
+    xhr.onload = () => {
+      if (xhr.status === 200) {
+        form.reset();
+        progress.value = 0;
+        refreshFiles();
+      } else {
+        alert('Ошибка загрузки');
+      }
+    };
+    xhr.send(data);
   });
 
   refreshFiles();
