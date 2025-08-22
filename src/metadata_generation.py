@@ -9,12 +9,19 @@ it easy to switch between cloud and local models.
 from __future__ import annotations
 
 import json
-import os
 import re
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Optional
 
 import requests
+
+from config import (
+    OPENROUTER_API_KEY,
+    OPENROUTER_BASE_URL,
+    OPENROUTER_MODEL,
+    OPENROUTER_SITE_NAME,
+    OPENROUTER_SITE_URL,
+)
 
 
 __all__ = [
@@ -36,13 +43,23 @@ class MetadataAnalyzer(ABC):
 class OpenRouterAnalyzer(MetadataAnalyzer):
     """Analyzer that delegates to an OpenRouter-hosted LLM."""
 
-    API_URL = "https://openrouter.ai/api/v1/chat/completions"
-
-    def __init__(self, api_key: Optional[str] = None, model: str = "anthropic/claude-3-haiku-20240307"):
-        self.api_key = api_key or os.getenv("OPENROUTER_API_KEY")
+    def __init__(
+        self,
+        api_key: Optional[str] = None,
+        model: Optional[str] = None,
+        base_url: Optional[str] = None,
+        site_url: Optional[str] = None,
+        site_name: Optional[str] = None,
+    ):
+        self.api_key = api_key or OPENROUTER_API_KEY
         if not self.api_key:
             raise RuntimeError("OPENROUTER_API_KEY environment variable required")
-        self.model = model
+
+        self.model = model or OPENROUTER_MODEL or "openai/chatgpt-4o-latest"
+        self.base_url = base_url or OPENROUTER_BASE_URL or "https://openrouter.ai/api/v1"
+        self.api_url = self.base_url.rstrip("/") + "/chat/completions"
+        self.site_url = site_url or OPENROUTER_SITE_URL or "https://github.com/docrouter"
+        self.site_name = site_name or OPENROUTER_SITE_NAME or "DocRouter Metadata Generator"
 
     def analyze(self, text: str) -> Dict[str, Any]:
         prompt = (
@@ -59,11 +76,11 @@ class OpenRouterAnalyzer(MetadataAnalyzer):
         }
         headers = {
             "Authorization": f"Bearer {self.api_key}",
-            "HTTP-Referer": "https://github.com/docrouter",
-            "X-Title": "DocRouter Metadata Generator",
+            "HTTP-Referer": self.site_url,
+            "X-Title": self.site_name,
         }
 
-        response = requests.post(self.API_URL, json=payload, headers=headers, timeout=60)
+        response = requests.post(self.api_url, json=payload, headers=headers, timeout=60)
         response.raise_for_status()
         content = response.json()["choices"][0]["message"]["content"]
         try:
