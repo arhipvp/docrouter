@@ -100,7 +100,10 @@ async def upload_file(
         metadata["language"] = lang
 
         # Раскладываем файл по директориям
-        dest_path = place_file(str(temp_path), metadata, config.output_dir, dry_run=dry_run)
+        dest_result = place_file(
+            str(temp_path), metadata, config.output_dir, dry_run=dry_run
+        )
+        dest_path = dest_result["path"] if isinstance(dest_result, dict) else dest_result
 
     except Exception as exc:  # pragma: no cover
         logger.exception("Upload/processing failed for %s", file.filename)
