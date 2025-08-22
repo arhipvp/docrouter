@@ -111,6 +111,35 @@ def test_upload_retrieve_and_download(tmp_path, monkeypatch):
         assert download.content == b"content"
 
 
+def test_details_endpoint_returns_full_record(tmp_path, monkeypatch):
+    server.database.init_db()
+
+    captured = {}
+
+    def _mock_extract_text(path, language="eng"):
+        captured["language"] = language
+        with open(path, "r", encoding="utf-8") as f:
+            return f.read()
+
+    monkeypatch.setattr(server, "extract_text", _mock_extract_text)
+    monkeypatch.setattr(server.metadata_generation, "generate_metadata", _mock_generate_metadata)
+    server.config.output_dir = str(tmp_path)
+
+    with LiveClient(app) as client:
+        resp = client.post(
+            "/upload",
+            data={"language": "deu"},
+            files={"file": ("example.txt", b"content")},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        file_id = data["id"]
+
+        details = client.get(f"/files/{file_id}/details")
+        assert details.status_code == 200
+        assert details.json() == data
+
+
 def test_download_file_not_found_returns_404(tmp_path):
     server.config.output_dir = str(tmp_path)
     with LiveClient(app) as client:

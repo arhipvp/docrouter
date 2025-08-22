@@ -140,6 +140,15 @@ async def download_file(file_id: str):
     return FileResponse(path, filename=path.name)
 
 
+@app.get("/files/{file_id}/details")
+async def get_file_details(file_id: str):
+    """Вернуть полную запись о файле."""
+    record = database.get_details(file_id)
+    if not record:
+        raise HTTPException(status_code=404, detail="File not found")
+    return record
+
+
 @app.get("/files")
 async def list_files():
     """Вернуть список всех загруженных файлов."""
