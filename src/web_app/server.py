@@ -154,3 +154,9 @@ async def get_file_details(file_id: str):
 async def list_files():
     """Вернуть список всех загруженных файлов."""
     return database.list_files()
+
+
+@app.get("/folder-tree")
+async def folder_tree():
+    """Вернуть структуру папок в выходном каталоге."""
+    return get_folder_tree(config.output_dir)
