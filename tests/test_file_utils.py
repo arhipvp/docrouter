@@ -36,6 +36,21 @@ def _create_file(base: Path, ext: str, text: str) -> Path:
         doc = Document()
         doc.add_paragraph(text)
         doc.save(path)
+    elif ext == ".xlsx":
+        from openpyxl import Workbook
+
+        wb = Workbook()
+        ws = wb.active
+        ws.append(text.split(","))
+        wb.save(path)
+    elif ext == ".xls":
+        import xlwt
+
+        wb = xlwt.Workbook()
+        ws = wb.add_sheet("Sheet1")
+        for col, val in enumerate(text.split(",")):
+            ws.write(0, col, val)
+        wb.save(path)
     else:
         raise ValueError("unsupported ext")
     return path
@@ -55,6 +70,18 @@ class TestExtractText(unittest.TestCase):
     def test_csv(self):
         with TemporaryDirectory() as tmp:
             path = _create_file(Path(tmp), ".csv", "a,b")
+            self.assertEqual(extract_text(path).strip(), "a,b")
+
+    @unittest.skipUnless(has_module("openpyxl"), "openpyxl not installed")
+    def test_xlsx(self):
+        with TemporaryDirectory() as tmp:
+            path = _create_file(Path(tmp), ".xlsx", "a,b")
+            self.assertEqual(extract_text(path).strip(), "a,b")
+
+    @unittest.skipUnless(has_module("xlrd") and has_module("xlwt"), "xlrd/xlwt not installed")
+    def test_xls(self):
+        with TemporaryDirectory() as tmp:
+            path = _create_file(Path(tmp), ".xls", "a,b")
             self.assertEqual(extract_text(path).strip(), "a,b")
 
     @unittest.skipUnless(has_module("fitz"), "PyMuPDF not installed")

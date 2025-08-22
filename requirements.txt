@@ -7,5 +7,7 @@ pillow
 pytesseract
 python-docx
 pymupdf
+openpyxl
+xlrd
 python-multipart
 pytest
