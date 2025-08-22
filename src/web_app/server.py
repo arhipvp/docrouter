@@ -15,7 +15,7 @@ except Exception:  # pragma: no cover
 from config import load_config
 from logging_config import setup_logging
 from file_utils import extract_text
-from file_sorter import place_file
+from file_sorter import place_file, get_folder_tree
 import metadata_generation
 from . import database
 
@@ -83,7 +83,8 @@ async def upload_file(
         # Извлечение текста + генерация метаданных
         lang = language or config.tesseract_lang
         text = extract_text(temp_path, language=lang)
-        meta_result = metadata_generation.generate_metadata(text)
+        folder_tree = get_folder_tree(config.output_dir)
+        meta_result = metadata_generation.generate_metadata(text, folder_tree=folder_tree)
         metadata = meta_result["metadata"]
         metadata["extracted_text"] = text
         metadata["language"] = lang
