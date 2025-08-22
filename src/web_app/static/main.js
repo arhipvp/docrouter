@@ -10,6 +10,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const missingConfirm = document.getElementById('missing-confirm');
   const previewModal = document.getElementById('preview-modal');
   const previewFrame = document.getElementById('preview-frame');
+  const chatModal = document.getElementById('chat-modal');
+  const chatHistory = document.getElementById('chat-history');
+  const chatForm = document.getElementById('chat-form');
+  const chatInput = document.getElementById('chat-input');
 
   const imageInput = document.getElementById('image-files');
   const imageDropArea = document.getElementById('image-drop-area');
@@ -25,11 +29,15 @@ document.addEventListener('DOMContentLoaded', () => {
   const editDate = document.getElementById('edit-date');
   const editName = document.getElementById('edit-name');
   let currentEditId = null;
+  let currentChatId = null;
 
   document.querySelectorAll('.modal .close').forEach(btn => {
     btn.addEventListener('click', () => {
       const target = btn.dataset.close;
-      if (target) document.getElementById(target).style.display = 'none';
+      if (target) {
+        document.getElementById(target).style.display = 'none';
+        if (target === 'chat-modal') currentChatId = null;
+      }
     });
   });
 
@@ -70,6 +78,16 @@ document.addEventListener('DOMContentLoaded', () => {
       });
       li.appendChild(editBtn);
 
+      const chatBtn = document.createElement('button');
+      chatBtn.type = 'button';
+      chatBtn.textContent = 'Чат';
+      chatBtn.classList.add('chat-btn');
+      chatBtn.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        openChatModal(f);
+      });
+      li.appendChild(chatBtn);
+
       list.appendChild(li);
     });
   }
@@ -92,6 +110,27 @@ document.addEventListener('DOMContentLoaded', () => {
     editDate.value = m.date || '';
     editName.value = m.suggested_name || '';
     editModal.style.display = 'flex';
+  }
+
+  function renderChat(history) {
+    chatHistory.innerHTML = '';
+    history.forEach(msg => {
+      const div = document.createElement('div');
+      div.textContent = `${msg.role}: ${msg.message}`;
+      chatHistory.appendChild(div);
+    });
+  }
+
+  async function openChatModal(file) {
+    currentChatId = file.id;
+    try {
+      const resp = await fetch(`/files/${file.id}/details`);
+      const data = resp.ok ? await resp.json() : {};
+      renderChat(data.chat_history || []);
+    } catch {
+      renderChat([]);
+    }
+    chatModal.style.display = 'flex';
   }
 
   editForm.addEventListener('submit', async (e) => {
@@ -129,7 +168,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // предпросмотр по клику на элемент списка (кроме ссылки и кнопки)
   list.addEventListener('click', (e) => {
-    if (e.target.closest('a.download-link') || e.target.closest('button.edit-btn')) return;
+    if (e.target.closest('a.download-link') || e.target.closest('button.edit-btn') || e.target.closest('button.chat-btn')) return;
 
     const li = e.target.closest('li');
     if (!li) return;
@@ -398,6 +437,23 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  chatForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!currentChatId) return;
+    const msg = chatInput.value.trim();
+    if (!msg) return;
+    const resp = await fetch(`/chat/${currentChatId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: msg })
+    });
+    if (resp.ok) {
+      const data = await resp.json();
+      renderChat(data.chat_history);
+      chatInput.value = '';
+    }
+  });
+
   // UX: закрытие всех модалок по Esc
   document.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape') return;
@@ -411,6 +467,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     if (missingModal.style.display === 'flex') {
       missingModal.style.display = 'none';
+    }
+    if (chatModal.style.display === 'flex') {
+      chatModal.style.display = 'none';
+      currentChatId = null;
     }
   });
 

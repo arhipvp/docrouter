@@ -34,6 +34,7 @@ def add_file(
         "prompt": prompt,
         "raw_response": raw_response,
         "missing": missing or [],
+        "chat_history": [],
     }
     if sources is not None:
         _storage[file_id]["sources"] = sources
@@ -87,4 +88,22 @@ def delete_file(file_id: str) -> None:
 def list_files() -> list[Dict[str, Any]]:
     """Получить список всех файлов."""
     return list(_storage.values())
+
+
+def add_chat_message(file_id: str, role: str, message: str) -> List[Dict[str, str]]:
+    """Добавить запись в историю чата."""
+    record = _storage.get(file_id)
+    if record is None:
+        return []
+    history: List[Dict[str, str]] = record.setdefault("chat_history", [])
+    history.append({"role": role, "message": message})
+    return history
+
+
+def get_chat_history(file_id: str) -> List[Dict[str, str]]:
+    """Получить историю чата по файлу."""
+    record = _storage.get(file_id)
+    if record is None:
+        return []
+    return record.setdefault("chat_history", [])
 
