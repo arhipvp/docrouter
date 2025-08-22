@@ -16,7 +16,7 @@ app = FastAPI()
 
 # Load configuration
 config = load_config()
-logging.basicConfig(level=getattr(logging, config.LOG_LEVEL.upper(), logging.INFO))
+logging.basicConfig(level=getattr(logging, config.log_level.upper(), logging.INFO))
 
 # In-memory store for metadata
 METADATA_STORE: Dict[str, Dict[str, Any]] = {}
@@ -35,11 +35,11 @@ async def upload_file(file: UploadFile = File(...), dry_run: bool = False):
         with open(temp_path, "wb") as dest:
             dest.write(contents)
 
-        text = extract_text(temp_path, language=config.TESSERACT_LANG)
+        text = extract_text(temp_path, language=config.tesseract_lang)
         metadata = metadata_generation.generate_metadata(text)
         metadata["extracted_text"] = text
 
-        dest_path = place_file(str(temp_path), metadata, config.OUTPUT_DIR, dry_run=dry_run)
+        dest_path = place_file(str(temp_path), metadata, config.output_dir, dry_run=dry_run)
     except Exception as exc:  # pragma: no cover - error handling
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
