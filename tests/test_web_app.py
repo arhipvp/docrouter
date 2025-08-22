@@ -134,11 +134,11 @@ def test_upload_images_returns_sources(tmp_path, monkeypatch):
 
     captured = {}
 
-    def _mock_merge(paths, dest):
+    def _mock_merge(paths):
         captured["paths"] = [Path(p).name for p in paths]
-        with open(dest, "wb") as f:
-            f.write(b"PDF")
-        return dest
+        tmp_file = tmp_path / "tmp.pdf"
+        tmp_file.write_bytes(b"PDF")
+        return tmp_file
 
     def _mock_extract_text(path, language="eng"):
         captured["language"] = language

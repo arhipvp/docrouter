@@ -4,10 +4,11 @@ import csv
 import importlib.util
 from tempfile import TemporaryDirectory
 import unittest
+from PIL import Image
 
 sys.path.append(str(Path(__file__).resolve().parents[1] / "src"))
 
-from file_utils import extract_text
+from file_utils import extract_text, merge_images_to_pdf
 
 
 def has_module(name: str) -> bool:
@@ -95,6 +96,23 @@ class TestExtractText(unittest.TestCase):
         with TemporaryDirectory() as tmp:
             path = _create_file(Path(tmp), ".docx", "hello docx")
             self.assertEqual(extract_text(path).strip(), "hello docx")
+
+
+@unittest.skipUnless(has_module("fitz"), "PyMuPDF not installed")
+class TestMergeImagesToPdf(unittest.TestCase):
+    def test_merge_images_to_pdf(self):
+        with TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            img1 = base / "img1.jpg"
+            Image.new("RGB", (100, 100), color="red").save(img1)
+            img2 = base / "img2.png"
+            Image.new("RGBA", (80, 120), color=(0, 255, 0, 128)).save(img2)
+            pdf = merge_images_to_pdf([img1, img2])
+            self.assertTrue(pdf.exists())
+            import fitz
+            with fitz.open(pdf) as doc:
+                self.assertEqual(doc.page_count, 2)
+            pdf.unlink()
 
 
 if __name__ == "__main__":

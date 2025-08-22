@@ -175,9 +175,10 @@ async def upload_images(
             dest.write(contents)
         image_paths.append(temp_img)
 
-    pdf_path = UPLOAD_DIR / f"{file_id}.pdf"
     try:
-        merge_images_to_pdf(image_paths, pdf_path)
+        tmp_pdf = merge_images_to_pdf(image_paths)
+        pdf_path = UPLOAD_DIR / f"{file_id}.pdf"
+        shutil.move(tmp_pdf, pdf_path)
     except Exception as exc:  # pragma: no cover
         shutil.rmtree(temp_dir, ignore_errors=True)
         logger.exception("Failed to merge images: %s", [f.filename for f in files])
