@@ -39,6 +39,11 @@ def get_file(file_id: str) -> Optional[Dict[str, Any]]:
     return _storage.get(file_id)
 
 
+def get_details(file_id: str) -> Optional[Dict[str, Any]]:
+    """Вернуть полную запись без фильтрации полей."""
+    return _storage.get(file_id)
+
+
 def update_file(
     file_id: str,
     metadata: Dict[str, Any],
