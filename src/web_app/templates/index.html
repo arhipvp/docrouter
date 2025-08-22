@@ -22,6 +22,10 @@
         </form>
         <progress id="upload-progress" max="100" value="0"></progress>
         <h2>Структура папок</h2>
+        <div id="folder-controls">
+            <input type="text" id="new-folder-name" placeholder="Имя папки">
+            <button id="create-folder-btn">Создать папку</button>
+        </div>
         <ul id="folder-tree"></ul>
         <h2>Загруженные файлы</h2>
         <ul id="files"></ul>
@@ -30,6 +34,21 @@
             <pre id="ai-sent"></pre>
             <h3>Получено</h3>
             <pre id="ai-received"></pre>
+        </div>
+    </div>
+    <div id="rename-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" data-close="rename-modal">&times;</span>
+            <h3>Переименовать папку</h3>
+            <input type="text" id="rename-input" />
+            <button id="rename-confirm">Сохранить</button>
+        </div>
+    </div>
+    <div id="delete-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" data-close="delete-modal">&times;</span>
+            <p>Удалить папку <span id="delete-target"></span>?</p>
+            <button id="delete-confirm">Удалить</button>
         </div>
     </div>
 </body>
