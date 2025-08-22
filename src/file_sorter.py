@@ -7,6 +7,11 @@ import shutil
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
+try:
+    from unidecode import unidecode
+except Exception:  # pragma: no cover
+    unidecode = None  # type: ignore[assignment]
+
 logger = logging.getLogger(__name__)
 
 # Запрещённые для имён файлов символы (Windows-совместимо)
@@ -21,6 +26,16 @@ def sanitize_filename(name: str, replacement: str = "_") -> str:
     :return: скорректированное имя.
     """
     return INVALID_CHARS_PATTERN.sub(replacement, name)
+
+
+def transliterate(name: str) -> str:
+    """Преобразовать *name* в латиницу.
+
+    Если библиотека ``unidecode`` недоступна, возвращает исходную строку.
+    """
+    if unidecode is None:
+        return name
+    return unidecode(name)
 
 
 def get_folder_tree(root_dir: str | Path) -> List[Dict[str, Any]]:
@@ -84,9 +99,13 @@ def place_file(
     ext = src.suffix
     name = metadata.get("suggested_name") or src.stem
     name = sanitize_filename(str(name))
+    metadata["suggested_name"] = name
+    translit = sanitize_filename(transliterate(name))
+    metadata["suggested_name_translit"] = translit
     date = metadata.get("date", "unknown-date")
 
     new_name = f"{date}__{name}{ext}"
+    metadata["new_name_translit"] = f"{date}__{translit}{ext}"
 
     dest_dir = base_dir
     missing: List[str] = []

@@ -59,8 +59,19 @@ document.addEventListener('DOMContentLoaded', () => {
   const editIssuer = document.getElementById('edit-issuer');
   const editDate = document.getElementById('edit-date');
   const editName = document.getElementById('edit-name');
+  const nameOriginalRadio = document.getElementById('name-original');
+  const nameLatinRadio = document.getElementById('name-latin');
+  const nameOriginalLabel = document.getElementById('name-original-label');
+  const nameLatinLabel = document.getElementById('name-latin-label');
   let currentEditId = null;
   let currentChatId = null;
+
+  nameOriginalRadio?.addEventListener('change', () => {
+    if (nameOriginalRadio.checked) editName.value = nameOriginalRadio.value;
+  });
+  nameLatinRadio?.addEventListener('change', () => {
+    if (nameLatinRadio.checked) editName.value = nameLatinRadio.value;
+  });
 
   // выбор языка отображения
   displayLangSelect?.addEventListener('change', () => {
@@ -150,7 +161,19 @@ document.addEventListener('DOMContentLoaded', () => {
     editSubcategory.value = m.subcategory || '';
     editIssuer.value = m.issuer || '';
     editDate.value = m.date || '';
-    editName.value = m.suggested_name || '';
+    const orig = m.suggested_name || '';
+    const latin = m.suggested_name_translit || orig;
+    editName.value = orig;
+    if (nameOriginalRadio) {
+      nameOriginalRadio.value = orig;
+      nameOriginalRadio.checked = true;
+    }
+    if (nameLatinRadio) {
+      nameLatinRadio.value = latin;
+      nameLatinRadio.checked = false;
+    }
+    if (nameOriginalLabel) nameOriginalLabel.textContent = orig;
+    if (nameLatinLabel) nameLatinLabel.textContent = latin;
     editModal.style.display = 'flex';
   }
 

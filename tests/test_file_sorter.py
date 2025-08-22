@@ -83,3 +83,17 @@ def test_place_file_returns_missing_dirs_and_does_not_move_when_create_missing_f
     # файл не должен быть перемещён
     assert not dest.exists()
     assert src.exists()
+
+
+def test_place_file_generates_transliteration(tmp_path):
+    pytest.importorskip("unidecode")
+    src = tmp_path / "doc.pdf"
+    src.write_text("content")
+
+    dest_root = tmp_path / "Archive"
+    metadata = sample_metadata()
+    metadata["suggested_name"] = "тест"
+
+    place_file(src, metadata, dest_root, dry_run=True)
+
+    assert metadata["suggested_name_translit"] == "test"
