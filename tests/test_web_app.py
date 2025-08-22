@@ -254,7 +254,9 @@ def test_details_endpoint_returns_full_record(tmp_path, monkeypatch):
 
         details = client.get(f"/files/{file_id}/details")
         assert details.status_code == 200
-        assert details.json() == data
+        expected = data.copy()
+        expected["chat_history"] = []
+        assert details.json() == expected
 
 
 def test_download_file_not_found_returns_404(tmp_path):
@@ -410,4 +412,39 @@ def test_preview_endpoint_serves_file(tmp_path):
         assert prev.status_code == 200
         assert prev.headers["content-type"].startswith("text/plain")
         assert prev.text.strip() == "content"
+
+
+def test_chat_history(tmp_path, monkeypatch):
+    server.database.init_db()
+    server.config.output_dir = str(tmp_path)
+
+    def _mock_extract_text(path, language="eng"):
+        return "content"
+
+    monkeypatch.setattr(server, "extract_text", _mock_extract_text)
+    monkeypatch.setattr(server.metadata_generation, "generate_metadata", _mock_generate_metadata)
+
+    with LiveClient(app) as client:
+        resp = client.post(
+            "/upload",
+            files={"file": ("chat.txt", b"content")},
+        )
+        assert resp.status_code == 200
+        file_id = resp.json()["id"]
+
+        chat1 = client.post(f"/chat/{file_id}", json={"message": "привет"})
+        assert chat1.status_code == 200
+        data1 = chat1.json()
+        assert any(msg["message"] == "привет" for msg in data1["chat_history"])
+        assert "content" in data1["response"]
+        assert len(data1["chat_history"]) == 2
+
+        chat2 = client.post(f"/chat/{file_id}", json={"message": "как дела"})
+        data2 = chat2.json()
+        assert len(data2["chat_history"]) == 4
+        assert data2["chat_history"][0]["message"] == "привет"
+
+        details = client.get(f"/files/{file_id}/details")
+        assert details.status_code == 200
+        assert len(details.json()["chat_history"]) == 4
 
