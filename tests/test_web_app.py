@@ -4,6 +4,7 @@ import threading
 import time
 import requests
 import uvicorn
+from fastapi.testclient import TestClient
 
 # Добавляем путь к src ДО импорта сервера
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", "src"))
@@ -200,16 +201,30 @@ def test_files_endpoint_lists_uploaded_files(tmp_path):
 
 
 def test_folder_crud_operations(tmp_path):
+    """Создание, переименование и удаление папок отражаются в /folder-tree."""
     server.config.output_dir = str(tmp_path)
-    with LiveClient(app) as client:
+
+    with TestClient(app) as client:
         resp = client.post("/folders", params={"path": "a/b"})
         assert resp.status_code == 200
         assert resp.json() == {"a": {"b": {}}}
+
+        tree = client.get("/folder-tree")
+        assert tree.status_code == 200
+        assert tree.json() == {"a": {"b": {}}}
 
         resp = client.patch("/folders/a/b", params={"new_name": "c"})
         assert resp.status_code == 200
         assert resp.json() == {"a": {"c": {}}}
 
+        tree = client.get("/folder-tree")
+        assert tree.status_code == 200
+        assert tree.json() == {"a": {"c": {}}}
+
         resp = client.delete("/folders/a/c")
         assert resp.status_code == 200
         assert resp.json() == {"a": {}}
+
+        tree = client.get("/folder-tree")
+        assert tree.status_code == 200
+        assert tree.json() == {"a": {}}
