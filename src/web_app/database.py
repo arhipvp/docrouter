@@ -29,6 +29,8 @@ def add_file(
         "id": file_id,
         "filename": filename,
         "metadata": metadata,
+        "tags_ru": metadata.get("tags_ru", []),
+        "tags_en": metadata.get("tags_en", []),
         "path": path,
         "status": status,
         "prompt": prompt,
@@ -67,6 +69,10 @@ def update_file(
     record = _storage[file_id]
     if metadata:
         record.setdefault("metadata", {}).update(metadata)
+        if "tags_ru" in metadata:
+            record["tags_ru"] = metadata["tags_ru"]
+        if "tags_en" in metadata:
+            record["tags_en"] = metadata["tags_en"]
     if path is not None:
         record["path"] = path
     if status is not None:
