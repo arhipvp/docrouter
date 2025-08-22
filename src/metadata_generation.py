@@ -9,6 +9,7 @@ it easy to switch between cloud and local models.
 from __future__ import annotations
 
 import json
+import logging
 import re
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Optional
@@ -23,6 +24,8 @@ from config import (
     OPENROUTER_SITE_URL,
 )
 
+
+logger = logging.getLogger(__name__)
 
 __all__ = [
     "generate_metadata",
@@ -132,9 +135,19 @@ def generate_metadata(text: str, analyzer: Optional[MetadataAnalyzer] = None) ->
     if analyzer is None:
         try:
             analyzer = OpenRouterAnalyzer()
-        except Exception:
+        except Exception as exc:
+            logger.error("Failed to initialize OpenRouterAnalyzer: %s", exc)
             analyzer = RegexAnalyzer()
-    metadata = analyzer.analyze(text)
+    try:
+        metadata = analyzer.analyze(text)
+    except Exception as exc:
+        logger.error(
+            "Analyzer %s failed: %s. Falling back to RegexAnalyzer",
+            type(analyzer).__name__,
+            exc,
+        )
+        analyzer = RegexAnalyzer()
+        metadata = analyzer.analyze(text)
     defaults = {
         "category": None,
         "subcategory": None,
