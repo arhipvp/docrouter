@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <title>DocRouter</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 2em; }
+        form { margin-top: 1em; }
+    </style>
+</head>
+<body>
+    <h1>Загрузка документов</h1>
+    <p>Выберите файл и отправьте его на обработку.</p>
+    <form action="/upload" method="post" enctype="multipart/form-data">
+        <input type="file" name="file" />
+        <input type="submit" value="Upload" />
+    </form>
+</body>
+</html>
