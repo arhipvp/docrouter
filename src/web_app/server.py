@@ -19,6 +19,7 @@ except Exception:  # pragma: no cover
 from config import load_config
 from logging_config import setup_logging
 from file_utils import extract_text, merge_images_to_pdf, translate_text
+from file_utils.embeddings import get_embedding, cosine_similarity
 from file_sorter import place_file, get_folder_tree
 import metadata_generation
 from . import database
@@ -103,6 +104,7 @@ async def upload_file(
         metadata = meta_result["metadata"]
         metadata["extracted_text"] = text
         metadata["language"] = lang
+        embedding = get_embedding(text)
 
         # Раскладываем файл по директориям без создания недостающих
         dest_path, missing = place_file(
@@ -126,6 +128,7 @@ async def upload_file(
             "pending",
             meta_result.get("prompt"),
             meta_result.get("raw_response"),
+            embedding=embedding,
         )
         return {"id": file_id, "status": "pending", "missing": missing}
 
@@ -141,6 +144,7 @@ async def upload_file(
         meta_result.get("prompt"),
         meta_result.get("raw_response"),
         [],  # missing
+        embedding=embedding,
     )
 
     return {
@@ -196,6 +200,7 @@ async def upload_images(
         metadata = meta_result["metadata"]
         metadata["extracted_text"] = text
         metadata["language"] = lang
+        embedding = get_embedding(text)
 
         dest_path, missing = place_file(
             str(pdf_path),
@@ -221,6 +226,7 @@ async def upload_images(
             meta_result.get("raw_response"),
             missing,
             sources=sources,
+            embedding=embedding,
         )
         return {"id": file_id, "status": "pending", "missing": missing, "sources": sources}
 
@@ -235,6 +241,7 @@ async def upload_images(
         meta_result.get("raw_response"),
         [],
         sources=sources,
+        embedding=embedding,
     )
 
     return {
@@ -332,6 +339,21 @@ async def get_file_details(file_id: str, lang: str | None = None):
 @app.get("/files")
 async def list_files():
     return database.list_files()
+
+
+@app.get("/search/semantic")
+async def semantic_search(q: str):
+    """Семантический поиск по сохранённым документам."""
+    query_vec = get_embedding(q)
+    results: list[dict[str, object]] = []
+    for rec in database.list_files():
+        emb = rec.get("embedding")
+        if not emb:
+            continue
+        score = cosine_similarity(query_vec, emb)
+        results.append({"id": rec["id"], "filename": rec["filename"], "score": score})
+    results.sort(key=lambda x: x["score"], reverse=True)
+    return {"results": results}
 
 
 @app.patch("/files/{file_id}")

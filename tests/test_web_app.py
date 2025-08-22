@@ -276,11 +276,14 @@ def test_details_endpoint_returns_full_record(tmp_path, monkeypatch):
 
         # merged expectation: есть и поля перевода, и чат-история
         details_json = details.json()
+        assert "embedding" in details_json
         expected = data.copy()
         expected["translated_text"] = None
         expected["translation_lang"] = None
         expected["chat_history"] = []
-        assert details_json == expected
+        details_json_no_emb = details_json.copy()
+        details_json_no_emb.pop("embedding", None)
+        assert details_json_no_emb == expected
 
 
 def test_download_file_not_found_returns_404(tmp_path):

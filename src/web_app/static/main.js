@@ -11,6 +11,31 @@ document.addEventListener('DOMContentLoaded', () => {
   const missingConfirm = document.getElementById('missing-confirm');
   const previewModal = document.getElementById('preview-modal');
   const previewFrame = document.getElementById('preview-frame');
+  const container = document.querySelector('.container');
+
+  // Семантический поиск
+  const semanticForm = document.createElement('form');
+  semanticForm.id = 'semantic-search-form';
+  semanticForm.innerHTML = `<input type="text" id="semantic-query" placeholder="Семантический поиск" /> <button type="submit">Искать</button>`;
+  const semanticResults = document.createElement('ul');
+  semanticResults.id = 'semantic-results';
+  container.insertBefore(semanticForm, container.firstChild.nextSibling);
+  container.insertBefore(semanticResults, semanticForm.nextSibling);
+
+  semanticForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const q = document.getElementById('semantic-query').value.trim();
+    if (!q) return;
+    const resp = await fetch(`/search/semantic?q=${encodeURIComponent(q)}`);
+    if (!resp.ok) return;
+    const data = await resp.json();
+    semanticResults.innerHTML = '';
+    data.results.forEach(r => {
+      const li = document.createElement('li');
+      li.textContent = `${r.filename} (${r.score.toFixed(2)})`;
+      semanticResults.appendChild(li);
+    });
+  });
 
   // merged: перевод + чат
   const displayLangSelect = document.getElementById('display-lang');
