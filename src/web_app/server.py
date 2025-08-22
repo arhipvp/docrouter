@@ -4,6 +4,7 @@ import logging
 import shutil
 import uuid
 from pathlib import Path
+import mimetypes
 
 from fastapi import FastAPI, UploadFile, File, HTTPException, Request, Form, Body
 from fastapi.responses import FileResponse, HTMLResponse
@@ -169,6 +170,18 @@ async def download_file(file_id: str):
     if not path.exists():
         raise HTTPException(status_code=404, detail="File not found")
     return FileResponse(path, filename=path.name)
+
+
+@app.get("/preview/{file_id}")
+async def preview_file(file_id: str):
+    record = database.get_file(file_id)
+    if not record:
+        raise HTTPException(status_code=404, detail="File not found")
+    path = Path(record.get("path", ""))
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="File not found")
+    content_type, _ = mimetypes.guess_type(path.name)
+    return FileResponse(path, media_type=content_type or "application/octet-stream")
 
 
 @app.get("/files/{file_id}/details")

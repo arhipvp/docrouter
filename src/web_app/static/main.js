@@ -8,6 +8,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const missingModal = document.getElementById('missing-modal');
   const missingList = document.getElementById('missing-list');
   const missingConfirm = document.getElementById('missing-confirm');
+  const previewModal = document.getElementById('preview-modal');
+  const previewFrame = document.getElementById('preview-frame');
 
   // UI на формах (вариант codex)
   const createForm = document.getElementById('create-folder-form');
@@ -23,6 +25,7 @@ document.addEventListener('DOMContentLoaded', () => {
     list.innerHTML = '';
     files.forEach(f => {
       const li = document.createElement('li');
+      li.dataset.id = f.id;
       const link = document.createElement('a');
       link.href = `/download/${f.id}`;
       link.textContent = 'скачать';
@@ -32,6 +35,28 @@ document.addEventListener('DOMContentLoaded', () => {
       list.appendChild(li);
     });
   }
+
+  list.addEventListener('click', (e) => {
+    if (e.target.tagName === 'A') return;
+    const li = e.target.closest('li');
+    if (!li) return;
+    const id = li.dataset.id;
+    if (!id) return;
+    previewFrame.src = `/preview/${id}`;
+    previewModal.style.display = 'flex';
+  });
+
+  const previewClose = previewModal.querySelector('.close');
+  previewClose.addEventListener('click', () => {
+    previewModal.style.display = 'none';
+    previewFrame.src = '';
+  });
+  previewModal.addEventListener('click', (e) => {
+    if (e.target === previewModal) {
+      previewModal.style.display = 'none';
+      previewFrame.src = '';
+    }
+  });
 
   // -------- Дерево папок --------
   function renderTree(container, tree, basePath = '') {
