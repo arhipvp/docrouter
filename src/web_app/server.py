@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import logging
 import uuid
 from pathlib import Path
 from typing import Dict, Any
@@ -8,15 +7,19 @@ from typing import Dict, Any
 from fastapi import FastAPI, UploadFile, File, HTTPException
 
 from config import load_config
+from logging_config import setup_logging
 from file_utils import extract_text
 import metadata_generation
 from file_sorter import place_file
 
 app = FastAPI()
 
-# Load configuration
+# Load configuration and set up logging
 config = load_config()
+
+
 logging.basicConfig(level=getattr(logging, config.log_level.upper(), logging.INFO))
+
 
 # In-memory store for metadata
 METADATA_STORE: Dict[str, Dict[str, Any]] = {}
