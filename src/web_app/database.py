@@ -8,7 +8,8 @@ from typing import Any, Dict, Optional, Union
 from config import load_config
 
 config = load_config()
-DB_PATH: Union[str, Path] = config.DB_URL or "metadata.db"
+# Используем нижний регистр, соответствующий определению в Config
+DB_PATH: Union[str, Path] = config.db_url or "metadata.db"
 if DB_PATH != ":memory:":
     DB_PATH = Path(DB_PATH)
 
