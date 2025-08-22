@@ -23,6 +23,7 @@ def add_file(
     raw_response: Any | None = None,
     missing: Optional[List[str]] = None,
     sources: Optional[List[str]] = None,
+    embedding: Optional[List[float]] = None,
 ) -> None:
     """Сохранить информацию о файле."""
     _storage[file_id] = {
@@ -37,6 +38,8 @@ def add_file(
     }
     if sources is not None:
         _storage[file_id]["sources"] = sources
+    if embedding is not None:
+        _storage[file_id]["embedding"] = embedding
 
 
 def get_file(file_id: str) -> Optional[Dict[str, Any]]:
@@ -58,6 +61,7 @@ def update_file(
     raw_response: Any | None = None,
     missing: Optional[List[str]] = None,
     sources: Optional[List[str]] = None,
+    embedding: Optional[List[float]] = None,
 ) -> None:
     """Обновить данные существующей записи."""
 
@@ -76,6 +80,10 @@ def update_file(
         record["raw_response"] = raw_response
     if missing is not None:
         record["missing"] = missing
+    if sources is not None:
+        record["sources"] = sources
+    if embedding is not None:
+        record["embedding"] = embedding
 
 
 

@@ -11,6 +11,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const previewModal = document.getElementById('preview-modal');
   const previewFrame = document.getElementById('preview-frame');
 
+  const searchForm = document.getElementById('semantic-search-form');
+  const searchInput = document.getElementById('semantic-query');
+  const searchResults = document.getElementById('semantic-results');
+
   const imageInput = document.getElementById('image-files');
   const imageDropArea = document.getElementById('image-drop-area');
   const imageList = document.getElementById('selected-images');
@@ -397,6 +401,23 @@ document.addEventListener('DOMContentLoaded', () => {
       folderMessage.textContent = err.message;
     }
   });
+
+  if (searchForm) {
+    searchForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const q = searchInput.value.trim();
+      if (!q) return;
+      const resp = await fetch(`/search/semantic?q=${encodeURIComponent(q)}`);
+      if (!resp.ok) return;
+      const results = await resp.json();
+      searchResults.innerHTML = '';
+      results.forEach(r => {
+        const li = document.createElement('li');
+        li.textContent = `${r.filename} (${r.similarity.toFixed(3)})`;
+        searchResults.appendChild(li);
+      });
+    });
+  }
 
   // UX: закрытие всех модалок по Esc
   document.addEventListener('keydown', (e) => {

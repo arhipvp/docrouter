@@ -309,6 +309,27 @@ def test_files_endpoint_lists_uploaded_files(tmp_path):
         names = [item["filename"] for item in files]
         assert "example.txt" in names
 
+
+def test_semantic_search_returns_matches(tmp_path, monkeypatch):
+    server.database.init_db()
+
+    def _mock_extract_text(path, language="eng"):
+        with open(path, "r", encoding="utf-8") as f:
+            return f.read()
+
+    monkeypatch.setattr(server, "extract_text", _mock_extract_text)
+    monkeypatch.setattr(server.metadata_generation, "generate_metadata", _mock_generate_metadata)
+    monkeypatch.setattr(server, "get_embedding", lambda text: [text.count("a"), text.count("b")])
+    server.config.output_dir = str(tmp_path)
+
+    with LiveClient(app) as client:
+        client.post("/upload", files={"file": ("a.txt", b"aaa")})
+        client.post("/upload", files={"file": ("b.txt", b"bbb")})
+        resp = client.get("/search/semantic", params={"q": "aaa"})
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data and data[0]["filename"] == "a.txt"
+
 def test_folder_crud_operations(tmp_path):
     server.config.output_dir = str(tmp_path)
     with LiveClient(app) as client:
