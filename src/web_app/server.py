@@ -6,10 +6,11 @@ import secrets
 import uuid
 from pathlib import Path
 
-from fastapi import FastAPI, UploadFile, File, HTTPException, Depends
+from fastapi import FastAPI, UploadFile, File, HTTPException, Depends, Request
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
+from fastapi.templating import Jinja2Templates
 
 from config import load_config
 from logging_config import setup_logging
@@ -20,15 +21,17 @@ from . import database
 
 app = FastAPI()
 
-# --------- Статика (форма загрузки) ----------
+# --------- Статика и шаблоны ----------
 STATIC_DIR = Path(__file__).parent / "static"
+TEMPLATES_DIR = Path(__file__).parent / "templates"
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+templates = Jinja2Templates(directory=TEMPLATES_DIR)
 
 
 @app.get("/")
-async def serve_index() -> FileResponse:
+async def serve_index(request: Request):
     """Отдать форму загрузки."""
-    return FileResponse(STATIC_DIR / "index.html")
+    return templates.TemplateResponse("index.html", {"request": request})
 
 
 # --------- Аутентификация (HTTP Basic) ----------
