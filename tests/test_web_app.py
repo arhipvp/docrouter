@@ -1,7 +1,9 @@
 import os
 import sys
-import tempfile
-from fastapi.testclient import TestClient
+import threading
+import time
+import requests
+import uvicorn
 
 # Добавляем путь к src ДО импорта сервера
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", "src"))
@@ -15,6 +17,37 @@ os.environ["DOCROUTER_PASS"] = "pass"         # Basic Auth пароль
 from web_app import server  # noqa: E402
 
 app = server.app
+
+
+class LiveClient:
+    """Простейший HTTP‑клиент поверх запущенного uvicorn."""
+
+    def __init__(self, app, host: str = "127.0.0.1", port: int = 8001):
+        self.app = app
+        self.host = host
+        self.port = port
+        self.base_url = f"http://{host}:{port}"
+
+    def __enter__(self):
+        config = uvicorn.Config(self.app, host=self.host, port=self.port, log_level="error")
+        self.server = uvicorn.Server(config)
+        self.thread = threading.Thread(target=self.server.run, daemon=True)
+        self.thread.start()
+        while not getattr(self.server, "started", False):
+            time.sleep(0.01)
+        self.session = requests.Session()
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        self.server.should_exit = True
+        self.thread.join()
+        self.session.close()
+
+    def get(self, path, **kwargs):
+        return self.session.get(self.base_url + path, **kwargs)
+
+    def post(self, path, **kwargs):
+        return self.session.post(self.base_url + path, **kwargs)
 
 
 def _mock_generate_metadata(text: str):
@@ -38,68 +71,65 @@ def test_upload_retrieve_and_download_auth_ok(tmp_path, monkeypatch):
     monkeypatch.setattr(server.metadata_generation, "generate_metadata", _mock_generate_metadata)
     server.config.output_dir = str(tmp_path)
 
-    client = TestClient(app)
+    with LiveClient(app) as client:
+        # Загрузка (защищено Basic Auth)
+        resp = client.post("/upload", files={"file": ("example.txt", b"content")}, auth=("user", "pass"))
+        assert resp.status_code == 200
+        data = resp.json()
+        assert {"id", "metadata", "path", "status"} <= set(data.keys())
+        file_id = data["id"]
+        assert data["status"] in {"dry_run", "processed"}
+        assert data["metadata"]["extracted_text"].strip() == "content"
 
-    # Загрузка (защищено Basic Auth)
-    resp = client.post("/upload", files={"file": ("example.txt", b"content")}, auth=("user", "pass"))
-    assert resp.status_code == 200
-    data = resp.json()
-    assert {"id", "metadata", "path", "status"} <= set(data.keys())
-    file_id = data["id"]
-    assert data["status"] in {"dry_run", "processed"}
-    assert data["metadata"]["extracted_text"].strip() == "content"
+        # Чтение метаданных (защищено Basic Auth)
+        meta = client.get(f"/metadata/{file_id}", auth=("user", "pass"))
+        assert meta.status_code == 200
+        assert meta.json() == data["metadata"]
 
-    # Чтение метаданных (защищено Basic Auth)
-    meta = client.get(f"/metadata/{file_id}", auth=("user", "pass"))
-    assert meta.status_code == 200
-    assert meta.json() == data["metadata"]
-
-    # Скачивание файла (защищено Basic Auth)
-    download = client.get(f"/download/{file_id}", auth=("user", "pass"))
-    assert download.status_code == 200
-    assert download.content == b"content"
+        # Скачивание файла (защищено Basic Auth)
+        download = client.get(f"/download/{file_id}", auth=("user", "pass"))
+        assert download.status_code == 200
+        assert download.content == b"content"
 
 
 def test_invalid_credentials_and_no_auth(tmp_path):
     server.config.output_dir = str(tmp_path)
-    client = TestClient(app)
+    with LiveClient(app) as client:
+        # Неверный пароль
+        resp_bad = client.post("/upload", files={"file": ("example.txt", b"content")}, auth=("user", "wrong"))
+        assert resp_bad.status_code == 401
 
-    # Неверный пароль
-    resp_bad = client.post("/upload", files={"file": ("example.txt", b"content")}, auth=("user", "wrong"))
-    assert resp_bad.status_code == 401
-
-    # Без авторизации
-    resp_noauth = client.post("/upload", files={"file": ("example.txt", b"content")})
-    assert resp_noauth.status_code == 401
+        # Без авторизации
+        resp_noauth = client.post("/upload", files={"file": ("example.txt", b"content")})
+        assert resp_noauth.status_code == 401
 
 
 def test_download_file_not_found_returns_404(tmp_path):
     server.config.output_dir = str(tmp_path)
-    client = TestClient(app)
+    with LiveClient(app) as client:
+        # Загружаем корректно
+        resp = client.post("/upload", files={"file": ("example.txt", b"content")}, auth=("user", "pass"))
+        assert resp.status_code == 200
+        file_id = resp.json()["id"]
 
-    # Загружаем корректно
-    resp = client.post("/upload", files={"file": ("example.txt", b"content")}, auth=("user", "pass"))
-    assert resp.status_code == 200
-    file_id = resp.json()["id"]
+        # Удаляем физический файл, чтобы получить 404 при скачивании
+        record = server.database.get_file(file_id)
+        assert record and "path" in record
+        path = record["path"]
+        if os.path.exists(path):
+            os.remove(path)
 
-    # Удаляем физический файл, чтобы получить 404 при скачивании
-    record = server.database.get_file(file_id)
-    assert record and "path" in record
-    path = record["path"]
-    if os.path.exists(path):
-        os.remove(path)
+        resp_missing = client.get(f"/download/{file_id}", auth=("user", "pass"))
+        assert resp_missing.status_code == 404
 
-    resp_missing = client.get(f"/download/{file_id}", auth=("user", "pass"))
-    assert resp_missing.status_code == 404
-
-    # Несуществующий ID
-    resp_unknown = client.get("/download/unknown", auth=("user", "pass"))
-    assert resp_unknown.status_code == 404
+        # Несуществующий ID
+        resp_unknown = client.get("/download/unknown", auth=("user", "pass"))
+        assert resp_unknown.status_code == 404
 
 
 def test_root_returns_form_unprotected():
     """Корневая страница без авторизации доступна и содержит форму."""
-    client = TestClient(app)
-    resp = client.get("/")
-    assert resp.status_code == 200
-    assert '<form action="/upload" method="post" enctype="multipart/form-data">' in resp.text
+    with LiveClient(app) as client:
+        resp = client.get("/")
+        assert resp.status_code == 200
+        assert '<form action="/upload" method="post" enctype="multipart/form-data">' in resp.text

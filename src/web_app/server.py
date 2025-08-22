@@ -7,10 +7,13 @@ import uuid
 from pathlib import Path
 
 from fastapi import FastAPI, UploadFile, File, HTTPException, Depends, Request
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
-from fastapi.templating import Jinja2Templates
+try:
+    from fastapi.templating import Jinja2Templates
+except Exception:  # pragma: no cover
+    Jinja2Templates = None  # type: ignore[misc,assignment]
 
 from config import load_config
 from logging_config import setup_logging
@@ -25,13 +28,23 @@ app = FastAPI()
 STATIC_DIR = Path(__file__).parent / "static"
 TEMPLATES_DIR = Path(__file__).parent / "templates"
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
-templates = Jinja2Templates(directory=TEMPLATES_DIR)
+if Jinja2Templates:
+    try:
+        templates = Jinja2Templates(directory=TEMPLATES_DIR)
+    except AssertionError:  # pragma: no cover
+        templates = None
+else:
+    templates = None
 
 
 @app.get("/")
 async def serve_index(request: Request):
     """Отдать форму загрузки."""
-    return templates.TemplateResponse("index.html", {"request": request})
+    if templates is not None:
+        return templates.TemplateResponse("index.html", {"request": request})
+    # Фолбэк без Jinja2 — просто отдаём содержимое файла как HTML.
+    index_path = TEMPLATES_DIR / "index.html"
+    return HTMLResponse(index_path.read_text(encoding="utf-8"))
 
 
 # --------- Аутентификация (HTTP Basic) ----------
