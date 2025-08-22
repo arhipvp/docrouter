@@ -67,7 +67,10 @@ def _mock_generate_metadata(text: str, folder_tree=None):
             "category": None,
             "subcategory": None,
             "issuer": None,
-            "person": None,
+            "person": "John Doe",
+            "date_of_birth": "1990-01-02",
+            "expiration_date": "2030-01-02",
+            "passport_number": "X1234567",
             "doc_type": None,
             "date": "2024-01-01",
             "amount": None,
@@ -119,6 +122,9 @@ def test_upload_retrieve_and_download(tmp_path, monkeypatch):
         assert captured["language"] == "deu"
         assert data["prompt"] == "PROMPT"
         assert data["raw_response"] == "{\"date\": \"2024-01-01\"}"
+        assert data["metadata"]["person"] == "John Doe"
+        assert data["metadata"]["date_of_birth"] == "1990-01-02"
+        assert data["metadata"]["expiration_date"] == "2030-01-02"
 
         # Чтение метаданных
         meta = client.get(f"/metadata/{file_id}")
@@ -148,6 +154,11 @@ def test_upload_retrieve_and_download(tmp_path, monkeypatch):
         assert translated.status_code == 200
         assert translated.text == "content-eng"
         assert calls["n"] == 1
+
+        record = server.database.get_file(file_id)
+        assert record["person"] == "John Doe"
+        assert record["date_of_birth"] == "1990-01-02"
+        assert record["expiration_date"] == "2030-01-02"
 
 
 def test_upload_images_returns_sources(tmp_path, monkeypatch):
@@ -281,6 +292,10 @@ def test_details_endpoint_returns_full_record(tmp_path, monkeypatch):
         expected["translated_text"] = None
         expected["translation_lang"] = None
         expected["chat_history"] = []
+        expected["person"] = data["metadata"]["person"]
+        expected["date_of_birth"] = data["metadata"]["date_of_birth"]
+        expected["expiration_date"] = data["metadata"]["expiration_date"]
+        expected["passport_number"] = data["metadata"]["passport_number"]
         details_json_no_emb = details_json.copy()
         details_json_no_emb.pop("embedding", None)
         assert details_json_no_emb == expected

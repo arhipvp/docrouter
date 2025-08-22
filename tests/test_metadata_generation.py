@@ -107,3 +107,16 @@ def test_multilanguage_tags_parsing(monkeypatch):
     meta = result["metadata"]
     assert meta["tags_ru"] == ["тег1", "тег2"]
     assert meta["tags_en"] == ["tag1", "tag2"]
+
+
+def test_generate_metadata_parses_mrz():
+    text = (
+        "P<UTOERIKSSON<<ANNA<MARIA<<<<<<<<<<<<<<<<<<<\n"
+        "L898902C<3UTO7408122F1204159ZE184226B<<<<<<<<<10"
+    )
+    result = generate_metadata(text, analyzer=RegexAnalyzer())
+    meta = result["metadata"]
+    assert meta["person"] == "ANNA MARIA ERIKSSON"
+    assert meta["date_of_birth"] == "1974-08-12"
+    assert meta["expiration_date"] == "2012-04-15"
+    assert meta["passport_number"] == "L898902C3"

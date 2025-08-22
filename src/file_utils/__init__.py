@@ -43,6 +43,8 @@ try:
 except Exception:  # pragma: no cover - optional module
     extract_text_image = None  # type: ignore
 
+from .mrz import parse_mrz
+
 logger = logging.getLogger(__name__)
 
 
@@ -214,6 +216,7 @@ __all__ = [
     "extract_text_xls",
     "extract_text_xlsx",
     "merge_images_to_pdf",
+    "parse_mrz",
     "translate_text",
 ]
 
