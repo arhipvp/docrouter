@@ -12,6 +12,10 @@ class Config:
     tesseract_lang: str = "eng"
     output_dir: str = "Archive"
     openrouter_api_key: Optional[str] = None
+    openrouter_base_url: Optional[str] = None
+    openrouter_model: Optional[str] = None
+    openrouter_site_url: Optional[str] = None
+    openrouter_site_name: Optional[str] = None
     db_url: Optional[str] = None
 
 
@@ -36,6 +40,10 @@ def load_config() -> Config:
         tesseract_lang=_get_first_env("TESSERACT_LANG", "tesseract_lang", default="eng") or "eng",
         output_dir=_get_first_env("OUTPUT_DIR", "output_dir", default="Archive") or "Archive",
         openrouter_api_key=_get_first_env("OPENROUTER_API_KEY", "openrouter_api_key"),
+        openrouter_base_url=_get_first_env("OPENROUTER_BASE_URL", "openrouter_base_url"),
+        openrouter_model=_get_first_env("OPENROUTER_MODEL", "openrouter_model"),
+        openrouter_site_url=_get_first_env("OPENROUTER_SITE_URL", "openrouter_site_url"),
+        openrouter_site_name=_get_first_env("OPENROUTER_SITE_NAME", "openrouter_site_name"),
         db_url=_get_first_env("DB_URL", "db_url"),
     )
 
@@ -45,6 +53,10 @@ def load_config() -> Config:
 
         class Settings(BaseSettings):
             openrouter_api_key: Optional[str] = Field(default=None, env=["openrouter_api_key", "OPENROUTER_API_KEY"])
+            openrouter_base_url: Optional[str] = Field(default=None, env=["openrouter_base_url", "OPENROUTER_BASE_URL"])
+            openrouter_model: Optional[str] = Field(default=None, env=["openrouter_model", "OPENROUTER_MODEL"])
+            openrouter_site_url: Optional[str] = Field(default=None, env=["openrouter_site_url", "OPENROUTER_SITE_URL"])
+            openrouter_site_name: Optional[str] = Field(default=None, env=["openrouter_site_name", "OPENROUTER_SITE_NAME"])
             db_url: Optional[str] = Field(default=None, env=["db_url", "DB_URL"])
             log_level: str = Field(default="INFO", env=["log_level", "LOG_LEVEL"])
             tesseract_lang: str = Field(default="eng", env=["tesseract_lang", "TESSERACT_LANG"])
@@ -61,6 +73,10 @@ def load_config() -> Config:
             tesseract_lang=s.tesseract_lang or base.tesseract_lang,
             output_dir=s.output_dir or base.output_dir,
             openrouter_api_key=s.openrouter_api_key or base.openrouter_api_key,
+            openrouter_base_url=s.openrouter_base_url or base.openrouter_base_url,
+            openrouter_model=s.openrouter_model or base.openrouter_model,
+            openrouter_site_url=s.openrouter_site_url or base.openrouter_site_url,
+            openrouter_site_name=s.openrouter_site_name or base.openrouter_site_name,
             db_url=s.db_url or base.db_url,
         )
 
@@ -69,6 +85,10 @@ def load_config() -> Config:
         cfg.tesseract_lang = _get_first_env("TESSERACT_LANG", default=cfg.tesseract_lang) or cfg.tesseract_lang
         cfg.output_dir = _get_first_env("OUTPUT_DIR", default=cfg.output_dir) or cfg.output_dir
         cfg.openrouter_api_key = _get_first_env("OPENROUTER_API_KEY", default=cfg.openrouter_api_key)
+        cfg.openrouter_base_url = _get_first_env("OPENROUTER_BASE_URL", default=cfg.openrouter_base_url)
+        cfg.openrouter_model = _get_first_env("OPENROUTER_MODEL", default=cfg.openrouter_model)
+        cfg.openrouter_site_url = _get_first_env("OPENROUTER_SITE_URL", default=cfg.openrouter_site_url)
+        cfg.openrouter_site_name = _get_first_env("OPENROUTER_SITE_NAME", default=cfg.openrouter_site_name)
         cfg.db_url = _get_first_env("DB_URL", default=cfg.db_url)
 
     except Exception:
@@ -89,6 +109,10 @@ LOG_LEVEL = config.log_level            # совместимо с старым �
 TESSERACT_LANG = config.tesseract_lang
 OUTPUT_DIR = config.output_dir
 OPENROUTER_API_KEY = config.openrouter_api_key
+OPENROUTER_BASE_URL = config.openrouter_base_url
+OPENROUTER_MODEL = config.openrouter_model
+OPENROUTER_SITE_URL = config.openrouter_site_url
+OPENROUTER_SITE_NAME = config.openrouter_site_name
 DB_URL = config.db_url
 
 __all__ = [
@@ -99,5 +123,9 @@ __all__ = [
     "TESSERACT_LANG",
     "OUTPUT_DIR",
     "OPENROUTER_API_KEY",
+    "OPENROUTER_BASE_URL",
+    "OPENROUTER_MODEL",
+    "OPENROUTER_SITE_URL",
+    "OPENROUTER_SITE_NAME",
     "DB_URL",
 ]
