@@ -9,6 +9,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const missingModal = document.getElementById('missing-modal');
   const missingList = document.getElementById('missing-list');
   const missingConfirm = document.getElementById('missing-confirm');
+  const suggestedPath = document.getElementById('suggested-path');
   const previewModal = document.getElementById('preview-modal');
   const previewFrame = document.getElementById('preview-frame');
   const container = document.querySelector('.container');
@@ -372,6 +373,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (xhr.status === 200) {
         const result = JSON.parse(xhr.responseText);
         if (result.status === 'pending') {
+          suggestedPath.textContent = result.suggested_path || '';
           missingList.innerHTML = '';
           (result.missing || []).forEach((path) => {
             const li = document.createElement('li');
@@ -381,13 +383,16 @@ document.addEventListener('DOMContentLoaded', () => {
           missingModal.style.display = 'flex';
           missingConfirm.onclick = async () => {
             try {
-              for (const path of result.missing || []) {
-                await fetch(`/folders?path=${encodeURIComponent(path)}`, { method: 'POST' });
-              }
-              await fetch(`/files/${result.id}/finalize`, { method: 'POST' });
+              const resp = await fetch(`/files/${result.id}/finalize`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ missing: result.missing || [] })
+              });
+              if (!resp.ok) throw new Error();
+              const finalData = await resp.json();
               missingModal.style.display = 'none';
-              sent.textContent = result.prompt || '';
-              received.textContent = result.raw_response || '';
+              sent.textContent = finalData.prompt || '';
+              received.textContent = finalData.raw_response || '';
               form.reset();
               progress.value = 0;
               refreshFiles();

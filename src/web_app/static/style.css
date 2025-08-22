@@ -21,6 +21,7 @@ button:hover, input[type="submit"]:hover { background-color: #0056b3; }
   .modal .close:hover { color: #0056b3; }
   #missing-list { list-style: none; padding: 0; margin: 1em 0; }
   #missing-list li { margin: 0.2em 0; }
+  #suggested-path { word-break: break-all; font-family: monospace; }
 #preview-modal .modal-content { width: 80%; height: 80%; max-width: 1000px; max-height: 800px; }
 #preview-frame { width: 100%; height: 100%; border: none; }
 
