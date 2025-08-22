@@ -9,7 +9,7 @@ import mimetypes
 
 
 from fastapi import FastAPI, UploadFile, File, HTTPException, Request, Form, Body
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 try:
     from fastapi.templating import Jinja2Templates
@@ -18,7 +18,7 @@ except Exception:  # pragma: no cover
 
 from config import load_config
 from logging_config import setup_logging
-from file_utils import extract_text, merge_images_to_pdf
+from file_utils import extract_text, merge_images_to_pdf, translate_text
 from file_sorter import place_file, get_folder_tree
 import metadata_generation
 from . import database
@@ -257,10 +257,30 @@ async def get_metadata(file_id: str):
 
 
 @app.get("/download/{file_id}")
-async def download_file(file_id: str):
+async def download_file(file_id: str, lang: str | None = None):
     record = database.get_file(file_id)
     if not record:
         raise HTTPException(status_code=404, detail="File not found")
+
+    if lang:
+        extracted = record.get("metadata", {}).get("extracted_text", "")
+        orig_lang = record.get("metadata", {}).get("language")
+        if lang == orig_lang:
+            text = extracted
+        elif record.get("translation_lang") == lang and record.get("translated_text"):
+            text = record["translated_text"]
+        else:
+            text = translate_text(extracted, lang)
+            database.update_file(
+                file_id,
+                translated_text=text,
+                translation_lang=lang,
+            )
+        headers = {
+            "Content-Disposition": f"attachment; filename={record.get('filename', file_id)}_{lang}.txt"
+        }
+        return PlainTextResponse(text, headers=headers)
+
     path = Path(record.get("path", ""))
     if not path.exists():
         raise HTTPException(status_code=404, detail="File not found")
@@ -280,10 +300,28 @@ async def preview_file(file_id: str):
 
 
 @app.get("/files/{file_id}/details")
-async def get_file_details(file_id: str):
+async def get_file_details(file_id: str, lang: str | None = None):
     record = database.get_details(file_id)
     if not record:
         raise HTTPException(status_code=404, detail="File not found")
+    if lang:
+        extracted = record.get("metadata", {}).get("extracted_text", "")
+        orig_lang = record.get("metadata", {}).get("language")
+        if lang == orig_lang:
+            text = extracted
+        elif record.get("translation_lang") == lang and record.get("translated_text"):
+            text = record["translated_text"]
+        else:
+            text = translate_text(extracted, lang)
+            database.update_file(
+                file_id,
+                translated_text=text,
+                translation_lang=lang,
+            )
+            record["translated_text"] = text
+            record["translation_lang"] = lang
+        record["translated_text"] = record.get("translated_text", text)
+        record["translation_lang"] = lang
     return record
 
 

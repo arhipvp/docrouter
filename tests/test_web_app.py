@@ -130,6 +130,25 @@ def test_upload_retrieve_and_download(tmp_path, monkeypatch):
         assert download.status_code == 200
         assert download.content == b"content"
 
+        # Перевод и повторное скачивание
+        calls = {"n": 0}
+
+        def _mock_translate(text, target_lang):
+            calls["n"] += 1
+            return f"{text}-{target_lang}"
+
+        monkeypatch.setattr(server, "translate_text", _mock_translate)
+
+        details = client.get(f"/files/{file_id}/details?lang=eng")
+        assert details.status_code == 200
+        assert details.json()["translated_text"] == "content-eng"
+        assert details.json()["translation_lang"] == "eng"
+
+        translated = client.get(f"/download/{file_id}?lang=eng")
+        assert translated.status_code == 200
+        assert translated.text == "content-eng"
+        assert calls["n"] == 1
+
 
 def test_upload_images_returns_sources(tmp_path, monkeypatch):
     server.database.init_db()
@@ -254,7 +273,11 @@ def test_details_endpoint_returns_full_record(tmp_path, monkeypatch):
 
         details = client.get(f"/files/{file_id}/details")
         assert details.status_code == 200
-        assert details.json() == data
+        details_json = details.json()
+        expected = data.copy()
+        expected["translated_text"] = None
+        expected["translation_lang"] = None
+        assert details_json == expected
 
 
 def test_download_file_not_found_returns_404(tmp_path):

@@ -10,6 +10,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const missingConfirm = document.getElementById('missing-confirm');
   const previewModal = document.getElementById('preview-modal');
   const previewFrame = document.getElementById('preview-frame');
+  const displayLangSelect = document.getElementById('display-lang');
+  let displayLang = '';
 
   const imageInput = document.getElementById('image-files');
   const imageDropArea = document.getElementById('image-drop-area');
@@ -25,6 +27,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const editDate = document.getElementById('edit-date');
   const editName = document.getElementById('edit-name');
   let currentEditId = null;
+
+  displayLangSelect.addEventListener('change', () => {
+    displayLang = displayLangSelect.value;
+    refreshFiles();
+  });
 
   document.querySelectorAll('.modal .close').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -54,7 +61,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
       // скачать
       const link = document.createElement('a');
-      link.href = `/download/${f.id}`;
+      const langParam = displayLang ? `?lang=${encodeURIComponent(displayLang)}` : '';
+      link.href = `/download/${f.id}${langParam}`;
       link.textContent = 'скачать';
       link.classList.add('download-link');
       li.appendChild(link);

@@ -23,6 +23,8 @@ def add_file(
     raw_response: Any | None = None,
     missing: Optional[List[str]] = None,
     sources: Optional[List[str]] = None,
+    translated_text: str | None = None,
+    translation_lang: str | None = None,
 ) -> None:
     """Сохранить информацию о файле."""
     _storage[file_id] = {
@@ -34,6 +36,8 @@ def add_file(
         "prompt": prompt,
         "raw_response": raw_response,
         "missing": missing or [],
+        "translated_text": translated_text,
+        "translation_lang": translation_lang,
     }
     if sources is not None:
         _storage[file_id]["sources"] = sources
@@ -58,6 +62,8 @@ def update_file(
     raw_response: Any | None = None,
     missing: Optional[List[str]] = None,
     sources: Optional[List[str]] = None,
+    translated_text: str | None = None,
+    translation_lang: str | None = None,
 ) -> None:
     """Обновить данные существующей записи."""
 
@@ -76,6 +82,12 @@ def update_file(
         record["raw_response"] = raw_response
     if missing is not None:
         record["missing"] = missing
+    if sources is not None:
+        record["sources"] = sources
+    if translated_text is not None:
+        record["translated_text"] = translated_text
+    if translation_lang is not None:
+        record["translation_lang"] = translation_lang
 
 
 
