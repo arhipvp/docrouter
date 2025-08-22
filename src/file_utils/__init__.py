@@ -4,7 +4,8 @@ from pathlib import Path
 from typing import Callable, Dict, Union
 import csv
 import logging
-from PIL import Image
+import tempfile
+from PIL import Image, ImageOps
 
 # Опциональные зависимости
 try:
@@ -157,19 +158,41 @@ def extract_text(file_path: Union[str, Path], language: str = "eng") -> str:
 
 # ---------- Вспомогательные утилиты ----------
 
-def merge_images_to_pdf(image_paths: list[Path], output_pdf: Path) -> Path:
-    """Объединить изображения в один PDF.
+def merge_images_to_pdf(paths: list[Path]) -> Path:
+    """Преобразовать несколько изображений в один PDF во временном файле.
 
-    :param image_paths: список путей к изображениям.
-    :param output_pdf: путь к результирующему PDF.
-    :return: путь к созданному PDF.
+    Обрабатываются изображения в различных цветовых пространствах и размерах.
+
+    :param paths: список путей к изображениям.
+    :return: путь к созданному временному PDF-файлу.
     """
-    images = [Image.open(p).convert("RGB") for p in image_paths]
-    if not images:
+    if not paths:
         raise ValueError("No images provided")
-    first, *rest = images
-    first.save(output_pdf, save_all=True, append_images=rest, format="PDF")
-    return output_pdf
+
+    images: list[Image.Image] = []
+    max_w = max_h = 0
+    for path in paths:
+        with Image.open(path) as img:
+            if img.mode != "RGB":
+                img = img.convert("RGB")
+            img.load()
+            max_w = max(max_w, img.width)
+            max_h = max(max_h, img.height)
+            images.append(img)
+
+    normalized = [
+        ImageOps.pad(img, (max_w, max_h), color=(255, 255, 255))
+        if img.size != (max_w, max_h)
+        else img
+        for img in images
+    ]
+
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
+    first, *rest = normalized
+    first.save(tmp.name, save_all=True, append_images=rest, format="PDF")
+    tmp_path = Path(tmp.name)
+    tmp.close()
+    return tmp_path
 
 
 __all__ = [
