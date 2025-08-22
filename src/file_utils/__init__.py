@@ -15,6 +15,16 @@ try:
 except ImportError:  # pragma: no cover - dependency missing
     Document = None
 
+try:
+    import xlrd
+except ImportError:  # pragma: no cover - dependency missing
+    xlrd = None
+
+try:
+    import openpyxl
+except ImportError:  # pragma: no cover - dependency missing
+    openpyxl = None
+
 # OCR для изображений — модуль может отсутствовать
 try:
     from .image_ocr import extract_text_image  # ожидается сигнатура (path: Path, language: str) -> str
@@ -63,12 +73,41 @@ def extract_text_csv(path: Path) -> str:
     return "\n".join(lines)
 
 
+def extract_text_xls(path: Path) -> str:
+    """Извлечение текста из XLS (через xlrd)."""
+    if xlrd is None:
+        raise RuntimeError("xlrd не установлен")
+    book = xlrd.open_workbook(path)
+    lines: list[str] = []
+    for sheet in book.sheets():
+        for row_idx in range(sheet.nrows):
+            row = sheet.row_values(row_idx)
+            lines.append(",".join(str(cell) for cell in row))
+    return "\n".join(lines)
+
+
+def extract_text_xlsx(path: Path) -> str:
+    """Извлечение текста из XLSX (через openpyxl)."""
+    if openpyxl is None:
+        raise RuntimeError("openpyxl не установлен")
+    wb = openpyxl.load_workbook(path, read_only=True, data_only=True)
+    lines: list[str] = []
+    for ws in wb.worksheets:
+        for row in ws.iter_rows(values_only=True):
+            values = ["" if v is None else str(v) for v in row]
+            lines.append(",".join(values))
+    wb.close()
+    return "\n".join(lines)
+
+
 _PARSERS: Dict[str, Callable[[Path], str]] = {
     ".txt": extract_text_txt,
     ".md": extract_text_md,
     ".pdf": extract_text_pdf,
     ".docx": extract_text_docx,
     ".csv": extract_text_csv,
+    ".xls": extract_text_xls,
+    ".xlsx": extract_text_xlsx,
 }
 
 
@@ -79,7 +118,8 @@ def extract_text(file_path: Union[str, Path], language: str = "eng") -> str:
     Извлечь текст из поддерживаемого файла.
 
     Поддерживаемые форматы:
-      - Текстовые: .txt, .md, .pdf, .docx, .csv
+      - Текстовые: .txt, .md, .pdf, .docx
+      - Таблицы: .csv, .xls, .xlsx
       - Изображения (OCR): .jpg, .jpeg  (через image_ocr.extract_text_image)
 
     :param file_path: путь к файлу.
@@ -111,4 +151,6 @@ __all__ = [
     "extract_text_pdf",
     "extract_text_docx",
     "extract_text_csv",
+    "extract_text_xls",
+    "extract_text_xlsx",
 ]
