@@ -49,7 +49,13 @@ def get_folder_tree(root_dir: str | Path) -> List[Dict[str, Any]]:
     return [build(p) for p in sorted(root.iterdir()) if p.is_dir()]
 
 
-def place_file(src_path: str | Path, metadata: Dict[str, Any], dest_root: str | Path, dry_run: bool = False) -> Path:
+def place_file(
+    src_path: str | Path,
+    metadata: Dict[str, Any],
+    dest_root: str | Path,
+    dry_run: bool = False,
+    create_missing: bool = True,
+) -> Path | Dict[str, Any]:
     """Перемещает файл в структуру папок на основе метаданных.
 
     Создаёт вложенные папки (категория/подкатегория/issuer),
@@ -58,7 +64,12 @@ def place_file(src_path: str | Path, metadata: Dict[str, Any], dest_root: str | 
 
     При ``dry_run=True`` только выводит предполагаемые действия.
 
-    Возвращает путь, по которому файл будет или был размещён.
+    Параметр ``create_missing`` управляет созданием отсутствующих
+    каталогов. Если он ``False``, функция не создаёт каталоги и
+    возвращает словарь вида ``{"path": Path, "missing": [Path, ...]}``.
+
+    Возвращает путь, по которому файл будет или был размещён, либо
+    описанную структуру при ``create_missing=False``.
     """
 
     src = Path(src_path)
@@ -78,12 +89,26 @@ def place_file(src_path: str | Path, metadata: Dict[str, Any], dest_root: str | 
     dest_file = dest_dir / new_name
     json_file = dest_file.with_suffix(dest_file.suffix + ".json")
 
+    missing_dirs: List[Path] = []
+    current = dest_dir
+    while not current.exists():
+        missing_dirs.append(current)
+        current = current.parent
+    missing_dirs.reverse()
+
     if dry_run:
         logger.info("Would move %s -> %s", src, dest_file)
         logger.info("Would write metadata JSON to %s", json_file)
-        return dest_file
+        if create_missing:
+            return dest_file
+        return {"path": dest_file, "missing": missing_dirs}
 
-    dest_dir.mkdir(parents=True, exist_ok=True)
+    if create_missing:
+        dest_dir.mkdir(parents=True, exist_ok=True)
+    else:
+        if missing_dirs:
+            return {"path": dest_file, "missing": missing_dirs}
+
     shutil.move(str(src), dest_file)
     logger.info("Moved %s -> %s", src, dest_file)
 
@@ -91,4 +116,6 @@ def place_file(src_path: str | Path, metadata: Dict[str, Any], dest_root: str | 
         json.dump(metadata, f, ensure_ascii=False, indent=2)
     logger.debug("Wrote metadata to %s", json_file)
 
-    return dest_file
+    if create_missing:
+        return dest_file
+    return {"path": dest_file, "missing": []}

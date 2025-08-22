@@ -55,3 +55,25 @@ def test_place_file_sanitizes_invalid_chars(tmp_path):
     dest = place_file(src, metadata, dest_root, dry_run=True)
 
     assert dest.name == "2023-10-12__inva_lid_na_me_.pdf"
+
+
+def test_place_file_reports_missing(tmp_path):
+    src = tmp_path / "doc.pdf"
+    src.write_text("content")
+
+    dest_root = tmp_path / "Archive"
+    dest_root.mkdir()
+
+    result = place_file(
+        src, sample_metadata(), dest_root, dry_run=False, create_missing=False
+    )
+
+    expected_path = dest_root / "Финансы" / "Банки" / "Sparkasse" / "2023-10-12__Kreditvertrag.pdf"
+    assert result["path"] == expected_path
+    assert result["missing"] == [
+        dest_root / "Финансы",
+        dest_root / "Финансы" / "Банки",
+        dest_root / "Финансы" / "Банки" / "Sparkasse",
+    ]
+    # Файл не должен быть перемещён
+    assert src.exists()
