@@ -14,10 +14,10 @@ pip install -r requirements.txt
 
 ## Запуск
 
-Запустите сервер FastAPI и откройте веб‑страницу для загрузки документов:
+Запустите сервер FastAPI через единый entry point и откройте веб‑страницу для загрузки документов:
 
 ```bash
-uvicorn src.web_app.server:app --reload
+python main.py --reload
 ```
 
 После запуска перейдите в браузере по адресу [http://localhost:8000](http://localhost:8000), чтобы загружать файлы и настраивать сервис через веб‑интерфейс.

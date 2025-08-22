@@ -1,3 +1,10 @@
+"""Входная точка для запуска сервиса DocRouter.
+
+Запускает сервер FastAPI, определённый в модуле ``web_app.server``.
+Команда позволяет указать адрес и порт, а также включить автоматическую
+перезагрузку кода при разработке.
+"""
+
 from __future__ import annotations
 
 import argparse
@@ -5,29 +12,35 @@ import logging
 import sys
 from pathlib import Path
 
-# Ensure modules from the src package are importable when running from repo root
+# Делаем пакет ``src`` доступным для импортов при запуске из корня репозитория
 sys.path.append(str(Path(__file__).resolve().parent / "src"))
 
+import uvicorn
 from config import LOG_LEVEL  # type: ignore
 from logging_config import setup_logging  # type: ignore
-from docrouter import process_directory  # type: ignore
 
 logger = logging.getLogger(__name__)
 
 
 def main() -> None:
-    """Command-line entry point for DocRouter."""
-    parser = argparse.ArgumentParser(description="DocRouter entry point")
-    parser.add_argument("input_dir", help="Directory with input files")
-    parser.add_argument("--output", default="Archive", help="Destination root directory")
-    parser.add_argument("--dry-run", action="store_true", help="Preview actions without moving files")
-    parser.add_argument("--log-file", type=Path, default=None, help="Optional log file path")
+    """Точка входа CLI.
+
+    Запускает сервер FastAPI с указанными параметрами.
+    """
+
+    parser = argparse.ArgumentParser(description="Start DocRouter FastAPI server")
+    parser.add_argument("--host", default="0.0.0.0", help="Host address")
+    parser.add_argument("--port", type=int, default=8000, help="Port to listen on")
+    parser.add_argument("--reload", action="store_true", help="Enable autoreload")
     args = parser.parse_args()
 
-    setup_logging(LOG_LEVEL, args.log_file)
-    logger.info("Processing directory %s", args.input_dir)
-    process_directory(args.input_dir, args.output, dry_run=args.dry_run)
+    # Настраиваем логирование согласно конфигу
+    setup_logging(LOG_LEVEL, None)
+    logger.info("Starting FastAPI server on %s:%s", args.host, args.port)
+
+    uvicorn.run("web_app.server:app", host=args.host, port=args.port, reload=args.reload)
 
 
 if __name__ == "__main__":
     main()
+
