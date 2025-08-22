@@ -1,8 +1,11 @@
 from PIL import Image, ImageDraw, ImageFont
+import shutil
+import pytest
 
 from file_utils import extract_text
 
 
+@pytest.mark.skipif(shutil.which("tesseract") is None, reason="tesseract not installed")
 def test_extract_text_from_image(tmp_path):
     image = Image.new('RGB', (100, 50), color='white')
     draw = ImageDraw.Draw(image)
