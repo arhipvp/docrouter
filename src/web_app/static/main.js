@@ -1,6 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
   const form = document.querySelector('form');
   const list = document.getElementById('files');
+  const textPreview = document.getElementById('text-preview');
   const tagLanguage = document.getElementById('tag-language');
   const folderTree = document.getElementById('folder-tree');
   const progress = document.getElementById('upload-progress');
@@ -233,7 +234,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // предпросмотр по клику на элемент списка (кроме ссылки и кнопок)
-  list.addEventListener('click', (e) => {
+  list.addEventListener('click', async (e) => {
     if (e.target.closest('a.download-link') || e.target.closest('button.edit-btn') || e.target.closest('button.chat-btn')) return;
 
     const li = e.target.closest('li');
@@ -243,6 +244,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
     previewFrame.src = `/preview/${id}`;
     previewModal.style.display = 'flex';
+
+    try {
+      const resp = await fetch(`/files/${id}/details`);
+      if (resp.ok) {
+        const data = await resp.json();
+        textPreview.textContent = data.extracted_text || '';
+      } else {
+        textPreview.textContent = '';
+      }
+    } catch {
+      textPreview.textContent = '';
+    }
   });
 
   // закрытие предпросмотра

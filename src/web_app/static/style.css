@@ -10,6 +10,16 @@ button:hover, input[type="submit"]:hover { background-color: #0056b3; }
 #upload-progress { width: 100%; margin-top: 1em; }
 #ai-exchange { max-height: 200px; overflow-y: auto; font-family: monospace; background: #f0f0f0; padding: 1em; border: 1px solid #ddd; margin-top: 1em; }
 #ai-exchange pre { white-space: pre-wrap; margin: 0 0 1em 0; }
+#text-preview {
+  font-family: monospace;
+  white-space: pre-wrap;
+  max-height: 200px;
+  overflow-y: auto;
+  background: #f0f0f0;
+  padding: 1em;
+  border: 1px solid #ddd;
+  margin-top: 1em;
+}
 #folder-controls { display: flex; gap: 0.5em; margin-bottom: 1em; }
 #folder-tree { list-style: none; padding-left: 1em; }
 #folder-tree li { margin: 0.2em 0; }
