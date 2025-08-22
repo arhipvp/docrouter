@@ -4,7 +4,10 @@ import uuid
 from pathlib import Path
 from typing import Dict, Any
 
+import logging
+
 from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi.responses import FileResponse
 
 from config import load_config
 from logging_config import setup_logging
@@ -47,8 +50,13 @@ async def upload_file(file: UploadFile = File(...), dry_run: bool = False):
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
     status = "dry_run" if dry_run else "processed"
-    METADATA_STORE[file_id] = metadata
-    return {"id": file_id, "metadata": metadata, "path": str(dest_path), "status": status}
+    METADATA_STORE[file_id] = {"metadata": metadata, "path": str(dest_path)}
+    return {
+        "id": file_id,
+        "metadata": metadata,
+        "path": str(dest_path),
+        "status": status,
+    }
 
 
 @app.get("/metadata/{file_id}")
@@ -57,4 +65,15 @@ async def get_metadata(file_id: str):
     data = METADATA_STORE.get(file_id)
     if not data:
         raise HTTPException(status_code=404, detail="Metadata not found")
-    return data
+    return data["metadata"]
+
+
+@app.get("/download/{file_id}")
+async def download_file(file_id: str):
+    data = METADATA_STORE.get(file_id)
+    if not data:
+        raise HTTPException(status_code=404, detail="File not found")
+    path = Path(data.get("path", ""))
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="File not found")
+    return FileResponse(path)
