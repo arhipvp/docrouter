@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import uuid
 from pathlib import Path
+
 from typing import Dict, Any
 import logging
 
@@ -14,6 +15,7 @@ from logging_config import setup_logging
 from file_utils import extract_text
 import metadata_generation
 from file_sorter import place_file
+from . import database
 
 app = FastAPI()
 
@@ -32,9 +34,8 @@ config = load_config()
 logging.basicConfig(level=getattr(logging, config.log_level.upper(), logging.INFO))
 
 
-# In-memory store for metadata
-METADATA_STORE: Dict[str, Dict[str, Any]] = {}
-
+# Initialize database and uploads directory
+database.init_db()
 UPLOAD_DIR = Path("uploads")
 UPLOAD_DIR.mkdir(exist_ok=True)
 
@@ -58,14 +59,14 @@ async def upload_file(file: UploadFile = File(...), dry_run: bool = False):
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
     status = "dry_run" if dry_run else "processed"
-    METADATA_STORE[file_id] = metadata
+    database.add_file(file_id, metadata, str(dest_path), status)
     return {"id": file_id, "metadata": metadata, "path": str(dest_path), "status": status}
 
 
 @app.get("/metadata/{file_id}")
 async def get_metadata(file_id: str):
     """Retrieve stored metadata by file ID."""
-    data = METADATA_STORE.get(file_id)
-    if not data:
+    record = database.get_file(file_id)
+    if not record:
         raise HTTPException(status_code=404, detail="Metadata not found")
-    return data
+    return record["metadata"]

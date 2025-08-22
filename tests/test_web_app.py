@@ -4,6 +4,9 @@ from fastapi.testclient import TestClient
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", "src"))
 
+# Use an in-memory database for tests
+os.environ["DB_URL"] = ":memory:"
+
 from web_app.server import app  # noqa: E402
 
 
