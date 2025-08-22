@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Callable, Dict, Union
 import csv
 import logging
+from PIL import Image
 
 # Опциональные зависимости
 try:
@@ -154,6 +155,23 @@ def extract_text(file_path: Union[str, Path], language: str = "eng") -> str:
     return text
 
 
+# ---------- Вспомогательные утилиты ----------
+
+def merge_images_to_pdf(image_paths: list[Path], output_pdf: Path) -> Path:
+    """Объединить изображения в один PDF.
+
+    :param image_paths: список путей к изображениям.
+    :param output_pdf: путь к результирующему PDF.
+    :return: путь к созданному PDF.
+    """
+    images = [Image.open(p).convert("RGB") for p in image_paths]
+    if not images:
+        raise ValueError("No images provided")
+    first, *rest = images
+    first.save(output_pdf, save_all=True, append_images=rest, format="PDF")
+    return output_pdf
+
+
 __all__ = [
     "extract_text",
     "extract_text_txt",
@@ -163,4 +181,5 @@ __all__ = [
     "extract_text_csv",
     "extract_text_xls",
     "extract_text_xlsx",
+    "merge_images_to_pdf",
 ]
