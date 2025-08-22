@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import logging
+import os
+import secrets
 import uuid
 from pathlib import Path
 
-from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi import FastAPI, UploadFile, File, HTTPException, Depends
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
 
 from config import load_config
 from logging_config import setup_logging
@@ -17,7 +20,7 @@ from . import database
 
 app = FastAPI()
 
-# Статика (форма загрузки)
+# --------- Статика (форма загрузки) ----------
 STATIC_DIR = Path(__file__).parent / "static"
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
@@ -28,25 +31,48 @@ async def serve_index() -> FileResponse:
     return FileResponse(STATIC_DIR / "index.html")
 
 
-# Конфиг и логирование
+# --------- Аутентификация (HTTP Basic) ----------
+security = HTTPBasic()
+
+
+def check_credentials(credentials: HTTPBasicCredentials = Depends(security)) -> str:
+    """Проверить учетные данные из HTTP Basic auth."""
+    user = os.getenv("DOCROUTER_USER", "")
+    password = os.getenv("DOCROUTER_PASS", "")
+    valid_user = secrets.compare_digest(credentials.username, user)
+    valid_pass = secrets.compare_digest(credentials.password, password)
+    if not (valid_user and valid_pass):
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid credentials",
+            headers={"WWW-Authenticate": "Basic"},
+        )
+    return credentials.username
+
+
+# --------- Конфиг и логирование ----------
 config = load_config()
 try:
-    # если setup_logging доступен — используем его
     setup_logging(config.log_level, None)  # type: ignore[arg-type]
 except Exception:
     logging.basicConfig(level=getattr(logging, str(config.log_level).upper(), logging.INFO))
 
 logger = logging.getLogger(__name__)
 
-# Инициализация БД и каталога загрузок
+# --------- Инициализация БД и каталога загрузок ----------
 database.init_db()
 UPLOAD_DIR = Path("uploads")
 UPLOAD_DIR.mkdir(exist_ok=True)
 
 
+# --------- Маршруты ----------
 @app.post("/upload")
-async def upload_file(file: UploadFile = File(...), dry_run: bool = False):
-    """Загрузить файл и обработать его."""
+async def upload_file(
+    file: UploadFile = File(...),
+    dry_run: bool = False,
+    _: str = Depends(check_credentials),
+):
+    """Загрузить файл и обработать его (защищено Basic Auth)."""
     file_id = str(uuid.uuid4())
     temp_path = UPLOAD_DIR / f"{file_id}_{file.filename}"
     try:
@@ -80,8 +106,8 @@ async def upload_file(file: UploadFile = File(...), dry_run: bool = False):
 
 
 @app.get("/metadata/{file_id}")
-async def get_metadata(file_id: str):
-    """Получить сохранённые метаданные по ID файла."""
+async def get_metadata(file_id: str, _: str = Depends(check_credentials)):
+    """Получить сохранённые метаданные по ID файла (защищено Basic Auth)."""
     record = database.get_file(file_id)
     if not record:
         raise HTTPException(status_code=404, detail="Metadata not found")
@@ -89,13 +115,12 @@ async def get_metadata(file_id: str):
 
 
 @app.get("/download/{file_id}")
-async def download_file(file_id: str):
-    """Скачать обработанный файл по ID."""
+async def download_file(file_id: str, _: str = Depends(check_credentials)):
+    """Скачать обработанный файл по ID (защищено Basic Auth)."""
     record = database.get_file(file_id)
     if not record:
         raise HTTPException(status_code=404, detail="File not found")
     path = Path(record.get("path", ""))
     if not path.exists():
         raise HTTPException(status_code=404, detail="File not found")
-    # при желании можно добавить filename=path.name
-    return FileResponse(path)
+    return FileResponse(path, filename=path.name)
