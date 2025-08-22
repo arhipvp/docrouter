@@ -7,3 +7,4 @@ form { display: flex; flex-direction: column; gap: 1em; }
 #files li:last-child { border-bottom: none; }
 button, input[type="submit"] { padding: 0.5em 1em; border: none; background-color: #007bff; color: #fff; border-radius: 4px; cursor: pointer; }
 button:hover, input[type="submit"]:hover { background-color: #0056b3; }
+#upload-progress { width: 100%; margin-top: 1em; }
