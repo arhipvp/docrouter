@@ -27,7 +27,13 @@ app = FastAPI()
 # --------- Статика и шаблоны ----------
 STATIC_DIR = Path(__file__).parent / "static"
 TEMPLATES_DIR = Path(__file__).parent / "templates"
-app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+if STATIC_DIR.exists():
+    app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+else:  # pragma: no cover
+    logging.getLogger(__name__).warning(
+        "Static directory %s does not exist; static files will not be served.",
+        STATIC_DIR,
+    )
 if Jinja2Templates:
     try:
         templates = Jinja2Templates(directory=TEMPLATES_DIR)
