@@ -5,10 +5,9 @@ import logging
 import re
 import shutil
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple
 
 logger = logging.getLogger(__name__)
-
 
 INVALID_CHARS_PATTERN = re.compile(r'[<>:"/\\|?*]')
 
@@ -55,23 +54,22 @@ def place_file(
     dest_root: str | Path,
     dry_run: bool = False,
     create_missing: bool = True,
-) -> Path | Dict[str, Any]:
+) -> Tuple[Path, List[str]]:
     """Перемещает файл в структуру папок на основе метаданных.
 
     Создаёт вложенные папки (категория/подкатегория/issuer),
     переименовывает файл вида ``DATE__NAME.ext`` и сохраняет рядом JSON
     с теми же метаданными.
 
-    При ``dry_run=True`` только выводит предполагаемые действия.
+    Возвращает кортеж ``(dest_file, missing)``, где:
+      - ``dest_file`` — предполагаемый/фактический путь к файлу,
+      - ``missing`` — список отсутствующих каталогов (относительно ``dest_root``).
 
-    Параметр ``create_missing`` управляет созданием отсутствующих
-    каталогов. Если он ``False``, функция не создаёт каталоги и
-    возвращает словарь вида ``{"path": Path, "missing": [Path, ...]}``.
-
-    Возвращает путь, по которому файл будет или был размещён, либо
-    описанную структуру при ``create_missing=False``.
+    Поведение:
+      - При ``dry_run=True`` ничего не создаёт и не перемещает, только расчёт путей.
+      - При ``create_missing=False`` и наличии отсутствующих каталогов файл не переносится.
+      - Если каталоги существуют (или были созданы при ``create_missing=True``), файл переносится и пишется JSON.
     """
-
     src = Path(src_path)
     ext = src.suffix
     name = metadata.get("suggested_name") or src.stem
@@ -80,42 +78,42 @@ def place_file(
 
     new_name = f"{date}__{name}{ext}"
 
-    dest_dir = Path(dest_root)
+    base_dir = Path(dest_root)
+    dest_dir = base_dir
+    missing: List[str] = []
     for key in ("category", "subcategory", "issuer"):
         value = metadata.get(key)
         if value:
             dest_dir /= value
+            if not dest_dir.exists():
+                # сохраняем отсутствующую директорию как путь относительно корня
+                missing.append(str(dest_dir.relative_to(base_dir)))
 
     dest_file = dest_dir / new_name
     json_file = dest_file.with_suffix(dest_file.suffix + ".json")
 
-    missing_dirs: List[Path] = []
-    current = dest_dir
-    while not current.exists():
-        missing_dirs.append(current)
-        current = current.parent
-    missing_dirs.reverse()
-
+    # Сухой прогон — только расчёт
     if dry_run:
         logger.info("Would move %s -> %s", src, dest_file)
         logger.info("Would write metadata JSON to %s", json_file)
-        if create_missing:
-            return dest_file
-        return {"path": dest_file, "missing": missing_dirs}
+        return dest_file, missing
 
-    if create_missing:
+    # Если нельзя создавать каталоги и они отсутствуют — выходим
+    if missing and not create_missing:
+        logger.debug("Missing directories (no create): %s", missing)
+        return dest_file, missing
+
+    # Создаём недостающие каталоги при необходимости
+    if missing and create_missing:
         dest_dir.mkdir(parents=True, exist_ok=True)
-    else:
-        if missing_dirs:
-            return {"path": dest_file, "missing": missing_dirs}
 
+    # Перемещаем файл
     shutil.move(str(src), dest_file)
     logger.info("Moved %s -> %s", src, dest_file)
 
+    # Пишем метаданные
     with open(json_file, "w", encoding="utf-8") as f:
         json.dump(metadata, f, ensure_ascii=False, indent=2)
     logger.debug("Wrote metadata to %s", json_file)
 
-    if create_missing:
-        return dest_file
-    return {"path": dest_file, "missing": []}
+    return dest_file, []

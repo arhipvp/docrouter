@@ -2,6 +2,8 @@ import os
 import sys
 import threading
 import time
+from pathlib import Path
+
 import requests
 import uvicorn
 
@@ -96,10 +98,20 @@ def test_upload_retrieve_and_download(tmp_path, monkeypatch):
         )
         assert resp.status_code == 200
         data = resp.json()
-        assert {"id", "filename", "metadata", "path", "status", "prompt", "raw_response"} <= set(data.keys())
+        assert {
+            "id",
+            "filename",
+            "metadata",
+            "path",
+            "status",
+            "prompt",
+            "raw_response",
+            "missing",
+        } <= set(data.keys())
         file_id = data["id"]
         assert data["filename"] == "example.txt"
         assert data["status"] in {"dry_run", "processed"}
+        assert data["missing"] == []
         assert data["metadata"]["extracted_text"].strip() == "content"
         assert data["metadata"]["language"] == "deu"
         assert captured["language"] == "deu"
@@ -139,6 +151,7 @@ def test_details_endpoint_returns_full_record(tmp_path, monkeypatch):
         )
         assert resp.status_code == 200
         data = resp.json()
+        assert data["missing"] == []
         file_id = data["id"]
 
         details = client.get(f"/files/{file_id}/details")
@@ -235,3 +248,55 @@ def test_folder_crud_operations(tmp_path):
                 "children": [],
             }
         ]
+
+
+def test_upload_pending_then_finalize(tmp_path, monkeypatch):
+    server.database.init_db()
+    server.config.output_dir = str(tmp_path)
+
+    def _mock_extract_text(path, language="eng"):
+        with open(path, "r", encoding="utf-8") as f:
+            return f.read()
+
+    def _metadata_pending(text: str, folder_tree=None):
+        return {
+            "prompt": "PROMPT",
+            "raw_response": "{}",
+            "metadata": {
+                "category": "Финансы",
+                "subcategory": "Банки",
+                "issuer": "Sparkasse",
+                "person": None,
+                "doc_type": None,
+                "date": "2024-01-01",
+                "amount": None,
+                "tags": [],
+                "suggested_filename": None,
+                "description": None,
+            },
+        }
+
+    monkeypatch.setattr(server, "extract_text", _mock_extract_text)
+    monkeypatch.setattr(server.metadata_generation, "generate_metadata", _metadata_pending)
+
+    with LiveClient(app) as client:
+        resp = client.post("/upload", files={"file": ("doc.txt", b"content")})
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["status"] == "pending"
+        assert data["missing"] == [
+            "Финансы",
+            "Финансы/Банки",
+            "Финансы/Банки/Sparkasse",
+        ]
+        file_id = data["id"]
+
+        resp_folder = client.post("/folders", params={"path": data["missing"][-1]})
+        assert resp_folder.status_code == 200
+
+        resp_final = client.post(f"/files/{file_id}/finalize")
+        assert resp_final.status_code == 200
+        final_data = resp_final.json()
+        assert final_data["status"] == "processed"
+        assert final_data["missing"] == []
+        assert Path(final_data["path"]).exists()

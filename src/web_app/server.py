@@ -99,17 +99,26 @@ async def upload_file(
         metadata["extracted_text"] = text
         metadata["language"] = lang
 
-        # Раскладываем файл по директориям
-        dest_result = place_file(
-            str(temp_path), metadata, config.output_dir, dry_run=dry_run
+        # Раскладываем файл по директориям без создания недостающих
+        dest_path, missing = place_file(
+            str(temp_path),
+            metadata,
+            config.output_dir,
+            dry_run=dry_run,
+            create_missing=False,
         )
-        dest_path = dest_result["path"] if isinstance(dest_result, dict) else dest_result
 
     except Exception as exc:  # pragma: no cover
         logger.exception("Upload/processing failed for %s", file.filename)
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
-    status = "dry_run" if dry_run else "processed"
+    # Статус
+    if dry_run:
+        status = "dry_run"
+    elif missing:
+        status = "pending"
+    else:
+        status = "processed"
 
     # Сохраняем запись в БД
     database.add_file(
@@ -120,6 +129,7 @@ async def upload_file(
         status,
         meta_result.get("prompt"),
         meta_result.get("raw_response"),
+        missing,
     )
 
     return {
@@ -128,6 +138,7 @@ async def upload_file(
         "metadata": metadata,
         "path": str(dest_path),
         "status": status,
+        "missing": missing,
         "prompt": meta_result.get("prompt"),
         "raw_response": meta_result.get("raw_response"),
     }
@@ -213,3 +224,32 @@ async def delete_folder(folder_path: str):
         raise HTTPException(status_code=404, detail="Folder not found")
     shutil.rmtree(target)
     return get_folder_tree(config.output_dir)
+
+
+@app.post("/files/{file_id}/finalize")
+async def finalize_file(file_id: str):
+    """Переместить ранее загруженный файл после создания недостающих папок."""
+    record = database.get_file(file_id)
+    if not record:
+        raise HTTPException(status_code=404, detail="File not found")
+    if record.get("status") != "pending":
+        return record
+
+    src = UPLOAD_DIR / f"{file_id}_{record['filename']}"
+    dest_path, missing = place_file(
+        src,
+        record["metadata"],
+        config.output_dir,
+        dry_run=False,
+        create_missing=True,
+    )
+    database.update_file(
+        file_id,
+        record["metadata"],
+        str(dest_path),
+        "processed",
+        record.get("prompt"),
+        record.get("raw_response"),
+        missing,
+    )
+    return database.get_file(file_id)
