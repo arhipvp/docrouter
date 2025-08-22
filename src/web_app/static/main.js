@@ -11,6 +11,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const missingConfirm = document.getElementById('missing-confirm');
   const previewModal = document.getElementById('preview-modal');
   const previewFrame = document.getElementById('preview-frame');
+
+  // merged: перевод + чат
+  const displayLangSelect = document.getElementById('display-lang');
+  let displayLang = '';
+
   const chatModal = document.getElementById('chat-modal');
   const chatHistory = document.getElementById('chat-history');
   const chatForm = document.getElementById('chat-form');
@@ -31,6 +36,12 @@ document.addEventListener('DOMContentLoaded', () => {
   const editName = document.getElementById('edit-name');
   let currentEditId = null;
   let currentChatId = null;
+
+  // выбор языка отображения
+  displayLangSelect?.addEventListener('change', () => {
+    displayLang = displayLangSelect.value;
+    refreshFiles();
+  });
 
   document.querySelectorAll('.modal .close').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -66,7 +77,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
       // скачать
       const link = document.createElement('a');
-      link.href = `/download/${f.id}`;
+      const langParam = displayLang ? `?lang=${encodeURIComponent(displayLang)}` : '';
+      link.href = `/download/${f.id}${langParam}`;
       link.textContent = 'скачать';
       link.classList.add('download-link');
       li.appendChild(link);
@@ -82,6 +94,7 @@ document.addEventListener('DOMContentLoaded', () => {
       });
       li.appendChild(editBtn);
 
+      // чат
       const chatBtn = document.createElement('button');
       chatBtn.type = 'button';
       chatBtn.textContent = 'Чат';
@@ -170,7 +183,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // предпросмотр по клику на элемент списка (кроме ссылки и кнопки)
+  // предпросмотр по клику на элемент списка (кроме ссылки и кнопок)
   list.addEventListener('click', (e) => {
     if (e.target.closest('a.download-link') || e.target.closest('button.edit-btn') || e.target.closest('button.chat-btn')) return;
 
@@ -441,7 +454,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  chatForm.addEventListener('submit', async (e) => {
+  // чат отправка
+  chatForm?.addEventListener('submit', async (e) => {
     e.preventDefault();
     if (!currentChatId) return;
     const msg = chatInput.value.trim();
@@ -472,7 +486,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (missingModal.style.display === 'flex') {
       missingModal.style.display = 'none';
     }
-    if (chatModal.style.display === 'flex') {
+    if (chatModal && chatModal.style.display === 'flex') {
       chatModal.style.display = 'none';
       currentChatId = null;
     }

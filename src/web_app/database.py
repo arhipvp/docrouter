@@ -23,6 +23,8 @@ def add_file(
     raw_response: Any | None = None,
     missing: Optional[List[str]] = None,
     sources: Optional[List[str]] = None,
+    translated_text: str | None = None,
+    translation_lang: str | None = None,
 ) -> None:
     """Сохранить информацию о файле."""
     _storage[file_id] = {
@@ -36,6 +38,8 @@ def add_file(
         "prompt": prompt,
         "raw_response": raw_response,
         "missing": missing or [],
+        "translated_text": translated_text,
+        "translation_lang": translation_lang,
         "chat_history": [],
     }
     if sources is not None:
@@ -61,18 +65,21 @@ def update_file(
     raw_response: Any | None = None,
     missing: Optional[List[str]] = None,
     sources: Optional[List[str]] = None,
+    translated_text: str | None = None,
+    translation_lang: str | None = None,
 ) -> None:
     """Обновить данные существующей записи."""
-
-    if file_id not in _storage:
+    record = _storage.get(file_id)
+    if record is None:
         return
-    record = _storage[file_id]
+
     if metadata:
         record.setdefault("metadata", {}).update(metadata)
         if "tags_ru" in metadata:
             record["tags_ru"] = metadata["tags_ru"]
         if "tags_en" in metadata:
             record["tags_en"] = metadata["tags_en"]
+
     if path is not None:
         record["path"] = path
     if status is not None:
@@ -83,7 +90,12 @@ def update_file(
         record["raw_response"] = raw_response
     if missing is not None:
         record["missing"] = missing
-
+    if sources is not None:
+        record["sources"] = sources
+    if translated_text is not None:
+        record["translated_text"] = translated_text
+    if translation_lang is not None:
+        record["translation_lang"] = translation_lang
 
 
 def delete_file(file_id: str) -> None:
@@ -112,4 +124,3 @@ def get_chat_history(file_id: str) -> List[Dict[str, str]]:
     if record is None:
         return []
     return record.setdefault("chat_history", [])
-

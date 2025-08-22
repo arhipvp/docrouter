@@ -6,6 +6,15 @@ import csv
 import logging
 import tempfile
 from PIL import Image, ImageOps
+import requests
+
+from config import (
+    OPENROUTER_API_KEY,
+    OPENROUTER_BASE_URL,
+    OPENROUTER_MODEL,
+    OPENROUTER_SITE_URL,
+    OPENROUTER_SITE_NAME,
+)
 
 # Опциональные зависимости
 try:
@@ -205,4 +214,31 @@ __all__ = [
     "extract_text_xls",
     "extract_text_xlsx",
     "merge_images_to_pdf",
+    "translate_text",
 ]
+
+
+def translate_text(text: str, target_lang: str) -> str:
+    """Перевести *text* на язык ``target_lang`` с помощью OpenRouter."""
+
+    if not OPENROUTER_API_KEY:
+        raise RuntimeError("OPENROUTER_API_KEY environment variable required")
+
+    model = OPENROUTER_MODEL or "openai/chatgpt-4o-mini"
+    base_url = OPENROUTER_BASE_URL or "https://openrouter.ai/api/v1"
+    api_url = base_url.rstrip("/") + "/chat/completions"
+    prompt = f"Translate the following text to {target_lang}:\n{text}"
+    payload = {
+        "model": model,
+        "messages": [{"role": "user", "content": prompt}],
+        "temperature": 0.1,
+    }
+    headers = {
+        "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+        "HTTP-Referer": OPENROUTER_SITE_URL or "https://github.com/docrouter",
+        "X-Title": OPENROUTER_SITE_NAME or "DocRouter",
+    }
+    response = requests.post(api_url, json=payload, headers=headers, timeout=60)
+    response.raise_for_status()
+    content = response.json()["choices"][0]["message"]["content"]
+    return content.strip()
