@@ -1,23 +1,37 @@
 from __future__ import annotations
 
 import logging
+import os
+import secrets
 import uuid
 from pathlib import Path
-from typing import Dict, Any
 
 from fastapi import FastAPI, UploadFile, File, HTTPException, Depends
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
-import os
-import secrets
 
 from config import load_config
+from logging_config import setup_logging
 from file_utils import extract_text
-import metadata_generation
 from file_sorter import place_file
+import metadata_generation
+from . import database
 
 app = FastAPI()
 
+# --------- Статика (форма загрузки) ----------
+STATIC_DIR = Path(__file__).parent / "static"
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
+
+@app.get("/")
+async def serve_index() -> FileResponse:
+    """Отдать форму загрузки."""
+    return FileResponse(STATIC_DIR / "index.html")
+
+
+# --------- Аутентификация (HTTP Basic) ----------
 security = HTTPBasic()
 
 
@@ -35,24 +49,30 @@ def check_credentials(credentials: HTTPBasicCredentials = Depends(security)) -> 
         )
     return credentials.username
 
-# Load configuration
+
+# --------- Конфиг и логирование ----------
 config = load_config()
-logging.basicConfig(level=getattr(logging, config.LOG_LEVEL.upper(), logging.INFO))
+try:
+    setup_logging(config.log_level, None)  # type: ignore[arg-type]
+except Exception:
+    logging.basicConfig(level=getattr(logging, str(config.log_level).upper(), logging.INFO))
 
-# In-memory store for metadata and file paths
-METADATA_STORE: Dict[str, Dict[str, Any]] = {}
+logger = logging.getLogger(__name__)
 
+# --------- Инициализация БД и каталога загрузок ----------
+database.init_db()
 UPLOAD_DIR = Path("uploads")
 UPLOAD_DIR.mkdir(exist_ok=True)
 
 
+# --------- Маршруты ----------
 @app.post("/upload")
 async def upload_file(
     file: UploadFile = File(...),
     dry_run: bool = False,
     _: str = Depends(check_credentials),
 ):
-    """Upload a file and process it."""
+    """Загрузить файл и обработать его (защищено Basic Auth)."""
     file_id = str(uuid.uuid4())
     temp_path = UPLOAD_DIR / f"{file_id}_{file.filename}"
     try:
@@ -60,16 +80,23 @@ async def upload_file(
         with open(temp_path, "wb") as dest:
             dest.write(contents)
 
-        text = extract_text(temp_path, language=config.TESSERACT_LANG)
+        # Извлечение текста + генерация метаданных
+        text = extract_text(temp_path, language=config.tesseract_lang)
         metadata = metadata_generation.generate_metadata(text)
         metadata["extracted_text"] = text
 
-        dest_path = place_file(str(temp_path), metadata, config.OUTPUT_DIR, dry_run=dry_run)
-    except Exception as exc:  # pragma: no cover - error handling
+        # Раскладываем файл по директориям
+        dest_path = place_file(str(temp_path), metadata, config.output_dir, dry_run=dry_run)
+
+    except Exception as exc:  # pragma: no cover
+        logger.exception("Upload/processing failed for %s", file.filename)
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
     status = "dry_run" if dry_run else "processed"
-    METADATA_STORE[file_id] = {"metadata": metadata, "path": str(dest_path)}
+
+    # Сохраняем запись в БД
+    database.add_file(file_id, metadata, str(dest_path), status)
+
     return {
         "id": file_id,
         "metadata": metadata,
@@ -80,26 +107,20 @@ async def upload_file(
 
 @app.get("/metadata/{file_id}")
 async def get_metadata(file_id: str, _: str = Depends(check_credentials)):
-    """Retrieve stored metadata by file ID."""
-    data = METADATA_STORE.get(file_id)
-    if not data:
+    """Получить сохранённые метаданные по ID файла (защищено Basic Auth)."""
+    record = database.get_file(file_id)
+    if not record:
         raise HTTPException(status_code=404, detail="Metadata not found")
-    return data["metadata"]
-
-
-@app.get("/files")
-async def list_files(_: str = Depends(check_credentials)):
-    """List all stored files with their metadata."""
-    return [{"id": fid, "metadata": d["metadata"]} for fid, d in METADATA_STORE.items()]
+    return record["metadata"]
 
 
 @app.get("/download/{file_id}")
 async def download_file(file_id: str, _: str = Depends(check_credentials)):
-    """Download processed file by ID."""
-    data = METADATA_STORE.get(file_id)
-    if not data:
+    """Скачать обработанный файл по ID (защищено Basic Auth)."""
+    record = database.get_file(file_id)
+    if not record:
         raise HTTPException(status_code=404, detail="File not found")
-    path = Path(data.get("path", ""))
+    path = Path(record.get("path", ""))
     if not path.exists():
         raise HTTPException(status_code=404, detail="File not found")
     return FileResponse(path, filename=path.name)

@@ -6,11 +6,7 @@ import shutil
 from pathlib import Path
 from typing import Any, Dict
 
-from config import LOG_LEVEL
-from logging_config import setup_logging
-
 logger = logging.getLogger(__name__)
-setup_logging(LOG_LEVEL, None)
 
 
 def place_file(src_path: str | Path, metadata: Dict[str, Any], dest_root: str | Path, dry_run: bool = False) -> Path:

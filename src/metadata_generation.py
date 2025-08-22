@@ -101,14 +101,22 @@ class RegexAnalyzer(MetadataAnalyzer):
 def generate_metadata(text: str, analyzer: Optional[MetadataAnalyzer] = None) -> Dict[str, Any]:
     """Generate metadata for *text* using the provided *analyzer*.
 
-    If *analyzer* is ``None``, :class:`OpenRouterAnalyzer` is used which requires
-    an ``OPENROUTER_API_KEY`` environment variable.  The returned dictionary
-    always contains the following fields: ``category``, ``subcategory``,
-    ``issuer``, ``person``, ``doc_type``, ``date``, ``amount``, ``tags``,
-    ``suggested_filename``, ``description``.
+    If *analyzer* is ``None`` the function tries to create an
+    :class:`OpenRouterAnalyzer`.  When an API key is missing or the
+    OpenRouter analyzer cannot be instantiated for any reason, the
+    lightweight :class:`RegexAnalyzer` is used as a fallback.
+
+    The returned dictionary always contains the following fields:
+    ``category``, ``subcategory``, ``issuer``, ``person``, ``doc_type``,
+    ``date``, ``amount``, ``tags``, ``suggested_filename``,
+    ``description``.
     """
 
-    analyzer = analyzer or OpenRouterAnalyzer()
+    if analyzer is None:
+        try:
+            analyzer = OpenRouterAnalyzer()
+        except Exception:
+            analyzer = RegexAnalyzer()
     metadata = analyzer.analyze(text)
     defaults = {
         "category": None,

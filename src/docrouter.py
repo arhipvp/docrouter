@@ -17,12 +17,14 @@ def process_directory(input_dir: str | Path, dest_root: str | Path, dry_run: boo
     delegated to :func:`handle_error`.
     """
     input_path = Path(input_dir)
-    for path in input_path.iterdir():
+    for path in input_path.rglob("*"):
         if not path.is_file():
             continue
         try:
             text = extract_text(path)
             metadata = metadata_generation.generate_metadata(text)
-            place_file(path, metadata, dest_root, dry_run=dry_run)
+            rel_dir = path.parent.relative_to(input_path)
+            dest_base = Path(dest_root) / rel_dir
+            place_file(path, metadata, dest_base, dry_run=dry_run)
         except Exception as exc:  # pragma: no cover - depending on runtime errors
             handle_error(path, exc)
