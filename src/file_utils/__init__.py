@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Callable, Dict, Union
 import csv
+import logging
 
 # Опциональные зависимости
 try:
@@ -30,6 +31,8 @@ try:
     from .image_ocr import extract_text_image  # ожидается сигнатура (path: Path, language: str) -> str
 except Exception:  # pragma: no cover - optional module
     extract_text_image = None  # type: ignore
+
+logger = logging.getLogger(__name__)
 
 
 # ---------- Парсеры для «текстовых» форматов ----------
@@ -130,18 +133,25 @@ def extract_text(file_path: Union[str, Path], language: str = "eng") -> str:
     """
     path = Path(file_path)
     ext = path.suffix.lower()
+    logger.info("Extracting text from %s", path)
 
     # Ветвь для изображений — нужен отдельный параметр language
     if ext in {".jpg", ".jpeg"}:
         if extract_text_image is None:
+            logger.error("OCR module unavailable for %s", path)
             raise RuntimeError("Модуль OCR недоступен: .image_ocr.extract_text_image не найден")
-        return extract_text_image(path, language=language)
+        text = extract_text_image(path, language=language)
+        logger.debug("Extracted %d characters from %s via OCR", len(text), path)
+        return text
 
     # Обычные «текстовые» форматы
     parser = _PARSERS.get(ext)
     if parser is None:
+        logger.error("Unsupported/unknown file extension: %s", ext)
         raise ValueError(f"Unsupported/unknown file extension: {ext}")
-    return parser(path)
+    text = parser(path)
+    logger.debug("Extracted %d characters from %s", len(text), path)
+    return text
 
 
 __all__ = [
