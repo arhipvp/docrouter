@@ -149,3 +149,20 @@ def test_files_endpoint_lists_uploaded_files(tmp_path):
         assert listing.status_code == 200
         ids = [item["id"] for item in listing.json()]
         assert file_id in ids
+
+
+def test_multiple_files_uploaded_listed(tmp_path):
+    """Два последовательных аплоада отображаются в списке."""
+    server.database.init_db()
+    server.config.output_dir = str(tmp_path)
+    with LiveClient(app) as client:
+        r1 = client.post("/upload", files={"file": ("one.txt", b"1")})
+        r2 = client.post("/upload", files={"file": ("two.txt", b"2")})
+        assert r1.status_code == 200
+        assert r2.status_code == 200
+        id1 = r1.json()["id"]
+        id2 = r2.json()["id"]
+        listing = client.get("/files")
+        assert listing.status_code == 200
+        ids = [item["id"] for item in listing.json()]
+        assert id1 in ids and id2 in ids

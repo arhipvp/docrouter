@@ -11,7 +11,10 @@
         <h1>Загрузка документов</h1>
         <p>Выберите файл и отправьте его на обработку.</p>
         <form action="/upload" method="post" enctype="multipart/form-data">
-            <input type="file" name="file" />
+            <div id="drop-zone" class="drop-zone">
+                <p>Перетащите файлы сюда или выберите вручную.</p>
+                <input type="file" name="file" multiple />
+            </div>
             <label for="language">Язык документа:</label>
             <select name="language" id="language">
                 <option value="eng">English</option>
