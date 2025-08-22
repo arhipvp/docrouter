@@ -86,8 +86,9 @@ def test_upload_retrieve_and_download(tmp_path, monkeypatch):
         )
         assert resp.status_code == 200
         data = resp.json()
-        assert {"id", "metadata", "path", "status"} <= set(data.keys())
+        assert {"id", "filename", "metadata", "path", "status"} <= set(data.keys())
         file_id = data["id"]
+        assert data["filename"] == "example.txt"
         assert data["status"] in {"dry_run", "processed"}
         assert data["metadata"]["extracted_text"].strip() == "content"
         assert data["metadata"]["language"] == "deu"
@@ -147,5 +148,8 @@ def test_files_endpoint_lists_uploaded_files(tmp_path):
 
         listing = client.get("/files")
         assert listing.status_code == 200
-        ids = [item["id"] for item in listing.json()]
+        files = listing.json()
+        ids = [item["id"] for item in files]
         assert file_id in ids
+        names = [item["filename"] for item in files]
+        assert "example.txt" in names

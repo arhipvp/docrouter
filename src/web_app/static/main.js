@@ -12,7 +12,8 @@ document.addEventListener('DOMContentLoaded', () => {
       const link = document.createElement('a');
       link.href = `/download/${f.id}`;
       link.textContent = 'скачать';
-      li.innerHTML = `<strong>${f.id}</strong> — ${f.status} `;
+      const category = f.metadata && f.metadata.category ? f.metadata.category : '';
+      li.innerHTML = `<strong>${f.filename}</strong> — ${category} — ${f.status} `;
       li.appendChild(link);
       list.appendChild(li);
     });
