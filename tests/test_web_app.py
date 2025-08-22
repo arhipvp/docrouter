@@ -211,7 +211,6 @@ def test_files_endpoint_lists_uploaded_files(tmp_path):
         names = [item["filename"] for item in files]
         assert "example.txt" in names
 
-
 def test_folder_crud_operations(tmp_path):
     server.config.output_dir = str(tmp_path)
     with LiveClient(app) as client:
@@ -300,3 +299,17 @@ def test_upload_pending_then_finalize(tmp_path, monkeypatch):
         assert final_data["status"] == "processed"
         assert final_data["missing"] == []
         assert Path(final_data["path"]).exists()
+
+
+def test_preview_endpoint_serves_file(tmp_path):
+    server.database.init_db()
+    server.config.output_dir = str(tmp_path)
+    with LiveClient(app) as client:
+        resp = client.post("/upload", files={"file": ("example.txt", b"content")})
+        assert resp.status_code == 200
+        file_id = resp.json()["id"]
+        prev = client.get(f"/preview/{file_id}")
+        assert prev.status_code == 200
+        assert prev.headers["content-type"].startswith("text/plain")
+        assert prev.text.strip() == "content"
+
