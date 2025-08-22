@@ -25,3 +25,10 @@ def test_upload_and_retrieve_metadata():
     assert response2.status_code == 200
     data2 = response2.json()
     assert data2 == data["metadata"]
+
+
+def test_root_returns_form():
+    client = TestClient(app)
+    response = client.get("/")
+    assert response.status_code == 200
+    assert '<form action="/upload" method="post" enctype="multipart/form-data">' in response.text

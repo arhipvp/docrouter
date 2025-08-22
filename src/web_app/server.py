@@ -3,8 +3,11 @@ from __future__ import annotations
 import uuid
 from pathlib import Path
 from typing import Dict, Any
+import logging
 
 from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from config import load_config
 from logging_config import setup_logging
@@ -13,6 +16,14 @@ import metadata_generation
 from file_sorter import place_file
 
 app = FastAPI()
+
+app.mount("/static", StaticFiles(directory=Path(__file__).parent / "static"), name="static")
+
+
+@app.get("/")
+async def serve_index() -> FileResponse:
+    """Serve the upload form."""
+    return FileResponse(Path(__file__).parent / "static" / "index.html")
 
 # Load configuration and set up logging
 config = load_config()
