@@ -34,6 +34,10 @@ def add_file(
         "metadata": metadata,
         "tags_ru": metadata.get("tags_ru", []),
         "tags_en": metadata.get("tags_en", []),
+        "person": metadata.get("person"),
+        "date_of_birth": metadata.get("date_of_birth"),
+        "expiration_date": metadata.get("expiration_date"),
+        "passport_number": metadata.get("passport_number"),
         "path": path,
         "status": status,
         "prompt": prompt,
@@ -83,6 +87,14 @@ def update_file(
             record["tags_ru"] = metadata["tags_ru"]
         if "tags_en" in metadata:
             record["tags_en"] = metadata["tags_en"]
+        if "person" in metadata:
+            record["person"] = metadata["person"]
+        if "date_of_birth" in metadata:
+            record["date_of_birth"] = metadata["date_of_birth"]
+        if "expiration_date" in metadata:
+            record["expiration_date"] = metadata["expiration_date"]
+        if "passport_number" in metadata:
+            record["passport_number"] = metadata["passport_number"]
 
     if path is not None:
         record["path"] = path

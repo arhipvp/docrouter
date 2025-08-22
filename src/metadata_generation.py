@@ -24,6 +24,8 @@ from config import (
     OPENROUTER_SITE_URL,
 )
 
+from file_utils.mrz import parse_mrz
+
 
 logger = logging.getLogger(__name__)
 
@@ -169,6 +171,9 @@ def generate_metadata(
         "person": None,
         "doc_type": None,
         "date": None,
+        "date_of_birth": None,
+        "expiration_date": None,
+        "passport_number": None,
         "amount": None,
         "tags": [],
         "tags_ru": [],
@@ -178,6 +183,13 @@ def generate_metadata(
         "needs_new_folder": False,
     }
     defaults.update(metadata or {})
+    mrz_info = parse_mrz(text)
+    if mrz_info:
+        if defaults.get("person") in (None, "") and mrz_info.get("person"):
+            defaults["person"] = mrz_info["person"]
+        for key in ("date_of_birth", "expiration_date", "passport_number"):
+            if mrz_info.get(key):
+                defaults[key] = mrz_info[key]
     return {
         "prompt": result.get("prompt"),
         "raw_response": result.get("raw_response"),
