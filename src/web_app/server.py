@@ -1,15 +1,12 @@
 from __future__ import annotations
 
 import logging
-import os
-import secrets
 import uuid
 from pathlib import Path
 
-from fastapi import FastAPI, UploadFile, File, HTTPException, Depends, Request
+from fastapi import FastAPI, UploadFile, File, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
-from fastapi.security import HTTPBasic, HTTPBasicCredentials
 try:
     from fastapi.templating import Jinja2Templates
 except Exception:  # pragma: no cover
@@ -52,26 +49,7 @@ async def serve_index(request: Request):
     index_path = TEMPLATES_DIR / "index.html"
     return HTMLResponse(index_path.read_text(encoding="utf-8"))
 
-
-# --------- Аутентификация (HTTP Basic) ----------
-security = HTTPBasic()
-
-
-def check_credentials(credentials: HTTPBasicCredentials = Depends(security)) -> str:
-    """Проверить учетные данные из HTTP Basic auth."""
-    user = os.getenv("DOCROUTER_USER", "")
-    password = os.getenv("DOCROUTER_PASS", "")
-    valid_user = secrets.compare_digest(credentials.username, user)
-    valid_pass = secrets.compare_digest(credentials.password, password)
-    if not (valid_user and valid_pass):
-        raise HTTPException(
-            status_code=401,
-            detail="Invalid credentials",
-            headers={"WWW-Authenticate": "Basic"},
-        )
-    return credentials.username
-
-
+ 
 # --------- Конфиг и логирование ----------
 config = load_config()
 try:
@@ -92,9 +70,8 @@ UPLOAD_DIR.mkdir(exist_ok=True)
 async def upload_file(
     file: UploadFile = File(...),
     dry_run: bool = False,
-    _: str = Depends(check_credentials),
 ):
-    """Загрузить файл и обработать его (защищено Basic Auth)."""
+    """Загрузить файл и обработать его."""
     file_id = str(uuid.uuid4())
     temp_path = UPLOAD_DIR / f"{file_id}_{file.filename}"
     try:
@@ -128,8 +105,8 @@ async def upload_file(
 
 
 @app.get("/metadata/{file_id}")
-async def get_metadata(file_id: str, _: str = Depends(check_credentials)):
-    """Получить сохранённые метаданные по ID файла (защищено Basic Auth)."""
+async def get_metadata(file_id: str):
+    """Получить сохранённые метаданные по ID файла."""
     record = database.get_file(file_id)
     if not record:
         raise HTTPException(status_code=404, detail="Metadata not found")
@@ -137,8 +114,8 @@ async def get_metadata(file_id: str, _: str = Depends(check_credentials)):
 
 
 @app.get("/download/{file_id}")
-async def download_file(file_id: str, _: str = Depends(check_credentials)):
-    """Скачать обработанный файл по ID (защищено Basic Auth)."""
+async def download_file(file_id: str):
+    """Скачать обработанный файл по ID."""
     record = database.get_file(file_id)
     if not record:
         raise HTTPException(status_code=404, detail="File not found")
