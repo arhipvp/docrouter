@@ -23,3 +23,8 @@ button:hover, input[type="submit"]:hover { background-color: #0056b3; }
   #missing-list li { margin: 0.2em 0; }
 #preview-modal .modal-content { width: 80%; height: 80%; max-width: 1000px; max-height: 800px; }
 #preview-frame { width: 100%; height: 100%; border: none; }
+
+#image-drop-area { border: 2px dashed #007bff; padding: 1em; text-align: center; margin-top: 1em; background: #fafafa; cursor: pointer; }
+#image-drop-area.dragover { background: #e0e0e0; }
+#selected-images { list-style: none; padding: 0; margin-top: 1em; }
+#selected-images li { margin: 0.2em 0; }
