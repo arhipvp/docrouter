@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+import logging
 import uuid
 from pathlib import Path
-import logging
 
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.responses import FileResponse
@@ -11,8 +11,8 @@ from fastapi.staticfiles import StaticFiles
 from config import load_config
 from logging_config import setup_logging
 from file_utils import extract_text
-import metadata_generation
 from file_sorter import place_file
+import metadata_generation
 from . import database
 
 app = FastAPI()
@@ -30,8 +30,8 @@ async def serve_index() -> FileResponse:
 
 # Конфиг и логирование
 config = load_config()
-# Если у вас уже есть setup_logging — используем его; иначе можно оставить basicConfig
 try:
+    # если setup_logging доступен — используем его
     setup_logging(config.log_level, None)  # type: ignore[arg-type]
 except Exception:
     logging.basicConfig(level=getattr(logging, str(config.log_level).upper(), logging.INFO))
@@ -62,13 +62,13 @@ async def upload_file(file: UploadFile = File(...), dry_run: bool = False):
         # Раскладываем файл по директориям
         dest_path = place_file(str(temp_path), metadata, config.output_dir, dry_run=dry_run)
 
-    except Exception as exc:  # pragma: no cover - обработка ошибок
+    except Exception as exc:  # pragma: no cover
         logger.exception("Upload/processing failed for %s", file.filename)
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
     status = "dry_run" if dry_run else "processed"
 
-    # Сохраняем запись в БД (как в main)
+    # Сохраняем запись в БД
     database.add_file(file_id, metadata, str(dest_path), status)
 
     return {
@@ -97,5 +97,5 @@ async def download_file(file_id: str):
     path = Path(record.get("path", ""))
     if not path.exists():
         raise HTTPException(status_code=404, detail="File not found")
-    # Можно добавить filename=path.name, если хотите навязать имя скачиваемого файла
+    # при желании можно добавить filename=path.name
     return FileResponse(path)
