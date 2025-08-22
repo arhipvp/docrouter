@@ -1,6 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
   const form = document.querySelector('form');
   const list = document.getElementById('files');
+  const folderTree = document.getElementById('folder-tree');
   const progress = document.getElementById('upload-progress');
   const sent = document.getElementById('ai-sent');
   const received = document.getElementById('ai-received');
@@ -20,6 +21,28 @@ document.addEventListener('DOMContentLoaded', () => {
       li.appendChild(link);
       list.appendChild(li);
     });
+  }
+
+  function renderTree(container, tree) {
+    Object.keys(tree).forEach(key => {
+      const li = document.createElement('li');
+      li.textContent = key;
+      const children = tree[key];
+      if (children && Object.keys(children).length > 0) {
+        const ul = document.createElement('ul');
+        renderTree(ul, children);
+        li.appendChild(ul);
+      }
+      container.appendChild(li);
+    });
+  }
+
+  async function refreshFolderTree() {
+    const resp = await fetch('/folder-tree');
+    if (!resp.ok) return;
+    const tree = await resp.json();
+    folderTree.innerHTML = '';
+    renderTree(folderTree, tree);
   }
 
   form.addEventListener('submit', (e) => {
@@ -42,6 +65,7 @@ document.addEventListener('DOMContentLoaded', () => {
         form.reset();
         progress.value = 0;
         refreshFiles();
+        refreshFolderTree();
       } else {
         alert('Ошибка загрузки');
       }
@@ -50,4 +74,5 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   refreshFiles();
+  refreshFolderTree();
 });
