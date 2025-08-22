@@ -1,6 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
   const form = document.querySelector('form');
   const list = document.getElementById('files');
+  const tagLanguage = document.getElementById('tag-language');
   const folderTree = document.getElementById('folder-tree');
   const progress = document.getElementById('upload-progress');
   const sent = document.getElementById('ai-sent');
@@ -50,7 +51,10 @@ document.addEventListener('DOMContentLoaded', () => {
       li.dataset.id = f.id;
 
       const category = f.metadata?.category ?? '';
-      li.innerHTML = `<strong>${f.filename}</strong> — ${category} — ${f.status} `;
+      const lang = tagLanguage.value;
+      const tags = f.metadata ? (lang === 'ru' ? f.metadata.tags_ru : f.metadata.tags_en) : [];
+      const tagsText = Array.isArray(tags) ? tags.join(', ') : '';
+      li.innerHTML = `<strong>${f.filename}</strong> — ${category} — ${tagsText} — ${f.status} `;
 
       // скачать
       const link = document.createElement('a');
@@ -413,6 +417,8 @@ document.addEventListener('DOMContentLoaded', () => {
       missingModal.style.display = 'none';
     }
   });
+
+  tagLanguage.addEventListener('change', refreshFiles);
 
   // Первичная загрузка
   refreshFiles();

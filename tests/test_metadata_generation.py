@@ -13,6 +13,8 @@ def test_generate_metadata_without_api_key(monkeypatch):
     assert meta["amount"] == "123.45"
     assert meta["category"] is None
     assert meta["needs_new_folder"] is False
+    assert meta["tags_ru"] == []
+    assert meta["tags_en"] == []
     assert result["prompt"] is None
     assert result["raw_response"] is None
 
@@ -81,3 +83,27 @@ def test_folder_tree_in_prompt(monkeypatch):
     assert instruction in captured["prompt"]
     assert instruction in result["prompt"]
     assert result["metadata"]["needs_new_folder"] is True
+
+
+def test_multilanguage_tags_parsing(monkeypatch):
+    class DummyResponse:
+        def raise_for_status(self) -> None:
+            pass
+
+        def json(self) -> Dict[str, Any]:  # type: ignore[override]
+            data = {
+                "tags_ru": ["тег1", "тег2"],
+                "tags_en": ["tag1", "tag2"],
+            }
+            return {"choices": [{"message": {"content": json.dumps(data)}}]}
+
+    def fake_post(url, json, headers, timeout):  # type: ignore[no-redef]
+        return DummyResponse()
+
+    monkeypatch.setattr("metadata_generation.requests.post", fake_post)
+
+    analyzer = OpenRouterAnalyzer(api_key="test")
+    result = generate_metadata("text", analyzer=analyzer)
+    meta = result["metadata"]
+    assert meta["tags_ru"] == ["тег1", "тег2"]
+    assert meta["tags_en"] == ["tag1", "tag2"]
