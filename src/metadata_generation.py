@@ -70,7 +70,8 @@ class OpenRouterAnalyzer(MetadataAnalyzer):
             "You are an assistant that extracts structured metadata from documents.\n"
             "Existing folder tree (JSON):\n"
             f"{tree_json}\n"
-            "Return a JSON object with the fields: category, subcategory, issuer, person, doc_type,\n"
+            "Если ни одна папка не подходит, предложи новую category/subcategory.\n"
+            "Return a JSON object with the fields: category, subcategory, needs_new_folder (boolean), issuer, person, doc_type,\n"
             "date, amount, tags (list of strings), suggested_filename, description.\n"
             f"Document text:\n{text}"
         )
@@ -139,7 +140,7 @@ def generate_metadata(
     The returned dictionary always contains the following fields:
     ``category``, ``subcategory``, ``issuer``, ``person``, ``doc_type``,
     ``date``, ``amount``, ``tags``, ``suggested_filename``,
-    ``description``.
+    ``description``, ``needs_new_folder``.
     """
 
     if analyzer is None:
@@ -170,6 +171,7 @@ def generate_metadata(
         "tags": [],
         "suggested_filename": None,
         "description": None,
+        "needs_new_folder": False,
     }
     defaults.update(metadata or {})
     return {
