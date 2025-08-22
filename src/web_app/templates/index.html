@@ -3,23 +3,25 @@
 <head>
     <meta charset="utf-8">
     <title>DocRouter</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 2em; }
-        form { margin-top: 1em; }
-    </style>
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="/static/main.js" defer></script>
 </head>
 <body>
-    <h1>Загрузка документов</h1>
-    <p>Выберите файл и отправьте его на обработку.</p>
-    <form action="/upload" method="post" enctype="multipart/form-data">
-        <input type="file" name="file" />
-        <label for="language">Язык документа:</label>
-        <select name="language" id="language">
-            <option value="eng">English</option>
-            <option value="rus" selected>Русский</option>
-            <option value="deu">Deutsch</option>
-        </select>
-        <input type="submit" value="Upload" />
-    </form>
+    <div class="container">
+        <h1>Загрузка документов</h1>
+        <p>Выберите файл и отправьте его на обработку.</p>
+        <form action="/upload" method="post" enctype="multipart/form-data">
+            <input type="file" name="file" />
+            <label for="language">Язык документа:</label>
+            <select name="language" id="language">
+                <option value="eng">English</option>
+                <option value="rus" selected>Русский</option>
+                <option value="deu">Deutsch</option>
+            </select>
+            <input type="submit" value="Upload" />
+        </form>
+        <h2>Загруженные файлы</h2>
+        <ul id="files"></ul>
+    </div>
 </body>
 </html>

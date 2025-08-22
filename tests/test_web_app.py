@@ -134,3 +134,18 @@ def test_root_returns_form_unprotected():
         assert resp.status_code == 200
         assert '<form action="/upload" method="post" enctype="multipart/form-data">' in resp.text
         assert 'name="language"' in resp.text
+
+
+def test_files_endpoint_lists_uploaded_files(tmp_path):
+    """После загрузки файл отображается в списке."""
+    server.database.init_db()
+    server.config.output_dir = str(tmp_path)
+    with LiveClient(app) as client:
+        resp = client.post("/upload", files={"file": ("example.txt", b"content")})
+        assert resp.status_code == 200
+        file_id = resp.json()["id"]
+
+        listing = client.get("/files")
+        assert listing.status_code == 200
+        ids = [item["id"] for item in listing.json()]
+        assert file_id in ids
