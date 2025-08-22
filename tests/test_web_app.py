@@ -65,19 +65,33 @@ def _mock_generate_metadata(text: str):
 
 
 def test_upload_retrieve_and_download(tmp_path, monkeypatch):
-    # Подменяем метаданные и директорию вывода
+    # Подменяем извлечение текста, метаданные и директорию вывода
+    captured = {}
+
+    def _mock_extract_text(path, language="eng"):
+        captured["language"] = language
+        with open(path, "r", encoding="utf-8") as f:
+            return f.read()
+
+    monkeypatch.setattr(server, "extract_text", _mock_extract_text)
     monkeypatch.setattr(server.metadata_generation, "generate_metadata", _mock_generate_metadata)
     server.config.output_dir = str(tmp_path)
 
     with LiveClient(app) as client:
         # Загрузка
-        resp = client.post("/upload", files={"file": ("example.txt", b"content")})
+        resp = client.post(
+            "/upload",
+            data={"language": "deu"},
+            files={"file": ("example.txt", b"content")},
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert {"id", "metadata", "path", "status"} <= set(data.keys())
         file_id = data["id"]
         assert data["status"] in {"dry_run", "processed"}
         assert data["metadata"]["extracted_text"].strip() == "content"
+        assert data["metadata"]["language"] == "deu"
+        assert captured["language"] == "deu"
 
         # Чтение метаданных
         meta = client.get(f"/metadata/{file_id}")
@@ -119,3 +133,4 @@ def test_root_returns_form_unprotected():
         resp = client.get("/")
         assert resp.status_code == 200
         assert '<form action="/upload" method="post" enctype="multipart/form-data">' in resp.text
+        assert 'name="language"' in resp.text

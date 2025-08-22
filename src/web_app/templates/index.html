@@ -13,6 +13,12 @@
     <p>Выберите файл и отправьте его на обработку.</p>
     <form action="/upload" method="post" enctype="multipart/form-data">
         <input type="file" name="file" />
+        <label for="language">Язык документа:</label>
+        <select name="language" id="language">
+            <option value="eng">English</option>
+            <option value="rus" selected>Русский</option>
+            <option value="deu">Deutsch</option>
+        </select>
         <input type="submit" value="Upload" />
     </form>
 </body>

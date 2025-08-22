@@ -4,7 +4,7 @@ import logging
 import uuid
 from pathlib import Path
 
-from fastapi import FastAPI, UploadFile, File, HTTPException, Request
+from fastapi import FastAPI, UploadFile, File, HTTPException, Request, Form
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 try:
@@ -69,6 +69,7 @@ UPLOAD_DIR.mkdir(exist_ok=True)
 @app.post("/upload")
 async def upload_file(
     file: UploadFile = File(...),
+    language: str | None = Form(None),
     dry_run: bool = False,
 ):
     """Загрузить файл и обработать его."""
@@ -80,9 +81,11 @@ async def upload_file(
             dest.write(contents)
 
         # Извлечение текста + генерация метаданных
-        text = extract_text(temp_path, language=config.tesseract_lang)
+        lang = language or config.tesseract_lang
+        text = extract_text(temp_path, language=lang)
         metadata = metadata_generation.generate_metadata(text)
         metadata["extracted_text"] = text
+        metadata["language"] = lang
 
         # Раскладываем файл по директориям
         dest_path = place_file(str(temp_path), metadata, config.output_dir, dry_run=dry_run)
