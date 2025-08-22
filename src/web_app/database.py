@@ -51,28 +51,32 @@ def get_details(file_id: str) -> Optional[Dict[str, Any]]:
 
 def update_file(
     file_id: str,
-    metadata: Dict[str, Any],
-    path: str,
-    status: str,
+    metadata: Optional[Dict[str, Any]] = None,
+    path: str | None = None,
+    status: str | None = None,
     prompt: Any | None = None,
     raw_response: Any | None = None,
     missing: Optional[List[str]] = None,
     sources: Optional[List[str]] = None,
 ) -> None:
     """Обновить данные существующей записи."""
-    if file_id in _storage:
-        _storage[file_id].update(
-            {
-                "metadata": metadata,
-                "path": path,
-                "status": status,
-                "prompt": prompt,
-                "raw_response": raw_response,
-                "missing": missing or [],
-            }
-        )
-        if sources is not None:
-            _storage[file_id]["sources"] = sources
+
+    if file_id not in _storage:
+        return
+    record = _storage[file_id]
+    if metadata:
+        record.setdefault("metadata", {}).update(metadata)
+    if path is not None:
+        record["path"] = path
+    if status is not None:
+        record["status"] = status
+    if prompt is not None:
+        record["prompt"] = prompt
+    if raw_response is not None:
+        record["raw_response"] = raw_response
+    if missing is not None:
+        record["missing"] = missing
+
 
 
 def delete_file(file_id: str) -> None:

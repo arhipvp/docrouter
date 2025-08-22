@@ -11,6 +11,22 @@ document.addEventListener('DOMContentLoaded', () => {
   const previewModal = document.getElementById('preview-modal');
   const previewFrame = document.getElementById('preview-frame');
 
+  const editModal = document.getElementById('edit-modal');
+  const editForm = document.getElementById('edit-form');
+  const editCategory = document.getElementById('edit-category');
+  const editSubcategory = document.getElementById('edit-subcategory');
+  const editIssuer = document.getElementById('edit-issuer');
+  const editDate = document.getElementById('edit-date');
+  const editName = document.getElementById('edit-name');
+  let currentEditId = null;
+
+  document.querySelectorAll('.modal .close').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const target = btn.dataset.close;
+      if (target) document.getElementById(target).style.display = 'none';
+    });
+  });
+
   // UI на формах (вариант codex)
   const createForm = document.getElementById('create-folder-form');
   const renameForm = document.getElementById('rename-folder-form');
@@ -26,26 +42,90 @@ document.addEventListener('DOMContentLoaded', () => {
     files.forEach(f => {
       const li = document.createElement('li');
       li.dataset.id = f.id;
+
+      const category = f.metadata?.category ?? '';
+      li.innerHTML = `<strong>${f.filename}</strong> — ${category} — ${f.status} `;
+
+      // скачать
       const link = document.createElement('a');
       link.href = `/download/${f.id}`;
       link.textContent = 'скачать';
-      const category = f.metadata && f.metadata.category ? f.metadata.category : '';
-      li.innerHTML = `<strong>${f.filename}</strong> — ${category} — ${f.status} `;
+      link.classList.add('download-link');
       li.appendChild(link);
+
+      // редактировать
+      const editBtn = document.createElement('button');
+      editBtn.type = 'button';
+      editBtn.textContent = 'Редактировать';
+      editBtn.classList.add('edit-btn');
+      editBtn.addEventListener('click', (ev) => {
+        ev.stopPropagation(); // не открывать предпросмотр
+        openEditModal(f);
+      });
+      li.appendChild(editBtn);
+
       list.appendChild(li);
     });
   }
 
+  function openEditModal(file) {
+    currentEditId = file.id;
+    const m = file.metadata || {};
+    editCategory.value = m.category || '';
+    editSubcategory.value = m.subcategory || '';
+    editIssuer.value = m.issuer || '';
+    editDate.value = m.date || '';
+    editName.value = m.suggested_name || '';
+    editModal.style.display = 'flex';
+  }
+
+  editForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!currentEditId) return;
+
+    const payload = {
+      metadata: {
+        category: editCategory.value.trim(),
+        subcategory: editSubcategory.value.trim(),
+        issuer: editIssuer.value.trim(),
+        date: editDate.value,
+        suggested_name: editName.value.trim()
+      }
+    };
+    // partial update: удаляем пустые поля
+    Object.keys(payload.metadata).forEach(k => {
+      if (!payload.metadata[k]) delete payload.metadata[k];
+    });
+
+    const resp = await fetch(`/files/${currentEditId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    if (resp.ok) {
+      editModal.style.display = 'none';
+      currentEditId = null;
+      await refreshFiles();
+    } else {
+      alert('Ошибка обновления');
+    }
+  });
+
+  // предпросмотр по клику на элемент списка (кроме ссылки и кнопки)
   list.addEventListener('click', (e) => {
-    if (e.target.tagName === 'A') return;
+    if (e.target.closest('a.download-link') || e.target.closest('button.edit-btn')) return;
+
     const li = e.target.closest('li');
     if (!li) return;
     const id = li.dataset.id;
     if (!id) return;
+
     previewFrame.src = `/preview/${id}`;
     previewModal.style.display = 'flex';
   });
 
+  // закрытие предпросмотра
   const previewClose = previewModal.querySelector('.close');
   previewClose.addEventListener('click', () => {
     previewModal.style.display = 'none';
@@ -100,9 +180,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // -------- Операции с папками (серверные вызовы) --------
   async function createFolder(path) {
-    const resp = await fetch(`/folders?path=${encodeURIComponent(path)}`, {
-      method: 'POST'
-    });
+    const resp = await fetch(`/folders?path=${encodeURIComponent(path)}`, { method: 'POST' });
     if (!resp.ok) {
       const err = await resp.json().catch(() => ({ detail: 'Ошибка создания папки' }));
       throw new Error(err.detail || 'Ошибка создания папки');
@@ -112,9 +190,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async function renameFolder(oldPath, newName) {
     const encoded = oldPath.split('/').map(encodeURIComponent).join('/');
-    const resp = await fetch(`/folders/${encoded}?new_name=${encodeURIComponent(newName)}`, {
-      method: 'PATCH'
-    });
+    const resp = await fetch(`/folders/${encoded}?new_name=${encodeURIComponent(newName)}`, { method: 'PATCH' });
     if (!resp.ok) {
       const err = await resp.json().catch(() => ({ detail: 'Ошибка переименования' }));
       throw new Error(err.detail || 'Ошибка переименования');
@@ -255,6 +331,22 @@ document.addEventListener('DOMContentLoaded', () => {
       deleteForm.reset();
     } catch (err) {
       folderMessage.textContent = err.message;
+    }
+  });
+
+  // UX: закрытие всех модалок по Esc
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    if (previewModal.style.display === 'flex') {
+      previewModal.style.display = 'none';
+      previewFrame.src = '';
+    }
+    if (editModal.style.display === 'flex') {
+      editModal.style.display = 'none';
+      currentEditId = null;
+    }
+    if (missingModal.style.display === 'flex') {
+      missingModal.style.display = 'none';
     }
   });
 

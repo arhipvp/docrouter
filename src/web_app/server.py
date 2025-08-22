@@ -4,7 +4,9 @@ import logging
 import shutil
 import uuid
 from pathlib import Path
+import json
 import mimetypes
+
 
 from fastapi import FastAPI, UploadFile, File, HTTPException, Request, Form, Body
 from fastapi.responses import FileResponse, HTMLResponse
@@ -287,6 +289,61 @@ async def get_file_details(file_id: str):
 @app.get("/files")
 async def list_files():
     return database.list_files()
+
+
+@app.patch("/files/{file_id}")
+async def update_file(file_id: str, data: dict = Body(...)):
+    record = database.get_file(file_id)
+    if not record:
+        raise HTTPException(status_code=404, detail="File not found")
+    metadata_updates = data.get("metadata") or {}
+    new_metadata = record.get("metadata", {}).copy()
+    if metadata_updates:
+        new_metadata.update(metadata_updates)
+    path_param = data.get("path")
+    status = data.get("status")
+    prompt = data.get("prompt")
+    raw_response = data.get("raw_response")
+    missing = data.get("missing")
+
+    old_path = Path(record.get("path", ""))
+    if not old_path.exists():
+        raise HTTPException(status_code=404, detail="File not found on disk")
+    dest_path = old_path
+
+    if metadata_updates and not path_param:
+        old_json = old_path.with_suffix(old_path.suffix + ".json")
+        if old_json.exists():
+            old_json.unlink()
+        dest_path, _ = place_file(
+            old_path,
+            new_metadata,
+            config.output_dir,
+            dry_run=False,
+            create_missing=True,
+        )
+    elif path_param:
+        old_json = old_path.with_suffix(old_path.suffix + ".json")
+        if old_json.exists():
+            old_json.unlink()
+        dest_path = _resolve_in_output(path_param)
+        dest_path.parent.mkdir(parents=True, exist_ok=True)
+        if dest_path.exists():
+            raise HTTPException(status_code=409, detail="Target already exists")
+        shutil.move(str(old_path), dest_path)
+        with open(dest_path.with_suffix(dest_path.suffix + ".json"), "w", encoding="utf-8") as f:
+            json.dump(new_metadata, f, ensure_ascii=False, indent=2)
+
+    database.update_file(
+        file_id,
+        metadata=new_metadata if metadata_updates else None,
+        path=str(dest_path) if (metadata_updates or path_param) else None,
+        status=status,
+        prompt=prompt,
+        raw_response=raw_response,
+        missing=missing,
+    )
+    return database.get_file(file_id)
 
 
 @app.get("/folder-tree")

@@ -53,6 +53,20 @@
             <pre id="ai-received"></pre>
         </div>
     </div>
+    <div id="edit-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" data-close="edit-modal">&times;</span>
+            <h3>Редактировать метаданные</h3>
+            <form id="edit-form">
+                <label>Категория: <input type="text" id="edit-category" /></label>
+                <label>Подкатегория: <input type="text" id="edit-subcategory" /></label>
+                <label>Организация: <input type="text" id="edit-issuer" /></label>
+                <label>Дата: <input type="date" id="edit-date" /></label>
+                <label>Имя: <input type="text" id="edit-name" /></label>
+                <button type="submit">Сохранить</button>
+            </form>
+        </div>
+    </div>
     <div id="missing-modal" class="modal">
         <div class="modal-content">
             <h3>Создать недостающие папки?</h3>
