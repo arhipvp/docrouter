@@ -97,10 +97,11 @@ async def upload_file(
     status = "dry_run" if dry_run else "processed"
 
     # Сохраняем запись в БД
-    database.add_file(file_id, metadata, str(dest_path), status)
+    database.add_file(file_id, file.filename, metadata, str(dest_path), status)
 
     return {
         "id": file_id,
+        "filename": file.filename,
         "metadata": metadata,
         "path": str(dest_path),
         "status": status,

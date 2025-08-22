@@ -13,10 +13,13 @@ def init_db() -> None:
     _storage.clear()
 
 
-def add_file(file_id: str, metadata: Dict[str, Any], path: str, status: str) -> None:
+def add_file(
+    file_id: str, filename: str, metadata: Dict[str, Any], path: str, status: str
+) -> None:
     """Сохранить информацию о файле."""
     _storage[file_id] = {
         "id": file_id,
+        "filename": filename,
         "metadata": metadata,
         "path": path,
         "status": status,
