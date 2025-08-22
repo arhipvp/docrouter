@@ -5,7 +5,7 @@ import shutil
 import uuid
 from pathlib import Path
 
-from fastapi import FastAPI, UploadFile, File, HTTPException, Request, Form
+from fastapi import FastAPI, UploadFile, File, HTTPException, Request, Form, Body
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 try:
@@ -99,12 +99,25 @@ async def upload_file(
         metadata["extracted_text"] = text
         metadata["language"] = lang
 
-        # Раскладываем файл по директориям
-        dest_path = place_file(str(temp_path), metadata, config.output_dir, dry_run=dry_run)
+        # Раскладываем файл по директориям без создания недостающих
+        dest_path, missing = place_file(
+            str(temp_path), metadata, config.output_dir, dry_run=dry_run, create_missing=False
+        )
 
     except Exception as exc:  # pragma: no cover
         logger.exception("Upload/processing failed for %s", file.filename)
         raise HTTPException(status_code=500, detail=str(exc)) from exc
+    if missing:
+        database.add_file(
+            file_id,
+            file.filename,
+            metadata,
+            str(temp_path),
+            "pending",
+            meta_result.get("prompt"),
+            meta_result.get("raw_response"),
+        )
+        return {"id": file_id, "status": "pending", "missing": missing}
 
     status = "dry_run" if dry_run else "processed"
 
@@ -158,6 +171,37 @@ async def get_file_details(file_id: str):
     if not record:
         raise HTTPException(status_code=404, detail="File not found")
     return record
+
+
+@app.post("/files/{file_id}/finalize")
+async def finalize_file(file_id: str, missing: list[str] = Body(default=[])):
+    """Создать недостающие папки и переместить отложенный файл."""
+    record = database.get_file(file_id)
+    if not record:
+        raise HTTPException(status_code=404, detail="File not found")
+    if record.get("status") != "pending":
+        raise HTTPException(status_code=400, detail="File is not pending")
+
+    for path in missing:
+        await create_folder(path)
+
+    temp_path = Path(record["path"])
+    dest_path, _ = place_file(
+        str(temp_path),
+        record["metadata"],
+        config.output_dir,
+        create_missing=True,
+    )
+
+    database.update_file(
+        file_id,
+        record["metadata"],
+        str(dest_path),
+        "processed",
+        record.get("prompt"),
+        record.get("raw_response"),
+    )
+    return {"status": "processed", "path": str(dest_path)}
 
 
 @app.get("/files")

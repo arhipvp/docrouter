@@ -49,7 +49,13 @@ def get_folder_tree(root_dir: str | Path) -> List[Dict[str, Any]]:
     return [build(p) for p in sorted(root.iterdir()) if p.is_dir()]
 
 
-def place_file(src_path: str | Path, metadata: Dict[str, Any], dest_root: str | Path, dry_run: bool = False) -> Path:
+def place_file(
+    src_path: str | Path,
+    metadata: Dict[str, Any],
+    dest_root: str | Path,
+    dry_run: bool = False,
+    create_missing: bool = True,
+) -> tuple[Path, list[str]]:
     """Перемещает файл в структуру папок на основе метаданных.
 
     Создаёт вложенные папки (категория/подкатегория/issuer),
@@ -58,7 +64,10 @@ def place_file(src_path: str | Path, metadata: Dict[str, Any], dest_root: str | 
 
     При ``dry_run=True`` только выводит предполагаемые действия.
 
-    Возвращает путь, по которому файл будет или был размещён.
+    :param create_missing: если ``False``, то директории не создаются,
+        а возвращается список отсутствующих путей.
+
+    Возвращает кортеж ``(путь_к_файлу, missing)``.
     """
 
     src = Path(src_path)
@@ -70,18 +79,21 @@ def place_file(src_path: str | Path, metadata: Dict[str, Any], dest_root: str | 
     new_name = f"{date}__{name}{ext}"
 
     dest_dir = Path(dest_root)
+    missing: list[str] = []
     for key in ("category", "subcategory", "issuer"):
         value = metadata.get(key)
         if value:
             dest_dir /= value
+            if not dest_dir.exists():
+                missing.append(str(dest_dir.relative_to(dest_root)))
 
     dest_file = dest_dir / new_name
     json_file = dest_file.with_suffix(dest_file.suffix + ".json")
 
-    if dry_run:
+    if dry_run or (missing and not create_missing):
         logger.info("Would move %s -> %s", src, dest_file)
         logger.info("Would write metadata JSON to %s", json_file)
-        return dest_file
+        return dest_file, missing
 
     dest_dir.mkdir(parents=True, exist_ok=True)
     shutil.move(str(src), dest_file)
@@ -91,4 +103,4 @@ def place_file(src_path: str | Path, metadata: Dict[str, Any], dest_root: str | 
         json.dump(metadata, f, ensure_ascii=False, indent=2)
     logger.debug("Wrote metadata to %s", json_file)
 
-    return dest_file
+    return dest_file, missing
