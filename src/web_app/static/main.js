@@ -9,6 +9,22 @@ document.addEventListener('DOMContentLoaded', () => {
   const missingList = document.getElementById('missing-list');
   const missingConfirm = document.getElementById('missing-confirm');
 
+  const editModal = document.getElementById('edit-modal');
+  const editForm = document.getElementById('edit-form');
+  const editCategory = document.getElementById('edit-category');
+  const editSubcategory = document.getElementById('edit-subcategory');
+  const editIssuer = document.getElementById('edit-issuer');
+  const editDate = document.getElementById('edit-date');
+  const editName = document.getElementById('edit-name');
+  let currentEditId = null;
+
+  document.querySelectorAll('.modal .close').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const target = btn.dataset.close;
+      if (target) document.getElementById(target).style.display = 'none';
+    });
+  });
+
   // UI на формах (вариант codex)
   const createForm = document.getElementById('create-folder-form');
   const renameForm = document.getElementById('rename-folder-form');
@@ -29,9 +45,53 @@ document.addEventListener('DOMContentLoaded', () => {
       const category = f.metadata && f.metadata.category ? f.metadata.category : '';
       li.innerHTML = `<strong>${f.filename}</strong> — ${category} — ${f.status} `;
       li.appendChild(link);
+      const editBtn = document.createElement('button');
+      editBtn.textContent = 'Редактировать';
+      editBtn.addEventListener('click', () => openEditModal(f));
+      li.appendChild(editBtn);
       list.appendChild(li);
     });
   }
+
+  function openEditModal(file) {
+    currentEditId = file.id;
+    const m = file.metadata || {};
+    editCategory.value = m.category || '';
+    editSubcategory.value = m.subcategory || '';
+    editIssuer.value = m.issuer || '';
+    editDate.value = m.date || '';
+    editName.value = m.suggested_name || '';
+    editModal.style.display = 'flex';
+  }
+
+  editForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!currentEditId) return;
+    const payload = {
+      metadata: {
+        category: editCategory.value.trim(),
+        subcategory: editSubcategory.value.trim(),
+        issuer: editIssuer.value.trim(),
+        date: editDate.value,
+        suggested_name: editName.value.trim()
+      }
+    };
+    Object.keys(payload.metadata).forEach(k => {
+      if (!payload.metadata[k]) delete payload.metadata[k];
+    });
+    const resp = await fetch(`/files/${currentEditId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (resp.ok) {
+      editModal.style.display = 'none';
+      currentEditId = null;
+      refreshFiles();
+    } else {
+      alert('Ошибка обновления');
+    }
+  });
 
   // -------- Дерево папок --------
   function renderTree(container, tree, basePath = '') {
