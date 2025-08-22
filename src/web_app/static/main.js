@@ -11,6 +11,12 @@ document.addEventListener('DOMContentLoaded', () => {
   const previewModal = document.getElementById('preview-modal');
   const previewFrame = document.getElementById('preview-frame');
 
+  const imageInput = document.getElementById('image-files');
+  const imageDropArea = document.getElementById('image-drop-area');
+  const imageList = document.getElementById('selected-images');
+  const uploadImagesBtn = document.getElementById('upload-images-btn');
+  let imageFiles = [];
+
   const editModal = document.getElementById('edit-modal');
   const editForm = document.getElementById('edit-form');
   const editCategory = document.getElementById('edit-category');
@@ -65,6 +71,15 @@ document.addEventListener('DOMContentLoaded', () => {
       li.appendChild(editBtn);
 
       list.appendChild(li);
+    });
+  }
+
+  function renderImageList() {
+    imageList.innerHTML = '';
+    imageFiles.forEach(f => {
+      const li = document.createElement('li');
+      li.textContent = f.name;
+      imageList.appendChild(li);
     });
   }
 
@@ -290,6 +305,55 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     };
     xhr.send(data);
+  });
+
+  // -------- Загрузка набора изображений --------
+  imageInput?.addEventListener('change', (e) => {
+    imageFiles = Array.from(e.target.files);
+    renderImageList();
+  });
+
+  ['dragenter', 'dragover'].forEach(evt => {
+    imageDropArea?.addEventListener(evt, (e) => {
+      e.preventDefault();
+      imageDropArea.classList.add('dragover');
+    });
+  });
+
+  ['dragleave', 'drop'].forEach(evt => {
+    imageDropArea?.addEventListener(evt, (e) => {
+      e.preventDefault();
+      imageDropArea.classList.remove('dragover');
+    });
+  });
+
+  imageDropArea?.addEventListener('drop', (e) => {
+    const files = Array.from(e.dataTransfer.files).filter(f => f.type === 'image/jpeg');
+    if (files.length) {
+      imageFiles = files;
+      renderImageList();
+    }
+  });
+
+  imageDropArea?.addEventListener('click', () => imageInput?.click());
+
+  uploadImagesBtn?.addEventListener('click', async () => {
+    if (!imageFiles.length) return;
+    const data = new FormData();
+    imageFiles.forEach(f => data.append('files', f));
+    const resp = await fetch('/upload/images', { method: 'POST', body: data });
+    if (resp.ok) {
+      const result = await resp.json();
+      sent.textContent = result.prompt || '';
+      received.textContent = result.raw_response || '';
+      imageFiles = [];
+      imageInput.value = '';
+      renderImageList();
+      refreshFiles();
+      refreshFolderTree();
+    } else {
+      alert('Ошибка загрузки');
+    }
   });
 
   // -------- Формы для операций с папками --------

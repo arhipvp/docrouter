@@ -21,6 +21,15 @@
             <input type="submit" value="Upload" />
         </form>
         <progress id="upload-progress" max="100" value="0"></progress>
+        <div id="image-upload-block">
+            <h2>Загрузить набор изображений</h2>
+            <div id="image-drop-area">
+                <p>Перетащите JPEG-файлы сюда или выберите их вручную</p>
+                <input id="image-files" type="file" multiple accept="image/jpeg" />
+            </div>
+            <ul id="selected-images"></ul>
+            <button id="upload-images-btn" type="button">Загрузить набор изображений</button>
+        </div>
         <h2>Структура папок</h2>
         <div id="folder-controls">
             <input type="text" id="new-folder-name" placeholder="Имя папки">
