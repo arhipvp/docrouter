@@ -171,6 +171,7 @@ def test_root_returns_form_unprotected():
         assert '<form action="/upload" method="post" enctype="multipart/form-data">' in resp.text
         assert 'name="language"' in resp.text
         assert 'id="upload-progress"' in resp.text
+        assert 'id="ai-exchange"' in resp.text
 
 
 def test_files_endpoint_lists_uploaded_files(tmp_path):

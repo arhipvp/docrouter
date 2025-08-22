@@ -2,6 +2,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const form = document.querySelector('form');
   const list = document.getElementById('files');
   const progress = document.getElementById('upload-progress');
+  const sent = document.getElementById('ai-sent');
+  const received = document.getElementById('ai-received');
 
   async function refreshFiles() {
     const resp = await fetch('/files');
@@ -34,6 +36,9 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     xhr.onload = () => {
       if (xhr.status === 200) {
+        const result = JSON.parse(xhr.responseText);
+        sent.textContent = result.prompt || '';
+        received.textContent = result.raw_response || '';
         form.reset();
         progress.value = 0;
         refreshFiles();
