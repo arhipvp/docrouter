@@ -54,7 +54,15 @@ def test_folder_tree_in_prompt(monkeypatch):
     monkeypatch.setattr("metadata_generation.requests.post", fake_post)
 
     analyzer = OpenRouterAnalyzer(api_key="test")
-    tree = {"Финансы": {"Банки": {}}}
+    tree = [
+        {
+            "name": "Финансы",
+            "path": "Финансы",
+            "children": [
+                {"name": "Банки", "path": "Финансы/Банки", "children": []}
+            ],
+        }
+    ]
     result = generate_metadata("text", analyzer=analyzer, folder_tree=tree)
 
     tree_json = json.dumps(tree, ensure_ascii=False)
