@@ -16,7 +16,10 @@ app = FastAPI()
 
 # Load configuration and set up logging
 config = load_config()
-setup_logging(config.log_level, None)
+
+
+logging.basicConfig(level=getattr(logging, config.log_level.upper(), logging.INFO))
+
 
 # In-memory store for metadata
 METADATA_STORE: Dict[str, Dict[str, Any]] = {}
