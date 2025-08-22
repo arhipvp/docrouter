@@ -12,3 +12,4 @@ openpyxl
 xlrd
 python-multipart
 pytest
+unidecode
