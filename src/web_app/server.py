@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import logging
 import uuid
 from pathlib import Path
 from typing import Dict, Any
@@ -8,15 +7,16 @@ from typing import Dict, Any
 from fastapi import FastAPI, UploadFile, File, HTTPException
 
 from config import load_config
+from logging_config import setup_logging
 from file_utils import extract_text
 import metadata_generation
 from file_sorter import place_file
 
 app = FastAPI()
 
-# Load configuration
+# Load configuration and set up logging
 config = load_config()
-logging.basicConfig(level=getattr(logging, config.LOG_LEVEL.upper(), logging.INFO))
+setup_logging(config.log_level, None)
 
 # In-memory store for metadata
 METADATA_STORE: Dict[str, Dict[str, Any]] = {}
@@ -35,11 +35,11 @@ async def upload_file(file: UploadFile = File(...), dry_run: bool = False):
         with open(temp_path, "wb") as dest:
             dest.write(contents)
 
-        text = extract_text(temp_path, language=config.TESSERACT_LANG)
+        text = extract_text(temp_path, language=config.tesseract_lang)
         metadata = metadata_generation.generate_metadata(text)
         metadata["extracted_text"] = text
 
-        dest_path = place_file(str(temp_path), metadata, config.OUTPUT_DIR, dry_run=dry_run)
+        dest_path = place_file(str(temp_path), metadata, config.output_dir, dry_run=dry_run)
     except Exception as exc:  # pragma: no cover - error handling
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
