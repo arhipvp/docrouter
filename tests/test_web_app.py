@@ -129,6 +129,48 @@ def test_upload_retrieve_and_download(tmp_path, monkeypatch):
         assert download.content == b"content"
 
 
+def test_upload_images_returns_sources(tmp_path, monkeypatch):
+    server.database.init_db()
+
+    captured = {}
+
+    def _mock_merge(paths, dest):
+        captured["paths"] = [Path(p).name for p in paths]
+        with open(dest, "wb") as f:
+            f.write(b"PDF")
+        return dest
+
+    def _mock_extract_text(path, language="eng"):
+        captured["language"] = language
+        return "pdf text"
+
+    monkeypatch.setattr(server, "merge_images_to_pdf", _mock_merge)
+    monkeypatch.setattr(server, "extract_text", _mock_extract_text)
+    monkeypatch.setattr(server.metadata_generation, "generate_metadata", _mock_generate_metadata)
+    server.config.output_dir = str(tmp_path)
+
+    with LiveClient(app) as client:
+        files = [
+            ("files", ("b.jpg", b"1", "image/jpeg")),
+            ("files", ("a.jpg", b"2", "image/jpeg")),
+        ]
+        resp = client.post(
+            "/upload/images",
+            data={"language": "deu"},
+            files=files,
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["sources"] == ["a.jpg", "b.jpg"]
+        assert data["metadata"]["language"] == "deu"
+        assert captured["language"] == "deu"
+        file_id = data["id"]
+
+        record = server.database.get_file(file_id)
+        assert record and record["sources"] == ["a.jpg", "b.jpg"]
+        assert Path(record["path"]).exists()
+
+
 def test_details_endpoint_returns_full_record(tmp_path, monkeypatch):
     server.database.init_db()
 
@@ -210,7 +252,6 @@ def test_files_endpoint_lists_uploaded_files(tmp_path):
         assert file_id in ids
         names = [item["filename"] for item in files]
         assert "example.txt" in names
-
 
 def test_folder_crud_operations(tmp_path):
     server.config.output_dir = str(tmp_path)
@@ -300,3 +341,17 @@ def test_upload_pending_then_finalize(tmp_path, monkeypatch):
         assert final_data["status"] == "processed"
         assert final_data["missing"] == []
         assert Path(final_data["path"]).exists()
+
+
+def test_preview_endpoint_serves_file(tmp_path):
+    server.database.init_db()
+    server.config.output_dir = str(tmp_path)
+    with LiveClient(app) as client:
+        resp = client.post("/upload", files={"file": ("example.txt", b"content")})
+        assert resp.status_code == 200
+        file_id = resp.json()["id"]
+        prev = client.get(f"/preview/{file_id}")
+        assert prev.status_code == 200
+        assert prev.headers["content-type"].startswith("text/plain")
+        assert prev.text.strip() == "content"
+

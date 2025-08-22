@@ -5,6 +5,8 @@ import shutil
 import uuid
 from pathlib import Path
 import json
+import mimetypes
+
 
 from fastapi import FastAPI, UploadFile, File, HTTPException, Request, Form, Body
 from fastapi.responses import FileResponse, HTMLResponse
@@ -16,7 +18,7 @@ except Exception:  # pragma: no cover
 
 from config import load_config
 from logging_config import setup_logging
-from file_utils import extract_text
+from file_utils import extract_text, merge_images_to_pdf
 from file_sorter import place_file, get_folder_tree
 import metadata_generation
 from . import database
@@ -153,6 +155,98 @@ async def upload_file(
     }
 
 
+@app.post("/upload/images")
+async def upload_images(
+    files: list[UploadFile] = File(...),
+    language: str | None = Form(None),
+    dry_run: bool = False,
+):
+    """Загрузить несколько изображений, объединить их и обработать как PDF."""
+    file_id = str(uuid.uuid4())
+    temp_dir = UPLOAD_DIR / file_id
+    temp_dir.mkdir(exist_ok=True)
+
+    sorted_files = sorted(files, key=lambda f: f.filename or "")
+    image_paths: list[Path] = []
+    for idx, img in enumerate(sorted_files):
+        temp_img = temp_dir / f"{idx:03d}_{img.filename}"
+        contents = await img.read()
+        with open(temp_img, "wb") as dest:
+            dest.write(contents)
+        image_paths.append(temp_img)
+
+    pdf_path = UPLOAD_DIR / f"{file_id}.pdf"
+    try:
+        merge_images_to_pdf(image_paths, pdf_path)
+    except Exception as exc:  # pragma: no cover
+        shutil.rmtree(temp_dir, ignore_errors=True)
+        logger.exception("Failed to merge images: %s", [f.filename for f in files])
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    shutil.rmtree(temp_dir, ignore_errors=True)
+
+    try:
+        lang = language or config.tesseract_lang
+        text = extract_text(pdf_path, language=lang)
+        folder_tree = get_folder_tree(config.output_dir)
+        meta_result = metadata_generation.generate_metadata(text, folder_tree=folder_tree)
+        metadata = meta_result["metadata"]
+        metadata["extracted_text"] = text
+        metadata["language"] = lang
+
+        dest_path, missing = place_file(
+            str(pdf_path),
+            metadata,
+            config.output_dir,
+            dry_run=dry_run,
+            create_missing=False,
+        )
+    except Exception as exc:  # pragma: no cover
+        logger.exception("Upload/processing failed for images")
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    sources = [f.filename for f in sorted_files]
+
+    if missing:
+        database.add_file(
+            file_id,
+            pdf_path.name,
+            metadata,
+            str(pdf_path),
+            "pending",
+            meta_result.get("prompt"),
+            meta_result.get("raw_response"),
+            missing,
+            sources=sources,
+        )
+        return {"id": file_id, "status": "pending", "missing": missing, "sources": sources}
+
+    status = "dry_run" if dry_run else "processed"
+    database.add_file(
+        file_id,
+        pdf_path.name,
+        metadata,
+        str(dest_path),
+        status,
+        meta_result.get("prompt"),
+        meta_result.get("raw_response"),
+        [],
+        sources=sources,
+    )
+
+    return {
+        "id": file_id,
+        "filename": pdf_path.name,
+        "metadata": metadata,
+        "path": str(dest_path),
+        "status": status,
+        "missing": [],
+        "prompt": meta_result.get("prompt"),
+        "raw_response": meta_result.get("raw_response"),
+        "sources": sources,
+    }
+
+
 @app.get("/metadata/{file_id}")
 async def get_metadata(file_id: str):
     record = database.get_file(file_id)
@@ -170,6 +264,18 @@ async def download_file(file_id: str):
     if not path.exists():
         raise HTTPException(status_code=404, detail="File not found")
     return FileResponse(path, filename=path.name)
+
+
+@app.get("/preview/{file_id}")
+async def preview_file(file_id: str):
+    record = database.get_file(file_id)
+    if not record:
+        raise HTTPException(status_code=404, detail="File not found")
+    path = Path(record.get("path", ""))
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="File not found")
+    content_type, _ = mimetypes.guess_type(path.name)
+    return FileResponse(path, media_type=content_type or "application/octet-stream")
 
 
 @app.get("/files/{file_id}/details")

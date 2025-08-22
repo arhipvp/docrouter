@@ -8,6 +8,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const missingModal = document.getElementById('missing-modal');
   const missingList = document.getElementById('missing-list');
   const missingConfirm = document.getElementById('missing-confirm');
+  const previewModal = document.getElementById('preview-modal');
+  const previewFrame = document.getElementById('preview-frame');
 
   const editModal = document.getElementById('edit-modal');
   const editForm = document.getElementById('edit-form');
@@ -39,16 +41,29 @@ document.addEventListener('DOMContentLoaded', () => {
     list.innerHTML = '';
     files.forEach(f => {
       const li = document.createElement('li');
+      li.dataset.id = f.id;
+
+      const category = f.metadata?.category ?? '';
+      li.innerHTML = `<strong>${f.filename}</strong> — ${category} — ${f.status} `;
+
+      // скачать
       const link = document.createElement('a');
       link.href = `/download/${f.id}`;
       link.textContent = 'скачать';
-      const category = f.metadata && f.metadata.category ? f.metadata.category : '';
-      li.innerHTML = `<strong>${f.filename}</strong> — ${category} — ${f.status} `;
+      link.classList.add('download-link');
       li.appendChild(link);
+
+      // редактировать
       const editBtn = document.createElement('button');
+      editBtn.type = 'button';
       editBtn.textContent = 'Редактировать';
-      editBtn.addEventListener('click', () => openEditModal(f));
+      editBtn.classList.add('edit-btn');
+      editBtn.addEventListener('click', (ev) => {
+        ev.stopPropagation(); // не открывать предпросмотр
+        openEditModal(f);
+      });
       li.appendChild(editBtn);
+
       list.appendChild(li);
     });
   }
@@ -67,6 +82,7 @@ document.addEventListener('DOMContentLoaded', () => {
   editForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     if (!currentEditId) return;
+
     const payload = {
       metadata: {
         category: editCategory.value.trim(),
@@ -76,20 +92,49 @@ document.addEventListener('DOMContentLoaded', () => {
         suggested_name: editName.value.trim()
       }
     };
+    // partial update: удаляем пустые поля
     Object.keys(payload.metadata).forEach(k => {
       if (!payload.metadata[k]) delete payload.metadata[k];
     });
+
     const resp = await fetch(`/files/${currentEditId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
+
     if (resp.ok) {
       editModal.style.display = 'none';
       currentEditId = null;
-      refreshFiles();
+      await refreshFiles();
     } else {
       alert('Ошибка обновления');
+    }
+  });
+
+  // предпросмотр по клику на элемент списка (кроме ссылки и кнопки)
+  list.addEventListener('click', (e) => {
+    if (e.target.closest('a.download-link') || e.target.closest('button.edit-btn')) return;
+
+    const li = e.target.closest('li');
+    if (!li) return;
+    const id = li.dataset.id;
+    if (!id) return;
+
+    previewFrame.src = `/preview/${id}`;
+    previewModal.style.display = 'flex';
+  });
+
+  // закрытие предпросмотра
+  const previewClose = previewModal.querySelector('.close');
+  previewClose.addEventListener('click', () => {
+    previewModal.style.display = 'none';
+    previewFrame.src = '';
+  });
+  previewModal.addEventListener('click', (e) => {
+    if (e.target === previewModal) {
+      previewModal.style.display = 'none';
+      previewFrame.src = '';
     }
   });
 
@@ -135,9 +180,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // -------- Операции с папками (серверные вызовы) --------
   async function createFolder(path) {
-    const resp = await fetch(`/folders?path=${encodeURIComponent(path)}`, {
-      method: 'POST'
-    });
+    const resp = await fetch(`/folders?path=${encodeURIComponent(path)}`, { method: 'POST' });
     if (!resp.ok) {
       const err = await resp.json().catch(() => ({ detail: 'Ошибка создания папки' }));
       throw new Error(err.detail || 'Ошибка создания папки');
@@ -147,9 +190,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async function renameFolder(oldPath, newName) {
     const encoded = oldPath.split('/').map(encodeURIComponent).join('/');
-    const resp = await fetch(`/folders/${encoded}?new_name=${encodeURIComponent(newName)}`, {
-      method: 'PATCH'
-    });
+    const resp = await fetch(`/folders/${encoded}?new_name=${encodeURIComponent(newName)}`, { method: 'PATCH' });
     if (!resp.ok) {
       const err = await resp.json().catch(() => ({ detail: 'Ошибка переименования' }));
       throw new Error(err.detail || 'Ошибка переименования');
@@ -290,6 +331,22 @@ document.addEventListener('DOMContentLoaded', () => {
       deleteForm.reset();
     } catch (err) {
       folderMessage.textContent = err.message;
+    }
+  });
+
+  // UX: закрытие всех модалок по Esc
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    if (previewModal.style.display === 'flex') {
+      previewModal.style.display = 'none';
+      previewFrame.src = '';
+    }
+    if (editModal.style.display === 'flex') {
+      editModal.style.display = 'none';
+      currentEditId = null;
+    }
+    if (missingModal.style.display === 'flex') {
+      missingModal.style.display = 'none';
     }
   });
 
