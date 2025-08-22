@@ -126,3 +126,9 @@ async def download_file(file_id: str):
     if not path.exists():
         raise HTTPException(status_code=404, detail="File not found")
     return FileResponse(path, filename=path.name)
+
+
+@app.get("/files")
+async def list_files():
+    """Вернуть список всех загруженных файлов."""
+    return database.list_files()

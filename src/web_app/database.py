@@ -40,3 +40,8 @@ def delete_file(file_id: str) -> None:
     """Удалить запись о файле."""
     _storage.pop(file_id, None)
 
+
+def list_files() -> list[Dict[str, Any]]:
+    """Получить список всех файлов."""
+    return list(_storage.values())
+
