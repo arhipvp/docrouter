@@ -14,7 +14,7 @@ import re
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Optional, Callable
 
-import requests
+import httpx
 
 from models import Metadata
 
@@ -64,7 +64,9 @@ class MetadataAnalyzer(ABC):
     """Abstract base class for metadata analyzers."""
 
     @abstractmethod
-    def analyze(self, text: str, folder_tree: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    async def analyze(
+        self, text: str, folder_tree: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
         """Analyze *text* and return a dict with keys ``prompt``, ``raw_response`` and ``metadata``."""
 
 
@@ -90,7 +92,9 @@ class OpenRouterAnalyzer(MetadataAnalyzer):
         self.site_url = site_url or OPENROUTER_SITE_URL or "https://github.com/docrouter"
         self.site_name = site_name or OPENROUTER_SITE_NAME or "DocRouter Metadata Generator"
 
-    def analyze(self, text: str, folder_tree: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    async def analyze(
+        self, text: str, folder_tree: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
         tree_json = json.dumps(folder_tree or {}, ensure_ascii=False)
         prompt = (
             "You are an assistant that extracts structured metadata from documents.\n"
@@ -113,7 +117,8 @@ class OpenRouterAnalyzer(MetadataAnalyzer):
             "X-Title": self.site_name,
         }
 
-        response = requests.post(self.api_url, json=payload, headers=headers, timeout=60)
+        async with httpx.AsyncClient(timeout=60) as client:
+            response = await client.post(self.api_url, json=payload, headers=headers)
         response.raise_for_status()
         content = response.json()["choices"][0]["message"]["content"]
         try:
@@ -133,7 +138,9 @@ class RegexAnalyzer(MetadataAnalyzer):
     DATE_RE = re.compile(r"(\d{4}-\d{2}-\d{2})")
     AMOUNT_RE = re.compile(r"([0-9]+(?:[.,][0-9]{2})?)")
 
-    def analyze(self, text: str, folder_tree: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    async def analyze(
+        self, text: str, folder_tree: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
         date_match = self.DATE_RE.search(text)
         amount_match = self.AMOUNT_RE.search(text)
         metadata = {
@@ -153,7 +160,7 @@ class RegexAnalyzer(MetadataAnalyzer):
         return {"prompt": None, "raw_response": None, "metadata": metadata}
 
 
-def generate_metadata(
+async def generate_metadata(
     text: str,
     analyzer: Optional[MetadataAnalyzer] = None,
     *,
@@ -179,7 +186,7 @@ def generate_metadata(
             logger.error("Failed to initialize OpenRouterAnalyzer: %s", exc)
             analyzer = RegexAnalyzer()
     try:
-        result = analyzer.analyze(text, folder_tree=folder_tree)
+        result = await analyzer.analyze(text, folder_tree=folder_tree)
     except Exception as exc:
         logger.error(
             "Analyzer %s failed: %s. Falling back to RegexAnalyzer",
@@ -187,7 +194,7 @@ def generate_metadata(
             exc,
         )
         analyzer = RegexAnalyzer()
-        result = analyzer.analyze(text, folder_tree=folder_tree)
+        result = await analyzer.analyze(text, folder_tree=folder_tree)
     metadata = result.get("metadata", {})
     defaults = {
         "category": None,

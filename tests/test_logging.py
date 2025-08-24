@@ -27,7 +27,7 @@ def test_process_directory_logs(tmp_path, monkeypatch, caplog):
     file_path = input_dir / "data.txt"
     file_path.write_text("hello", encoding="utf-8")
 
-    def fake_generate(text):
+    async def fake_generate(text):
         return {"prompt": None, "raw_response": None, "metadata": Metadata(date="2024-01-01")}
 
     monkeypatch.setattr(metadata_generation, "generate_metadata", fake_generate)

@@ -6,7 +6,7 @@ import csv
 import logging
 import tempfile
 from PIL import Image, ImageOps
-import requests
+import httpx
 
 from config import (
     OPENROUTER_API_KEY,
@@ -240,7 +240,7 @@ except Exception:  # pragma: no cover - отсутствие плагинов н
     logger.debug("Plugin loading skipped", exc_info=True)
 
 
-def translate_text(text: str, target_lang: str) -> str:
+async def translate_text(text: str, target_lang: str) -> str:
     """Перевести *text* на язык ``target_lang`` с помощью OpenRouter."""
 
     if not OPENROUTER_API_KEY:
@@ -260,7 +260,8 @@ def translate_text(text: str, target_lang: str) -> str:
         "HTTP-Referer": OPENROUTER_SITE_URL or "https://github.com/docrouter",
         "X-Title": OPENROUTER_SITE_NAME or "DocRouter",
     }
-    response = requests.post(api_url, json=payload, headers=headers, timeout=60)
+    async with httpx.AsyncClient(timeout=60) as client:
+        response = await client.post(api_url, json=payload, headers=headers)
     response.raise_for_status()
     content = response.json()["choices"][0]["message"]["content"]
     return content.strip()

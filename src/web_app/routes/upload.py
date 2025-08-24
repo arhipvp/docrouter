@@ -37,7 +37,7 @@ async def upload_file(
         lang = language or server.config.tesseract_lang
         text = server.extract_text(temp_path, language=lang)
         folder_tree = get_folder_tree(server.config.output_dir)
-        meta_result = server.metadata_generation.generate_metadata(text, folder_tree=folder_tree)
+        meta_result = await server.metadata_generation.generate_metadata(text, folder_tree=folder_tree)
         raw_meta = meta_result["metadata"]
         if isinstance(raw_meta, dict):
             metadata = Metadata(**raw_meta)
@@ -148,7 +148,7 @@ async def upload_images(
         lang = language or server.config.tesseract_lang
         text = server.extract_text(pdf_path, language=lang)
         folder_tree = get_folder_tree(server.config.output_dir)
-        meta_result = server.metadata_generation.generate_metadata(text, folder_tree=folder_tree)
+        meta_result = await server.metadata_generation.generate_metadata(text, folder_tree=folder_tree)
         raw_meta = meta_result["metadata"]
         if isinstance(raw_meta, dict):
             metadata = Metadata(**raw_meta)

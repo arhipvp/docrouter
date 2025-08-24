@@ -42,7 +42,7 @@ async def download_file(file_id: str, lang: str | None = None):
         elif record.translation_lang == lang and record.translated_text:
             text = record.translated_text
         else:
-            text = server.translate_text(extracted, lang)
+            text = await server.translate_text(extracted, lang)
             database.update_file(
                 file_id,
                 translated_text=text,
@@ -84,7 +84,7 @@ async def get_file_details(file_id: str, lang: str | None = None):
         elif record.translation_lang == lang and record.translated_text:
             text = record.translated_text
         else:
-            text = server.translate_text(extracted, lang)
+            text = await server.translate_text(extracted, lang)
             database.update_file(
                 file_id,
                 translated_text=text,
