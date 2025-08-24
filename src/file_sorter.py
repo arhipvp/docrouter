@@ -104,8 +104,8 @@ def place_file(
     metadata["suggested_name_translit"] = translit
     date = metadata.get("date", "unknown-date")
 
-    new_name = f"{date}__{name}{ext}"
-    metadata["new_name_translit"] = f"{date}__{translit}{ext}"
+    base_new_name = f"{date}__{name}"
+    base_translit = f"{date}__{translit}"
 
     dest_dir = base_dir
     missing: List[str] = []
@@ -118,7 +118,18 @@ def place_file(
                 # сохраняем отсутствующую директорию как путь относительно корня
                 missing.append(str(dest_dir.relative_to(base_dir)))
 
-    dest_file = dest_dir / new_name
+    def _unique_path() -> tuple[Path, str]:
+        dest = dest_dir / f"{base_new_name}{ext}"
+        translit_name = f"{base_translit}{ext}"
+        counter = 1
+        while dest.exists():
+            dest = dest_dir / f"{base_new_name}_{counter}{ext}"
+            translit_name = f"{base_translit}_{counter}{ext}"
+            counter += 1
+        return dest, translit_name
+
+    dest_file, translit_name = _unique_path()
+    metadata["new_name_translit"] = translit_name
     json_file = dest_file.with_suffix(dest_file.suffix + ".json")
 
     # Сухой прогон — только расчёт
@@ -135,6 +146,11 @@ def place_file(
     # Создаём недостающие каталоги при необходимости
     if missing and create_missing:
         dest_dir.mkdir(parents=True, exist_ok=True)
+
+    # Проверяем ещё раз перед переносом на случай гонок
+    dest_file, translit_name = _unique_path()
+    metadata["new_name_translit"] = translit_name
+    json_file = dest_file.with_suffix(dest_file.suffix + ".json")
 
     # Перемещаем файл
     shutil.move(str(src), str(dest_file))

@@ -53,6 +53,23 @@ def test_place_file_moves_and_creates_json(tmp_path):
     assert data["issuer"] == "Sparkasse"
 
 
+def test_place_file_renames_on_name_conflict(tmp_path):
+    src1 = tmp_path / "file1.pdf"
+    src1.write_text("a")
+    src2 = tmp_path / "file2.pdf"
+    src2.write_text("b")
+
+    dest_root = tmp_path / "Archive"
+
+    dest1, _ = place_file(src1, sample_metadata(), dest_root, dry_run=False)
+    dest2, _ = place_file(src2, sample_metadata(), dest_root, dry_run=False)
+
+    assert dest1.name == "2023-10-12__Kreditvertrag.pdf"
+    assert dest2.name == "2023-10-12__Kreditvertrag_1.pdf"
+    assert dest2.exists()
+    assert dest2.with_suffix(dest2.suffix + ".json").exists()
+
+
 def test_place_file_sanitizes_invalid_chars(tmp_path):
     src = tmp_path / "report.pdf"
     src.write_text("content")
