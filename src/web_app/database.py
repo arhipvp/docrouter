@@ -4,8 +4,10 @@ from __future__ import annotations
 
 from typing import Any, Dict, Optional, List
 
+from models import FileRecord, Metadata
+
 # Внутренний словарь для хранения записей
-_storage: Dict[str, Dict[str, Any]] = {}
+_storage: Dict[str, FileRecord] = {}
 
 
 def init_db() -> None:
@@ -16,7 +18,7 @@ def init_db() -> None:
 def add_file(
     file_id: str,
     filename: str,
-    metadata: Dict[str, Any],
+    metadata: Metadata,
     path: str,
     status: str,
     prompt: Any | None = None,
@@ -29,46 +31,44 @@ def add_file(
     suggested_path: str | None = None,
 ) -> None:
     """Сохранить информацию о файле."""
-    _storage[file_id] = {
-        "id": file_id,
-        "filename": filename,
-        "metadata": metadata,
-        "tags_ru": metadata.get("tags_ru", []),
-        "tags_en": metadata.get("tags_en", []),
-        "person": metadata.get("person"),
-        "date_of_birth": metadata.get("date_of_birth"),
-        "expiration_date": metadata.get("expiration_date"),
-        "passport_number": metadata.get("passport_number"),
-        "path": path,
-        "status": status,
-        "prompt": prompt,
-        "raw_response": raw_response,
-        "missing": missing or [],
-        "translated_text": translated_text,
-        "translation_lang": translation_lang,
-        "chat_history": [],
-    }
-    if sources is not None:
-        _storage[file_id]["sources"] = sources
-    if embedding is not None:
-        _storage[file_id]["embedding"] = embedding
-    if suggested_path is not None:
-        _storage[file_id]["suggested_path"] = suggested_path
+    record = FileRecord(
+        id=file_id,
+        filename=filename,
+        metadata=metadata,
+        tags_ru=metadata.tags_ru,
+        tags_en=metadata.tags_en,
+        person=metadata.person,
+        date_of_birth=metadata.date_of_birth,
+        expiration_date=metadata.expiration_date,
+        passport_number=metadata.passport_number,
+        path=path,
+        status=status,
+        prompt=prompt,
+        raw_response=raw_response,
+        missing=missing or [],
+        translated_text=translated_text,
+        translation_lang=translation_lang,
+        chat_history=[],
+        sources=sources,
+        embedding=embedding,
+        suggested_path=suggested_path,
+    )
+    _storage[file_id] = record
 
 
-def get_file(file_id: str) -> Optional[Dict[str, Any]]:
+def get_file(file_id: str) -> Optional[FileRecord]:
     """Получить информацию о файле по ID."""
     return _storage.get(file_id)
 
 
-def get_details(file_id: str) -> Optional[Dict[str, Any]]:
+def get_details(file_id: str) -> Optional[FileRecord]:
     """Вернуть полную запись без фильтрации полей."""
     return _storage.get(file_id)
 
 
 def update_file(
     file_id: str,
-    metadata: Optional[Dict[str, Any]] = None,
+    metadata: Optional[Metadata] = None,
     path: str | None = None,
     status: str | None = None,
     prompt: Any | None = None,
@@ -86,40 +86,34 @@ def update_file(
         return
 
     if metadata:
-        record.setdefault("metadata", {}).update(metadata)
-        if "tags_ru" in metadata:
-            record["tags_ru"] = metadata["tags_ru"]
-        if "tags_en" in metadata:
-            record["tags_en"] = metadata["tags_en"]
-        if "person" in metadata:
-            record["person"] = metadata["person"]
-        if "date_of_birth" in metadata:
-            record["date_of_birth"] = metadata["date_of_birth"]
-        if "expiration_date" in metadata:
-            record["expiration_date"] = metadata["expiration_date"]
-        if "passport_number" in metadata:
-            record["passport_number"] = metadata["passport_number"]
+        record.metadata = record.metadata.model_copy(update=metadata.model_dump(exclude_unset=True))
+        record.tags_ru = record.metadata.tags_ru
+        record.tags_en = record.metadata.tags_en
+        record.person = record.metadata.person
+        record.date_of_birth = record.metadata.date_of_birth
+        record.expiration_date = record.metadata.expiration_date
+        record.passport_number = record.metadata.passport_number
 
     if path is not None:
-        record["path"] = path
+        record.path = path
     if status is not None:
-        record["status"] = status
+        record.status = status
     if prompt is not None:
-        record["prompt"] = prompt
+        record.prompt = prompt
     if raw_response is not None:
-        record["raw_response"] = raw_response
+        record.raw_response = raw_response
     if missing is not None:
-        record["missing"] = missing
+        record.missing = missing
     if sources is not None:
-        record["sources"] = sources
+        record.sources = sources
     if translated_text is not None:
-        record["translated_text"] = translated_text
+        record.translated_text = translated_text
     if translation_lang is not None:
-        record["translation_lang"] = translation_lang
+        record.translation_lang = translation_lang
     if embedding is not None:
-        record["embedding"] = embedding
+        record.embedding = embedding
     if suggested_path is not None:
-        record["suggested_path"] = suggested_path
+        record.suggested_path = suggested_path
 
 
 def delete_file(file_id: str) -> None:
@@ -127,7 +121,7 @@ def delete_file(file_id: str) -> None:
     _storage.pop(file_id, None)
 
 
-def list_files() -> list[Dict[str, Any]]:
+def list_files() -> list[FileRecord]:
     """Получить список всех файлов."""
     return list(_storage.values())
 
@@ -137,7 +131,7 @@ def add_chat_message(file_id: str, role: str, message: str) -> List[Dict[str, st
     record = _storage.get(file_id)
     if record is None:
         return []
-    history: List[Dict[str, str]] = record.setdefault("chat_history", [])
+    history: List[Dict[str, str]] = record.chat_history
     history.append({"role": role, "message": message})
     return history
 
@@ -147,4 +141,4 @@ def get_chat_history(file_id: str) -> List[Dict[str, str]]:
     record = _storage.get(file_id)
     if record is None:
         return []
-    return record.setdefault("chat_history", [])
+    return record.chat_history

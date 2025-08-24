@@ -2,19 +2,20 @@ import json
 from typing import Any, Dict
 
 from metadata_generation import generate_metadata, OpenRouterAnalyzer, RegexAnalyzer
+from models import Metadata
 
 
 def test_generate_metadata_without_api_key(monkeypatch):
     monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
     text = "Total 123.45 on 2023-05-17"
     result = generate_metadata(text)
-    meta = result["metadata"]
-    assert meta["date"] == "2023-05-17"
-    assert meta["amount"] == "123.45"
-    assert meta["category"] is None
-    assert meta["needs_new_folder"] is False
-    assert meta["tags_ru"] == []
-    assert meta["tags_en"] == []
+    meta: Metadata = result["metadata"]
+    assert meta.date == "2023-05-17"
+    assert meta.amount == "123.45"
+    assert meta.category is None
+    assert meta.needs_new_folder is False
+    assert meta.tags_ru == []
+    assert meta.tags_en == []
     assert result["prompt"] is None
     assert result["raw_response"] is None
 
@@ -37,8 +38,9 @@ def test_fallback_to_regex_on_analyze_error(monkeypatch):
     result = generate_metadata("text", analyzer=analyzer)
 
     assert called.get("called")
-    assert result["metadata"]["category"] == "regex"
-    assert result["metadata"]["needs_new_folder"] is False
+    meta = result["metadata"]
+    assert meta.category == "regex"
+    assert meta.needs_new_folder is False
 
 
 def test_folder_tree_in_prompt(monkeypatch):
@@ -82,7 +84,7 @@ def test_folder_tree_in_prompt(monkeypatch):
     assert tree_json in result["prompt"]
     assert instruction in captured["prompt"]
     assert instruction in result["prompt"]
-    assert result["metadata"]["needs_new_folder"] is True
+    assert result["metadata"].needs_new_folder is True
 
 
 def test_multilanguage_tags_parsing(monkeypatch):
@@ -105,8 +107,8 @@ def test_multilanguage_tags_parsing(monkeypatch):
     analyzer = OpenRouterAnalyzer(api_key="test")
     result = generate_metadata("text", analyzer=analyzer)
     meta = result["metadata"]
-    assert meta["tags_ru"] == ["тег1", "тег2"]
-    assert meta["tags_en"] == ["tag1", "tag2"]
+    assert meta.tags_ru == ["тег1", "тег2"]
+    assert meta.tags_en == ["tag1", "tag2"]
 
 
 def test_generate_metadata_parses_mrz():
@@ -116,7 +118,7 @@ def test_generate_metadata_parses_mrz():
     )
     result = generate_metadata(text, analyzer=RegexAnalyzer())
     meta = result["metadata"]
-    assert meta["person"] == "ANNA MARIA ERIKSSON"
-    assert meta["date_of_birth"] == "1974-08-12"
-    assert meta["expiration_date"] == "2012-04-15"
-    assert meta["passport_number"] == "L898902C3"
+    assert meta.person == "ANNA MARIA ERIKSSON"
+    assert meta.date_of_birth == "1974-08-12"
+    assert meta.expiration_date == "2012-04-15"
+    assert meta.passport_number == "L898902C3"

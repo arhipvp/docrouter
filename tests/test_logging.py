@@ -9,6 +9,7 @@ sys.path.append(str(Path(__file__).resolve().parents[1] / "src"))
 from file_utils import extract_text
 from docrouter import process_directory
 import metadata_generation
+from models import Metadata
 
 
 def test_extract_text_logs_error_for_unknown_extension(tmp_path, caplog):
@@ -27,7 +28,7 @@ def test_process_directory_logs(tmp_path, monkeypatch, caplog):
     file_path.write_text("hello", encoding="utf-8")
 
     def fake_generate(text):
-        return {"date": "2024-01-01"}
+        return {"prompt": None, "raw_response": None, "metadata": Metadata(date="2024-01-01")}
 
     monkeypatch.setattr(metadata_generation, "generate_metadata", fake_generate)
 

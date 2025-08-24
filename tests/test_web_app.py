@@ -17,6 +17,7 @@ os.environ["DB_URL"] = ":memory:"             # in-memory БД для тесто
 
 # Импортируем сервер
 from web_app import server  # noqa: E402
+from models import Metadata  # noqa: E402
 
 app = server.app
 
@@ -60,24 +61,17 @@ class LiveClient:
 
 def _mock_generate_metadata(text: str, folder_tree=None):
     """Детерминированные метаданные для стабильных проверок."""
+    meta = Metadata(
+        person="John Doe",
+        date_of_birth="1990-01-02",
+        expiration_date="2030-01-02",
+        passport_number="X1234567",
+        date="2024-01-01",
+    )
     return {
         "prompt": "PROMPT",
         "raw_response": "{\"date\": \"2024-01-01\"}",
-        "metadata": {
-            "category": None,
-            "subcategory": None,
-            "issuer": None,
-            "person": "John Doe",
-            "date_of_birth": "1990-01-02",
-            "expiration_date": "2030-01-02",
-            "passport_number": "X1234567",
-            "doc_type": None,
-            "date": "2024-01-01",
-            "amount": None,
-            "tags": [],
-            "suggested_filename": None,
-        "description": None,
-        },
+        "metadata": meta,
     }
 
 
@@ -167,9 +161,9 @@ def test_upload_retrieve_and_download(tmp_path, monkeypatch):
         assert calls["n"] == 1
 
         record = server.database.get_file(file_id)
-        assert record["person"] == "John Doe"
-        assert record["date_of_birth"] == "1990-01-02"
-        assert record["expiration_date"] == "2030-01-02"
+        assert record.person == "John Doe"
+        assert record.date_of_birth == "1990-01-02"
+        assert record.expiration_date == "2030-01-02"
 
 
 def test_upload_images_returns_sources(tmp_path, monkeypatch):
@@ -210,8 +204,8 @@ def test_upload_images_returns_sources(tmp_path, monkeypatch):
         file_id = data["id"]
 
         record = server.database.get_file(file_id)
-        assert record and record["sources"] == ["a.jpg", "b.jpg"]
-        assert Path(record["path"]).exists()
+        assert record and record.sources == ["a.jpg", "b.jpg"]
+        assert Path(record.path).exists()
 
 
 def test_upload_images_download_and_metadata(tmp_path, monkeypatch):
@@ -322,8 +316,8 @@ def test_download_file_not_found_returns_404(tmp_path):
 
         # Удаляем физический файл, чтобы получить 404 при скачивании
         record = server.database.get_file(file_id)
-        assert record and "path" in record
-        path = record["path"]
+        assert record and record.path
+        path = record.path
         if os.path.exists(path):
             os.remove(path)
 
@@ -412,21 +406,16 @@ def test_upload_pending_then_finalize(tmp_path, monkeypatch):
             return f.read()
 
     def _metadata_pending(text: str, folder_tree=None):
+        meta = Metadata(
+            category="Финансы",
+            subcategory="Банки",
+            issuer="Sparkasse",
+            date="2024-01-01",
+        )
         return {
             "prompt": "PROMPT",
             "raw_response": "{}",
-            "metadata": {
-                "category": "Финансы",
-                "subcategory": "Банки",
-                "issuer": "Sparkasse",
-                "person": None,
-                "doc_type": None,
-                "date": "2024-01-01",
-                "amount": None,
-                "tags": [],
-                "suggested_filename": None,
-                "description": None,
-            },
+            "metadata": meta,
         }
 
     monkeypatch.setattr(server, "extract_text", _mock_extract_text)

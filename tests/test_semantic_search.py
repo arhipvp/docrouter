@@ -10,6 +10,7 @@ sys.path.append(str(Path(__file__).resolve().parent.parent / "src"))
 from web_app import server  # noqa: E402
 from file_utils.embeddings import get_embedding  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
+from models import Metadata  # noqa: E402
 
 
 def test_semantic_search_returns_similar_document(tmp_path):
@@ -21,7 +22,7 @@ def test_semantic_search_returns_similar_document(tmp_path):
     server.database.add_file(
         "1",
         "file1.txt",
-        {"extracted_text": text},
+        Metadata(extracted_text=text),
         str(tmp_path / "file1.txt"),
         "processed",
         embedding=emb,
