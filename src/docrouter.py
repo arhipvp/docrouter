@@ -5,6 +5,7 @@ import logging
 
 from file_utils import extract_text
 import metadata_generation
+import asyncio
 from file_sorter import place_file
 
 from error_handling import handle_error
@@ -27,7 +28,7 @@ def process_directory(input_dir: str | Path, dest_root: str | Path, dry_run: boo
         logger.info("Processing file %s", path)
         try:
             text = extract_text(path)
-            meta_result = metadata_generation.generate_metadata(text)
+            meta_result = asyncio.run(metadata_generation.generate_metadata(text))
             raw_meta = meta_result["metadata"]
             if isinstance(raw_meta, dict):
                 metadata = raw_meta
