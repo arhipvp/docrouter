@@ -54,7 +54,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const uploadImagesBtn = document.getElementById('upload-images-btn');
   let imageFiles = [];
 
-  const editModal = document.getElementById('edit-modal');
+  const metadataModal = document.getElementById('metadata-modal');
   const editForm = document.getElementById('edit-form');
   const editCategory = document.getElementById('edit-category');
   const editSubcategory = document.getElementById('edit-subcategory');
@@ -65,8 +65,14 @@ document.addEventListener('DOMContentLoaded', () => {
   const nameLatinRadio = document.getElementById('name-latin');
   const nameOriginalLabel = document.getElementById('name-original-label');
   const nameLatinLabel = document.getElementById('name-latin-label');
+  const imageEditModal = document.getElementById('edit-modal');
+  const editCanvas = document.getElementById('edit-canvas');
+  const rotateBtn = document.getElementById('rotate-btn');
+  const cropBtn = document.getElementById('crop-btn');
+  const saveBtn = document.getElementById('save-btn');
   let currentEditId = null;
   let currentChatId = null;
+  let rotation = 0;
 
   nameOriginalRadio?.addEventListener('change', () => {
     if (nameOriginalRadio.checked) editName.value = nameOriginalRadio.value;
@@ -87,6 +93,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (target) {
         document.getElementById(target).style.display = 'none';
         if (target === 'chat-modal') currentChatId = null;
+        if (target === 'metadata-modal') currentEditId = null;
       }
     });
   });
@@ -128,7 +135,7 @@ document.addEventListener('DOMContentLoaded', () => {
       editBtn.classList.add('edit-btn');
       editBtn.addEventListener('click', (ev) => {
         ev.stopPropagation(); // не открывать предпросмотр
-        openEditModal(f);
+        openMetadataModal(f);
       });
       li.appendChild(editBtn);
 
@@ -152,11 +159,12 @@ document.addEventListener('DOMContentLoaded', () => {
     imageFiles.forEach(f => {
       const li = document.createElement('li');
       li.textContent = f.name;
+      li.addEventListener('click', () => openImageEditModal(f));
       imageList.appendChild(li);
     });
   }
 
-  function openEditModal(file) {
+  function openMetadataModal(file) {
     currentEditId = file.id;
     const m = file.metadata || {};
     editCategory.value = m.category || '';
@@ -176,8 +184,53 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     if (nameOriginalLabel) nameOriginalLabel.textContent = orig;
     if (nameLatinLabel) nameLatinLabel.textContent = latin;
-    editModal.style.display = 'flex';
+    metadataModal.style.display = 'flex';
   }
+
+  function openImageEditModal(file) {
+    if (!file) return;
+    rotation = 0;
+    const ctx = editCanvas.getContext('2d');
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      editCanvas.width = img.width;
+      editCanvas.height = img.height;
+      ctx.drawImage(img, 0, 0);
+      URL.revokeObjectURL(url);
+    };
+    img.src = url;
+    imageEditModal.style.display = 'flex';
+  }
+
+  rotateBtn?.addEventListener('click', () => {
+    rotation = (rotation + 90) % 360;
+    const temp = document.createElement('canvas');
+    temp.width = editCanvas.width;
+    temp.height = editCanvas.height;
+    temp.getContext('2d').drawImage(editCanvas, 0, 0);
+    if (rotation % 180 === 90) {
+      editCanvas.width = temp.height;
+      editCanvas.height = temp.width;
+    } else {
+      editCanvas.width = temp.width;
+      editCanvas.height = temp.height;
+    }
+    const ctx = editCanvas.getContext('2d');
+    ctx.save();
+    ctx.translate(editCanvas.width / 2, editCanvas.height / 2);
+    ctx.rotate(rotation * Math.PI / 180);
+    ctx.drawImage(temp, -temp.width / 2, -temp.height / 2);
+    ctx.restore();
+  });
+
+  cropBtn?.addEventListener('click', () => {
+    alert('Обрезка пока не реализована');
+  });
+
+  saveBtn?.addEventListener('click', () => {
+    imageEditModal.style.display = 'none';
+  });
 
   function renderChat(history) {
     chatHistory.innerHTML = '';
@@ -225,7 +278,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     if (resp.ok) {
-      editModal.style.display = 'none';
+      metadataModal.style.display = 'none';
       currentEditId = null;
       await refreshFiles();
     } else {
@@ -431,8 +484,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // -------- Загрузка набора изображений --------
   imageInput?.addEventListener('change', (e) => {
-    imageFiles = Array.from(e.target.files);
-    renderImageList();
+    const files = Array.from(e.target.files).filter(f => f.type === 'image/jpeg');
+    if (files.length) {
+      imageFiles = files;
+      renderImageList();
+      openImageEditModal(imageFiles[0]);
+    }
   });
 
   ['dragenter', 'dragover'].forEach(evt => {
@@ -454,6 +511,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (files.length) {
       imageFiles = files;
       renderImageList();
+      openImageEditModal(imageFiles[0]);
     }
   });
 
@@ -545,9 +603,12 @@ document.addEventListener('DOMContentLoaded', () => {
       previewModal.style.display = 'none';
       previewFrame.src = '';
     }
-    if (editModal.style.display === 'flex') {
-      editModal.style.display = 'none';
+    if (metadataModal && metadataModal.style.display === 'flex') {
+      metadataModal.style.display = 'none';
       currentEditId = null;
+    }
+    if (imageEditModal && imageEditModal.style.display === 'flex') {
+      imageEditModal.style.display = 'none';
     }
     if (missingModal.style.display === 'flex') {
       missingModal.style.display = 'none';
