@@ -15,7 +15,7 @@ from config import load_config
 from logging_config import setup_logging
 from file_utils import extract_text, merge_images_to_pdf, translate_text  # noqa: F401
 import metadata_generation  # noqa: F401
-from . import database
+from . import db as database
 from .routes import upload, files, folders, chat
 
 app = FastAPI()

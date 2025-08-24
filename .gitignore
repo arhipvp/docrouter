@@ -12,6 +12,7 @@ Unsorted/
 logs/
 uploads/
 sorted/
+*.sqlite
 
 # Editor and tools
 .vscode

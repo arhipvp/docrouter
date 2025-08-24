@@ -10,7 +10,7 @@ from fastapi import APIRouter, UploadFile, File, HTTPException, Form
 from file_utils.embeddings import get_embedding
 from file_sorter import place_file, get_folder_tree
 from models import Metadata, UploadResponse
-from .. import database, server
+from .. import db as database, server
 
 router = APIRouter()
 

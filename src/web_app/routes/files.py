@@ -12,7 +12,7 @@ from fastapi.responses import FileResponse, PlainTextResponse
 from file_utils.embeddings import get_embedding, cosine_similarity
 from file_sorter import place_file
 from models import Metadata, FileRecord
-from .. import database, server
+from .. import db as database, server
 from .upload import UPLOAD_DIR
 from .folders import _resolve_in_output
 
