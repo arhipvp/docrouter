@@ -217,7 +217,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   saveBtn?.addEventListener('click', () => {
     if (!cropper) return;
-    cropper.getCroppedCanvas().toBlob((blob) => {
+    cropper.getCroppedCanvas().toBlob(async (blob) => {
       if (blob && currentImageIndex >= 0) {
         const name = imageFiles[currentImageIndex]?.name || 'cropped.jpg';
         imageFiles[currentImageIndex] = { blob, name };
@@ -226,8 +226,38 @@ document.addEventListener('DOMContentLoaded', () => {
       imageEditModal.style.display = 'none';
       cropper.destroy();
       cropper = null;
+      const nextIndex = currentImageIndex + 1;
+      if (nextIndex < imageFiles.length) {
+        currentImageIndex = nextIndex;
+        openImageEditModal(imageFiles[currentImageIndex]);
+      } else {
+        await uploadEditedImages();
+      }
     }, 'image/jpeg');
   });
+
+  async function uploadEditedImages() {
+    if (!imageFiles.length) return;
+    const data = new FormData();
+    imageFiles.forEach(f => {
+      const file = new File([f.blob], f.name, { type: 'image/jpeg' });
+      data.append('files', file);
+    });
+    const resp = await fetch('/upload/images', { method: 'POST', body: data });
+    if (resp.ok) {
+      const result = await resp.json();
+      sent.textContent = result.prompt || '';
+      received.textContent = result.raw_response || '';
+      imageFiles = [];
+      currentImageIndex = -1;
+      imageInput.value = '';
+      renderImageList();
+      refreshFiles();
+      refreshFolderTree();
+    } else {
+      alert('Ошибка загрузки');
+    }
+  }
 
   function renderChat(history) {
     chatHistory.innerHTML = '';
@@ -484,6 +514,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const files = Array.from(e.target.files).filter(f => f.type === 'image/jpeg');
     if (files.length) {
       imageFiles = files.map(f => ({ blob: f, name: f.name }));
+      currentImageIndex = 0;
       renderImageList();
       openImageEditModal(imageFiles[0]);
     }
@@ -507,6 +538,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const files = Array.from(e.dataTransfer.files).filter(f => f.type === 'image/jpeg');
     if (files.length) {
       imageFiles = files.map(f => ({ blob: f, name: f.name }));
+      currentImageIndex = 0;
       renderImageList();
       openImageEditModal(imageFiles[0]);
     }
@@ -514,27 +546,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   imageDropArea?.addEventListener('click', () => imageInput?.click());
 
-  uploadImagesBtn?.addEventListener('click', async () => {
-    if (!imageFiles.length) return;
-    const data = new FormData();
-    imageFiles.forEach(f => {
-      const file = new File([f.blob], f.name, { type: 'image/jpeg' });
-      data.append('files', file);
-    });
-    const resp = await fetch('/upload/images', { method: 'POST', body: data });
-    if (resp.ok) {
-      const result = await resp.json();
-      sent.textContent = result.prompt || '';
-      received.textContent = result.raw_response || '';
-      imageFiles = [];
-      imageInput.value = '';
-      renderImageList();
-      refreshFiles();
-      refreshFolderTree();
-    } else {
-      alert('Ошибка загрузки');
-    }
-  });
+  uploadImagesBtn?.addEventListener('click', () => uploadEditedImages());
 
   // -------- Формы для операций с папками --------
   createForm.addEventListener('submit', async (e) => {
