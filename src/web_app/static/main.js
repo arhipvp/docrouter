@@ -188,12 +188,12 @@ document.addEventListener('DOMContentLoaded', () => {
     metadataModal.style.display = 'flex';
   }
 
-  function openImageEditModal(file) {
-    if (!file) return;
-    currentImageIndex = imageFiles.indexOf(file);
+  function openImageEditModal(fileObj) {
+    if (!fileObj) return;
+    currentImageIndex = imageFiles.indexOf(fileObj);
     const ctx = editCanvas.getContext('2d');
     const img = new Image();
-    const url = URL.createObjectURL(file);
+    const url = URL.createObjectURL(fileObj.blob);
     img.onload = () => {
       editCanvas.width = img.width;
       editCanvas.height = img.height;
@@ -220,7 +220,7 @@ document.addEventListener('DOMContentLoaded', () => {
     cropper.getCroppedCanvas().toBlob((blob) => {
       if (blob && currentImageIndex >= 0) {
         const name = imageFiles[currentImageIndex]?.name || 'cropped.jpg';
-        imageFiles[currentImageIndex] = new File([blob], name, { type: blob.type });
+        imageFiles[currentImageIndex] = { blob, name };
         renderImageList();
       }
       imageEditModal.style.display = 'none';
@@ -483,7 +483,7 @@ document.addEventListener('DOMContentLoaded', () => {
   imageInput?.addEventListener('change', (e) => {
     const files = Array.from(e.target.files).filter(f => f.type === 'image/jpeg');
     if (files.length) {
-      imageFiles = files;
+      imageFiles = files.map(f => ({ blob: f, name: f.name }));
       renderImageList();
       openImageEditModal(imageFiles[0]);
     }
@@ -506,7 +506,7 @@ document.addEventListener('DOMContentLoaded', () => {
   imageDropArea?.addEventListener('drop', (e) => {
     const files = Array.from(e.dataTransfer.files).filter(f => f.type === 'image/jpeg');
     if (files.length) {
-      imageFiles = files;
+      imageFiles = files.map(f => ({ blob: f, name: f.name }));
       renderImageList();
       openImageEditModal(imageFiles[0]);
     }
@@ -517,7 +517,10 @@ document.addEventListener('DOMContentLoaded', () => {
   uploadImagesBtn?.addEventListener('click', async () => {
     if (!imageFiles.length) return;
     const data = new FormData();
-    imageFiles.forEach(f => data.append('files', f));
+    imageFiles.forEach(f => {
+      const file = new File([f.blob], f.name, { type: 'image/jpeg' });
+      data.append('files', file);
+    });
     const resp = await fetch('/upload/images', { method: 'POST', body: data });
     if (resp.ok) {
       const result = await resp.json();
