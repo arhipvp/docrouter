@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from fastapi import APIRouter, HTTPException, Body
 
-from .. import database
+from .. import db as database
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
