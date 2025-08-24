@@ -67,12 +67,13 @@ document.addEventListener('DOMContentLoaded', () => {
   const nameLatinLabel = document.getElementById('name-latin-label');
   const imageEditModal = document.getElementById('edit-modal');
   const editCanvas = document.getElementById('edit-canvas');
-  const rotateBtn = document.getElementById('rotate-btn');
-  const cropBtn = document.getElementById('crop-btn');
+  const rotateLeftBtn = document.getElementById('rotate-left-btn');
+  const rotateRightBtn = document.getElementById('rotate-right-btn');
   const saveBtn = document.getElementById('save-btn');
   let currentEditId = null;
   let currentChatId = null;
-  let rotation = 0;
+  let cropper = null;
+  let currentImageIndex = -1;
 
   nameOriginalRadio?.addEventListener('change', () => {
     if (nameOriginalRadio.checked) editName.value = nameOriginalRadio.value;
@@ -189,47 +190,43 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function openImageEditModal(file) {
     if (!file) return;
-    rotation = 0;
+    currentImageIndex = imageFiles.indexOf(file);
     const ctx = editCanvas.getContext('2d');
     const img = new Image();
     const url = URL.createObjectURL(file);
     img.onload = () => {
       editCanvas.width = img.width;
       editCanvas.height = img.height;
+      ctx.clearRect(0, 0, editCanvas.width, editCanvas.height);
       ctx.drawImage(img, 0, 0);
+      cropper?.destroy();
+      cropper = new Cropper(editCanvas, { viewMode: 1 });
       URL.revokeObjectURL(url);
     };
     img.src = url;
     imageEditModal.style.display = 'flex';
   }
 
-  rotateBtn?.addEventListener('click', () => {
-    rotation = (rotation + 90) % 360;
-    const temp = document.createElement('canvas');
-    temp.width = editCanvas.width;
-    temp.height = editCanvas.height;
-    temp.getContext('2d').drawImage(editCanvas, 0, 0);
-    if (rotation % 180 === 90) {
-      editCanvas.width = temp.height;
-      editCanvas.height = temp.width;
-    } else {
-      editCanvas.width = temp.width;
-      editCanvas.height = temp.height;
-    }
-    const ctx = editCanvas.getContext('2d');
-    ctx.save();
-    ctx.translate(editCanvas.width / 2, editCanvas.height / 2);
-    ctx.rotate(rotation * Math.PI / 180);
-    ctx.drawImage(temp, -temp.width / 2, -temp.height / 2);
-    ctx.restore();
+  rotateLeftBtn?.addEventListener('click', () => {
+    cropper?.rotate(-90);
   });
 
-  cropBtn?.addEventListener('click', () => {
-    alert('Обрезка пока не реализована');
+  rotateRightBtn?.addEventListener('click', () => {
+    cropper?.rotate(90);
   });
 
   saveBtn?.addEventListener('click', () => {
-    imageEditModal.style.display = 'none';
+    if (!cropper) return;
+    cropper.getCroppedCanvas().toBlob((blob) => {
+      if (blob && currentImageIndex >= 0) {
+        const name = imageFiles[currentImageIndex]?.name || 'cropped.jpg';
+        imageFiles[currentImageIndex] = new File([blob], name, { type: blob.type });
+        renderImageList();
+      }
+      imageEditModal.style.display = 'none';
+      cropper.destroy();
+      cropper = null;
+    }, 'image/jpeg');
   });
 
   function renderChat(history) {
