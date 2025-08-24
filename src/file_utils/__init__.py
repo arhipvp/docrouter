@@ -146,7 +146,7 @@ def extract_text(file_path: Union[str, Path], language: str = "eng") -> str:
     Поддерживаемые форматы:
       - Текстовые: .txt, .md, .pdf, .docx
       - Таблицы: .csv, .xls, .xlsx
-      - Изображения (OCR): .jpg, .jpeg  (через image_ocr.extract_text_image)
+      - Изображения (OCR): .jpg, .jpeg, .png, .tiff (через image_ocr.extract_text_image)
 
     :param file_path: путь к файлу.
     :param language: язык OCR (ISO-коды tesseract, напр. 'eng', 'rus', 'deu').
@@ -159,7 +159,7 @@ def extract_text(file_path: Union[str, Path], language: str = "eng") -> str:
     logger.info("Extracting text from %s", path)
 
     # Ветвь для изображений — нужен отдельный параметр language
-    if ext in {".jpg", ".jpeg"}:
+    if ext in {".jpg", ".jpeg", ".png", ".tiff"}:
         if extract_text_image is None:
             logger.error("OCR module unavailable for %s", path)
             raise RuntimeError("Модуль OCR недоступен: .image_ocr.extract_text_image не найден")
