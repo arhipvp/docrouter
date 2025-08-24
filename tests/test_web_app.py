@@ -76,9 +76,20 @@ def _mock_generate_metadata(text: str, folder_tree=None):
             "amount": None,
             "tags": [],
             "suggested_filename": None,
-            "description": None,
+        "description": None,
         },
     }
+
+
+def test_index_contains_edit_modal_and_buttons():
+    with LiveClient(app) as client:
+        resp = client.get("/")
+        assert resp.status_code == 200
+        html = resp.text
+        assert 'id="edit-modal"' in html
+        assert 'id="rotate-left-btn"' in html
+        assert 'id="rotate-right-btn"' in html
+        assert 'id="save-btn"' in html
 
 
 def test_upload_retrieve_and_download(tmp_path, monkeypatch):
