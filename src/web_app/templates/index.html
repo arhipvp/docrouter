@@ -89,6 +89,18 @@
     <div id="edit-modal" class="modal">
         <div class="modal-content">
             <span class="close" data-close="edit-modal">&times;</span>
+            <canvas id="edit-canvas"></canvas>
+            <div class="modal-buttons">
+                <button id="rotate-btn" type="button">Повернуть</button>
+                <button id="crop-btn" type="button">Обрезать</button>
+                <button id="save-btn" type="button">Сохранить</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="metadata-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" data-close="metadata-modal">&times;</span>
             <h3>Редактировать метаданные</h3>
             <form id="edit-form">
                 <label>Категория: <input type="text" id="edit-category" /></label>
