@@ -23,6 +23,7 @@ from file_utils.embeddings import get_embedding, cosine_similarity
 from file_sorter import place_file, get_folder_tree
 import metadata_generation
 from . import database
+from models import Metadata, FileRecord, UploadResponse
 
 app = FastAPI()
 
@@ -82,7 +83,7 @@ def _resolve_in_output(relative: str) -> Path:
 
 
 # --------- Маршруты ----------
-@app.post("/upload")
+@app.post("/upload", response_model=UploadResponse)
 async def upload_file(
     file: UploadFile = File(...),
     language: str | None = Form(None),
@@ -101,19 +102,25 @@ async def upload_file(
         text = extract_text(temp_path, language=lang)
         folder_tree = get_folder_tree(config.output_dir)
         meta_result = metadata_generation.generate_metadata(text, folder_tree=folder_tree)
-        metadata = meta_result["metadata"]
-        metadata["extracted_text"] = text
-        metadata["language"] = lang
+        raw_meta = meta_result["metadata"]
+        if isinstance(raw_meta, dict):
+            metadata = Metadata(**raw_meta)
+        else:
+            metadata = raw_meta
+        metadata.extracted_text = text
+        metadata.language = lang
         embedding = get_embedding(text)
 
+        meta_dict = metadata.model_dump()
         # Раскладываем файл по директориям без создания недостающих
         dest_path, missing = place_file(
             str(temp_path),
-            metadata,
+            meta_dict,
             config.output_dir,
             dry_run=dry_run,
             create_missing=False,
         )
+        metadata = Metadata(**meta_dict)
 
     except Exception as exc:  # pragma: no cover
         logger.exception("Upload/processing failed for %s", file.filename)
@@ -132,12 +139,12 @@ async def upload_file(
             embedding=embedding,
             suggested_path=str(dest_path),
         )
-        return {
-            "id": file_id,
-            "status": "pending",
-            "missing": missing,
-            "suggested_path": str(dest_path),
-        }
+        return UploadResponse(
+            id=file_id,
+            status="pending",
+            missing=missing,
+            suggested_path=str(dest_path),
+        )
 
     status = "dry_run" if dry_run else "processed"
 
@@ -155,22 +162,22 @@ async def upload_file(
         suggested_path=str(dest_path),
     )
 
-    return {
-        "id": file_id,
-        "filename": file.filename,
-        "metadata": metadata,
-        "tags_ru": metadata.get("tags_ru", []),
-        "tags_en": metadata.get("tags_en", []),
-        "path": str(dest_path),
-        "status": status,
-        "missing": [],
-        "prompt": meta_result.get("prompt"),
-        "raw_response": meta_result.get("raw_response"),
-        "suggested_path": str(dest_path),
-    }
+    return UploadResponse(
+        id=file_id,
+        filename=file.filename,
+        metadata=metadata,
+        tags_ru=metadata.tags_ru,
+        tags_en=metadata.tags_en,
+        path=str(dest_path),
+        status=status,
+        missing=[],
+        prompt=meta_result.get("prompt"),
+        raw_response=meta_result.get("raw_response"),
+        suggested_path=str(dest_path),
+    )
 
 
-@app.post("/upload/images")
+@app.post("/upload/images", response_model=UploadResponse)
 async def upload_images(
     files: list[UploadFile] = File(...),
     language: str | None = Form(None),
@@ -206,18 +213,24 @@ async def upload_images(
         text = extract_text(pdf_path, language=lang)
         folder_tree = get_folder_tree(config.output_dir)
         meta_result = metadata_generation.generate_metadata(text, folder_tree=folder_tree)
-        metadata = meta_result["metadata"]
-        metadata["extracted_text"] = text
-        metadata["language"] = lang
+        raw_meta = meta_result["metadata"]
+        if isinstance(raw_meta, dict):
+            metadata = Metadata(**raw_meta)
+        else:
+            metadata = raw_meta
+        metadata.extracted_text = text
+        metadata.language = lang
         embedding = get_embedding(text)
 
+        meta_dict = metadata.model_dump()
         dest_path, missing = place_file(
             str(pdf_path),
-            metadata,
+            meta_dict,
             config.output_dir,
             dry_run=dry_run,
             create_missing=False,
         )
+        metadata = Metadata(**meta_dict)
     except Exception as exc:  # pragma: no cover
         logger.exception("Upload/processing failed for images")
         raise HTTPException(status_code=500, detail=str(exc)) from exc
@@ -238,13 +251,13 @@ async def upload_images(
             embedding=embedding,
             suggested_path=str(dest_path),
         )
-        return {
-            "id": file_id,
-            "status": "pending",
-            "missing": missing,
-            "sources": sources,
-            "suggested_path": str(dest_path),
-        }
+        return UploadResponse(
+            id=file_id,
+            status="pending",
+            missing=missing,
+            sources=sources,
+            suggested_path=str(dest_path),
+        )
 
     status = "dry_run" if dry_run else "processed"
     database.add_file(
@@ -261,28 +274,28 @@ async def upload_images(
         suggested_path=str(dest_path),
     )
 
-    return {
-        "id": file_id,
-        "filename": pdf_path.name,
-        "metadata": metadata,
-        "tags_ru": metadata.get("tags_ru", []),
-        "tags_en": metadata.get("tags_en", []),
-        "path": str(dest_path),
-        "status": status,
-        "missing": [],
-        "prompt": meta_result.get("prompt"),
-        "raw_response": meta_result.get("raw_response"),
-        "sources": sources,
-        "suggested_path": str(dest_path),
-    }
+    return UploadResponse(
+        id=file_id,
+        filename=pdf_path.name,
+        metadata=metadata,
+        tags_ru=metadata.tags_ru,
+        tags_en=metadata.tags_en,
+        path=str(dest_path),
+        status=status,
+        missing=[],
+        prompt=meta_result.get("prompt"),
+        raw_response=meta_result.get("raw_response"),
+        sources=sources,
+        suggested_path=str(dest_path),
+    )
 
 
-@app.get("/metadata/{file_id}")
+@app.get("/metadata/{file_id}", response_model=Metadata)
 async def get_metadata(file_id: str):
     record = database.get_file(file_id)
     if not record:
         raise HTTPException(status_code=404, detail="Metadata not found")
-    return record["metadata"]
+    return record.metadata
 
 
 @app.get("/download/{file_id}")
@@ -292,12 +305,12 @@ async def download_file(file_id: str, lang: str | None = None):
         raise HTTPException(status_code=404, detail="File not found")
 
     if lang:
-        extracted = record.get("metadata", {}).get("extracted_text", "")
-        orig_lang = record.get("metadata", {}).get("language")
+        extracted = record.metadata.extracted_text or ""
+        orig_lang = record.metadata.language
         if lang == orig_lang:
             text = extracted
-        elif record.get("translation_lang") == lang and record.get("translated_text"):
-            text = record["translated_text"]
+        elif record.translation_lang == lang and record.translated_text:
+            text = record.translated_text
         else:
             text = translate_text(extracted, lang)
             database.update_file(
@@ -306,11 +319,11 @@ async def download_file(file_id: str, lang: str | None = None):
                 translation_lang=lang,
             )
         headers = {
-            "Content-Disposition": f"attachment; filename={record.get('filename', file_id)}_{lang}.txt"
+            "Content-Disposition": f"attachment; filename={record.filename}_{lang}.txt"
         }
         return PlainTextResponse(text, headers=headers)
 
-    path = Path(record.get("path", ""))
+    path = Path(record.path)
     if not path.exists():
         raise HTTPException(status_code=404, detail="File not found")
     return FileResponse(path, filename=path.name)
@@ -321,25 +334,25 @@ async def preview_file(file_id: str):
     record = database.get_file(file_id)
     if not record:
         raise HTTPException(status_code=404, detail="File not found")
-    path = Path(record.get("path", ""))
+    path = Path(record.path)
     if not path.exists():
         raise HTTPException(status_code=404, detail="File not found")
     content_type, _ = mimetypes.guess_type(path.name)
     return FileResponse(path, media_type=content_type or "application/octet-stream")
 
 
-@app.get("/files/{file_id}/details")
+@app.get("/files/{file_id}/details", response_model=FileRecord)
 async def get_file_details(file_id: str, lang: str | None = None):
     record = database.get_details(file_id)
     if not record:
         raise HTTPException(status_code=404, detail="File not found")
     if lang:
-        extracted = record.get("metadata", {}).get("extracted_text", "")
-        orig_lang = record.get("metadata", {}).get("language")
+        extracted = record.metadata.extracted_text or ""
+        orig_lang = record.metadata.language
         if lang == orig_lang:
             text = extracted
-        elif record.get("translation_lang") == lang and record.get("translated_text"):
-            text = record["translated_text"]
+        elif record.translation_lang == lang and record.translated_text:
+            text = record.translated_text
         else:
             text = translate_text(extracted, lang)
             database.update_file(
@@ -347,14 +360,14 @@ async def get_file_details(file_id: str, lang: str | None = None):
                 translated_text=text,
                 translation_lang=lang,
             )
-            record["translated_text"] = text
-            record["translation_lang"] = lang
-        record["translated_text"] = record.get("translated_text", text)
-        record["translation_lang"] = lang
+            record.translated_text = text
+            record.translation_lang = lang
+        record.translated_text = record.translated_text or text
+        record.translation_lang = lang
     return record
 
 
-@app.get("/files")
+@app.get("/files", response_model=list[FileRecord])
 async def list_files():
     return database.list_files()
 
@@ -365,31 +378,32 @@ async def semantic_search(q: str):
     query_vec = get_embedding(q)
     results: list[dict[str, object]] = []
     for rec in database.list_files():
-        emb = rec.get("embedding")
+        emb = rec.embedding
         if not emb:
             continue
         score = cosine_similarity(query_vec, emb)
-        results.append({"id": rec["id"], "filename": rec["filename"], "score": score})
+        results.append({"id": rec.id, "filename": rec.filename, "score": score})
     results.sort(key=lambda x: x["score"], reverse=True)
     return {"results": results}
 
 
-@app.patch("/files/{file_id}")
+@app.patch("/files/{file_id}", response_model=FileRecord)
 async def update_file(file_id: str, data: dict = Body(...)):
     record = database.get_file(file_id)
     if not record:
         raise HTTPException(status_code=404, detail="File not found")
     metadata_updates = data.get("metadata") or {}
-    new_metadata = record.get("metadata", {}).copy()
+    new_metadata_dict = record.metadata.model_dump()
     if metadata_updates:
-        new_metadata.update(metadata_updates)
+        new_metadata_dict.update(metadata_updates)
+    new_metadata = Metadata(**new_metadata_dict)
     path_param = data.get("path")
     status = data.get("status")
     prompt = data.get("prompt")
     raw_response = data.get("raw_response")
     missing = data.get("missing")
 
-    old_path = Path(record.get("path", ""))
+    old_path = Path(record.path)
     if not old_path.exists():
         raise HTTPException(status_code=404, detail="File not found on disk")
     dest_path = old_path
@@ -400,11 +414,12 @@ async def update_file(file_id: str, data: dict = Body(...)):
             old_json.unlink()
         dest_path, _ = place_file(
             old_path,
-            new_metadata,
+            new_metadata_dict,
             config.output_dir,
             dry_run=False,
             create_missing=True,
         )
+        new_metadata = Metadata(**new_metadata_dict)
     elif path_param:
         old_json = old_path.with_suffix(old_path.suffix + ".json")
         if old_json.exists():
@@ -415,7 +430,7 @@ async def update_file(file_id: str, data: dict = Body(...)):
             raise HTTPException(status_code=409, detail="Target already exists")
         shutil.move(str(old_path), dest_path)
         with open(dest_path.with_suffix(dest_path.suffix + ".json"), "w", encoding="utf-8") as f:
-            json.dump(new_metadata, f, ensure_ascii=False, indent=2)
+            json.dump(new_metadata_dict, f, ensure_ascii=False, indent=2)
 
     database.update_file(
         file_id,
@@ -471,7 +486,7 @@ async def delete_folder(folder_path: str):
 
 
 # ---------- ЕДИНЫЙ finalize ----------
-@app.post("/files/{file_id}/finalize")
+@app.post("/files/{file_id}/finalize", response_model=FileRecord)
 async def finalize_file(
     file_id: str,
     missing: list[str] | None = Body(default=None),
@@ -485,7 +500,7 @@ async def finalize_file(
     record = database.get_file(file_id)
     if not record:
         raise HTTPException(status_code=404, detail="File not found")
-    if record.get("status") != "pending":
+    if record.status != "pending":
         # Возвращаем текущую запись, ничего не делаем
         return record
 
@@ -496,26 +511,27 @@ async def finalize_file(
             target.mkdir(parents=True, exist_ok=True)
 
     # Путь к временно загруженному файлу
-    temp_path = record.get("path")
+    temp_path = record.path
     if not temp_path:
-        # Фолбэк: старый путь формата uploads/<uuid>_<filename>
-        temp_path = str(UPLOAD_DIR / f"{file_id}_{record['filename']}")
+        temp_path = str(UPLOAD_DIR / f"{file_id}_{record.filename}")
 
+    meta_dict = record.metadata.model_dump()
     dest_path, still_missing = place_file(
         str(temp_path),
-        record["metadata"],
+        meta_dict,
         config.output_dir,
         dry_run=False,
         create_missing=True,
     )
+    metadata = Metadata(**meta_dict)
 
     database.update_file(
         file_id,
-        record["metadata"],
+        metadata,
         str(dest_path),
         "processed",
-        record.get("prompt"),
-        record.get("raw_response"),
+        record.prompt,
+        record.raw_response,
         still_missing,
         suggested_path=str(dest_path),
     )
@@ -529,7 +545,7 @@ async def chat(file_id: str, message: str = Body(..., embed=True)):
     if not record:
         raise HTTPException(status_code=404, detail="File not found")
 
-    text = record.get("metadata", {}).get("extracted_text", "")
+    text = record.metadata.extracted_text or ""
     reply = f"Эхо: {message} | {text}".strip()
 
     database.add_chat_message(file_id, "user", message)

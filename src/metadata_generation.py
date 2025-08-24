@@ -16,6 +16,8 @@ from typing import Any, Dict, Optional
 
 import requests
 
+from models import Metadata
+
 from config import (
     OPENROUTER_API_KEY,
     OPENROUTER_BASE_URL,
@@ -190,8 +192,9 @@ def generate_metadata(
         for key in ("date_of_birth", "expiration_date", "passport_number"):
             if mrz_info.get(key):
                 defaults[key] = mrz_info[key]
+    metadata_model = Metadata(**defaults)
     return {
         "prompt": result.get("prompt"),
         "raw_response": result.get("raw_response"),
-        "metadata": defaults,
+        "metadata": metadata_model,
     }

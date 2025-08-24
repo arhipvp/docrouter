@@ -27,7 +27,12 @@ def process_directory(input_dir: str | Path, dest_root: str | Path, dry_run: boo
         logger.info("Processing file %s", path)
         try:
             text = extract_text(path)
-            metadata = metadata_generation.generate_metadata(text)
+            meta_result = metadata_generation.generate_metadata(text)
+            raw_meta = meta_result["metadata"]
+            if isinstance(raw_meta, dict):
+                metadata = raw_meta
+            else:
+                metadata = raw_meta.model_dump()
             rel_dir = path.parent.relative_to(input_path)
             dest_base = Path(dest_root) / rel_dir
             dest_base.mkdir(parents=True, exist_ok=True)
