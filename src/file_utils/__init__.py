@@ -48,18 +48,35 @@ from .mrz import parse_mrz
 logger = logging.getLogger(__name__)
 
 
+_PARSER_REGISTRY: Dict[str, Callable[[Path], str]] = {}
+
+
+def register_parser(ext: str) -> Callable[[Callable[[Path], str]], Callable[[Path], str]]:
+    """Декоратор для регистрации парсеров файлов."""
+
+    def decorator(func: Callable[[Path], str]) -> Callable[[Path], str]:
+        _PARSER_REGISTRY[ext.lower()] = func
+        return func
+
+    return decorator
+
+
 # ---------- Парсеры для «текстовых» форматов ----------
 
+
+@register_parser(".txt")
 def extract_text_txt(path: Path) -> str:
     """Извлечение текста из .txt файла."""
     return path.read_text(encoding="utf-8")
 
 
+@register_parser(".md")
 def extract_text_md(path: Path) -> str:
     """Извлечение текста из .md файла."""
     return path.read_text(encoding="utf-8")
 
 
+@register_parser(".pdf")
 def extract_text_pdf(path: Path) -> str:
     """Извлечение текста из PDF с помощью PyMuPDF."""
     if fitz is None:
@@ -71,6 +88,7 @@ def extract_text_pdf(path: Path) -> str:
     return "\n".join(parts)
 
 
+@register_parser(".docx")
 def extract_text_docx(path: Path) -> str:
     """Извлечение текста из DOCX (python-docx)."""
     if Document is None:
@@ -79,6 +97,7 @@ def extract_text_docx(path: Path) -> str:
     return "\n".join(p.text for p in doc.paragraphs)
 
 
+@register_parser(".csv")
 def extract_text_csv(path: Path) -> str:
     """Извлечение текста из CSV (через csv.reader)."""
     lines: list[str] = []
@@ -89,6 +108,7 @@ def extract_text_csv(path: Path) -> str:
     return "\n".join(lines)
 
 
+@register_parser(".xls")
 def extract_text_xls(path: Path) -> str:
     """Извлечение текста из XLS (через xlrd)."""
     if xlrd is None:
@@ -102,6 +122,7 @@ def extract_text_xls(path: Path) -> str:
     return "\n".join(lines)
 
 
+@register_parser(".xlsx")
 def extract_text_xlsx(path: Path) -> str:
     """Извлечение текста из XLSX (через openpyxl)."""
     if openpyxl is None:
@@ -114,17 +135,6 @@ def extract_text_xlsx(path: Path) -> str:
             lines.append(",".join(values))
     wb.close()
     return "\n".join(lines)
-
-
-_PARSERS: Dict[str, Callable[[Path], str]] = {
-    ".txt": extract_text_txt,
-    ".md": extract_text_md,
-    ".pdf": extract_text_pdf,
-    ".docx": extract_text_docx,
-    ".csv": extract_text_csv,
-    ".xls": extract_text_xls,
-    ".xlsx": extract_text_xlsx,
-}
 
 
 # ---------- Входная точка с поддержкой OCR ----------
@@ -158,7 +168,7 @@ def extract_text(file_path: Union[str, Path], language: str = "eng") -> str:
         return text
 
     # Обычные «текстовые» форматы
-    parser = _PARSERS.get(ext)
+    parser = _PARSER_REGISTRY.get(ext)
     if parser is None:
         logger.error("Unsupported/unknown file extension: %s", ext)
         raise ValueError(f"Unsupported/unknown file extension: {ext}")
@@ -208,6 +218,7 @@ def merge_images_to_pdf(paths: list[Path]) -> Path:
 
 __all__ = [
     "extract_text",
+    "register_parser",
     "extract_text_txt",
     "extract_text_md",
     "extract_text_pdf",
@@ -219,6 +230,14 @@ __all__ = [
     "parse_mrz",
     "translate_text",
 ]
+
+
+try:  # Автообнаружение плагинов
+    from plugins import load_plugins as _load_plugins
+
+    _load_plugins()
+except Exception:  # pragma: no cover - отсутствие плагинов не критично
+    logger.debug("Plugin loading skipped", exc_info=True)
 
 
 def translate_text(text: str, target_lang: str) -> str:

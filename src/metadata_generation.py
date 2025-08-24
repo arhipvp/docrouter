@@ -12,7 +12,7 @@ import json
 import logging
 import re
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Callable
 
 import requests
 
@@ -31,11 +31,32 @@ from file_utils.mrz import parse_mrz
 
 logger = logging.getLogger(__name__)
 
+_ANALYZER_REGISTRY: Dict[str, type["MetadataAnalyzer"]] = {}
+
+
+def register_analyzer(name: str) -> Callable[[type["MetadataAnalyzer"]], type["MetadataAnalyzer"]]:
+    """Декоратор для регистрации анализаторов метаданных."""
+
+    def decorator(cls: type["MetadataAnalyzer"]) -> type["MetadataAnalyzer"]:
+        _ANALYZER_REGISTRY[name] = cls
+        return cls
+
+    return decorator
+
+
+def get_analyzer(name: str) -> type["MetadataAnalyzer"]:
+    """Получить класс анализатора по имени."""
+
+    return _ANALYZER_REGISTRY[name]
+
+
 __all__ = [
     "generate_metadata",
     "MetadataAnalyzer",
     "OpenRouterAnalyzer",
     "RegexAnalyzer",
+    "register_analyzer",
+    "get_analyzer",
 ]
 
 
@@ -47,6 +68,7 @@ class MetadataAnalyzer(ABC):
         """Analyze *text* and return a dict with keys ``prompt``, ``raw_response`` and ``metadata``."""
 
 
+@register_analyzer("openrouter")
 class OpenRouterAnalyzer(MetadataAnalyzer):
     """Analyzer that delegates to an OpenRouter-hosted LLM."""
 
@@ -101,6 +123,7 @@ class OpenRouterAnalyzer(MetadataAnalyzer):
         return {"prompt": prompt, "raw_response": content, "metadata": metadata}
 
 
+@register_analyzer("regex")
 class RegexAnalyzer(MetadataAnalyzer):
     """A very small local analyzer based on regular expressions.
 
@@ -198,3 +221,11 @@ def generate_metadata(
         "raw_response": result.get("raw_response"),
         "metadata": metadata_model,
     }
+
+
+try:  # Автообнаружение плагинов
+    from plugins import load_plugins as _load_plugins
+
+    _load_plugins()
+except Exception:  # pragma: no cover - отсутствие плагинов не критично
+    logger.debug("Plugin loading skipped", exc_info=True)
