@@ -6,6 +6,13 @@
 
 ```bash
 pip install -r requirements.txt
+npm install
+```
+
+## Сборка фронтенда
+
+```bash
+npm run build  # или make build-frontend
 ```
 
 ## Настройка

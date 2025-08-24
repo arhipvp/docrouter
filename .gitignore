@@ -3,7 +3,7 @@ __pycache__/
 *.py[cod]
 .venv/
 .env
-dist/
+/dist/
 build/
 
 # Application output
@@ -16,3 +16,6 @@ sorted/
 # Editor and tools
 .vscode
 .pytest_cache/
+
+# Node
+node_modules/

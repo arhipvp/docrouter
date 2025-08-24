@@ -4,12 +4,13 @@ from pathlib import Path
 
 
 def test_main_js_rotate_crop(tmp_path):
-    main_js = Path(__file__).resolve().parent.parent / "src" / "web_app" / "static" / "main.js"
+    main_js = Path(__file__).resolve().parent.parent / "src" / "web_app" / "static" / "dist" / "main.js"
     js_code = textwrap.dedent(
         """
         const fs = require('fs');
         const path = require('path');
         const assert = require('assert');
+        const { pathToFileURL } = require('url');
 
         class Element {
           constructor(tag = 'div') {
@@ -88,21 +89,23 @@ def test_main_js_rotate_crop(tmp_path):
         };
 
         const mainJsPath = %MAIN_JS_PATH%;
-        const code = fs.readFileSync(mainJsPath, 'utf-8');
-        eval(code);
-        document.dispatchEvent({ type: 'DOMContentLoaded' });
+        (async () => {
+          const mainJsUrl = pathToFileURL(mainJsPath).href;
+          await import(mainJsUrl);
+          document.dispatchEvent({ type: 'DOMContentLoaded' });
 
-        const file = new File(['dummy'], 'test.jpg', { type: 'image/jpeg' });
-        const input = getEl('image-files');
-        input.files = [file];
-        input.dispatchEvent({ type: 'change', target: { files: [file] } });
+          const file = new File(['dummy'], 'test.jpg', { type: 'image/jpeg' });
+          const input = getEl('image-files');
+          input.files = [file];
+          input.dispatchEvent({ type: 'change', target: { files: [file] } });
 
-        getEl('rotate-left-btn').click();
-        getEl('rotate-right-btn').click();
-        getEl('save-btn').click();
+          getEl('rotate-left-btn').click();
+          getEl('rotate-right-btn').click();
+          getEl('save-btn').click();
 
-        assert.deepStrictEqual(rotations, [-90, 90]);
-        assert.ok(cropped);
+          assert.deepStrictEqual(rotations, [-90, 90]);
+          assert.ok(cropped);
+        })();
         """
     )
     js_code = js_code.replace("%MAIN_JS_PATH%", repr(str(main_js)))
