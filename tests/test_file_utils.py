@@ -4,7 +4,8 @@ import csv
 import importlib.util
 from tempfile import TemporaryDirectory
 import unittest
-from PIL import Image
+import shutil
+from PIL import Image, ImageDraw, ImageFont
 
 sys.path.append(str(Path(__file__).resolve().parents[1] / "src"))
 
@@ -96,6 +97,26 @@ class TestExtractText(unittest.TestCase):
         with TemporaryDirectory() as tmp:
             path = _create_file(Path(tmp), ".docx", "hello docx")
             self.assertEqual(extract_text(path).strip(), "hello docx")
+
+    @unittest.skipUnless(shutil.which("tesseract"), "tesseract not installed")
+    def test_png(self):
+        with TemporaryDirectory() as tmp:
+            path = Path(tmp) / "sample.png"
+            image = Image.new("RGB", (100, 50), color="white")
+            draw = ImageDraw.Draw(image)
+            draw.text((10, 10), "PNG", fill="black", font=ImageFont.load_default())
+            image.save(path)
+            self.assertIn("PNG", extract_text(path))
+
+    @unittest.skipUnless(shutil.which("tesseract"), "tesseract not installed")
+    def test_tiff(self):
+        with TemporaryDirectory() as tmp:
+            path = Path(tmp) / "sample.tiff"
+            image = Image.new("RGB", (100, 50), color="white")
+            draw = ImageDraw.Draw(image)
+            draw.text((10, 10), "TIFF", fill="black", font=ImageFont.load_default())
+            image.save(path)
+            self.assertIn("TIFF", extract_text(path))
 
 
 @unittest.skipUnless(has_module("fitz"), "PyMuPDF not installed")
