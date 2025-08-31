@@ -8,6 +8,7 @@ from pathlib import Path
 import requests
 import uvicorn
 from PIL import Image
+import pytest
 
 # Добавляем путь к src ДО импорта сервера
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", "src"))
@@ -20,6 +21,14 @@ from web_app import server  # noqa: E402
 from models import Metadata  # noqa: E402
 
 app = server.app
+
+
+@pytest.fixture(autouse=True)
+def _mock_embeddings(monkeypatch):
+    async def fake_embed(text: str, model: str):
+        return [0.1] * 8
+
+    monkeypatch.setattr("file_utils.embeddings.openrouter.embed", fake_embed)
 
 
 class LiveClient:

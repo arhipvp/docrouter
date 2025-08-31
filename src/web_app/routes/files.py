@@ -105,7 +105,7 @@ async def list_files():
 @router.get("/search/semantic")
 async def semantic_search(q: str):
     """Семантический поиск по сохранённым документам."""
-    query_vec = get_embedding(q)
+    query_vec = await get_embedding(q)
     results: list[dict[str, object]] = []
     for rec in database.list_files():
         emb = rec.embedding

@@ -45,7 +45,7 @@ async def upload_file(
             metadata = raw_meta
         metadata.extracted_text = text
         metadata.language = lang
-        embedding = get_embedding(text)
+        embedding = await get_embedding(text)
 
         meta_dict = metadata.model_dump()
         # Раскладываем файл по директориям без создания недостающих
@@ -156,7 +156,7 @@ async def upload_images(
             metadata = raw_meta
         metadata.extracted_text = text
         metadata.language = lang
-        embedding = get_embedding(text)
+        embedding = await get_embedding(text)
 
         meta_dict = metadata.model_dump()
         dest_path, missing = place_file(
