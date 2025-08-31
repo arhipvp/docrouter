@@ -27,7 +27,7 @@ async def chat(messages: List[Dict[str, str]]) -> Tuple[str, int | None, float |
     """Отправить запрос в OpenRouter и вернуть ответ, количество токенов и стоимость."""
 
     if not OPENROUTER_API_KEY:
-        raise RuntimeError("OPENROUTER_API_KEY environment variable required")
+        raise OpenRouterError("OPENROUTER_API_KEY environment variable required")
 
     model = OPENROUTER_MODEL or "openai/chatgpt-4o-mini"
     base_url = OPENROUTER_BASE_URL or "https://openrouter.ai/api/v1"

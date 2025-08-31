@@ -4,11 +4,8 @@ from typing import Any, Dict
 
 import pytest
 
-from metadata_generation import (
-    generate_metadata,
-    OpenRouterError,
-    MetadataAnalyzer,
-)
+from metadata_generation import generate_metadata, MetadataAnalyzer
+from services.openrouter import OpenRouterError
 from models import Metadata
 
 
