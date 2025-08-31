@@ -18,6 +18,8 @@ logger = logging.getLogger(__name__)
 
 # Запрещённые для имён файлов символы (Windows-совместимо)
 INVALID_CHARS_PATTERN = re.compile(r'[<>:"/\\|?*]')
+# Паттерн даты YYYY-MM-DD для удаления из suggested_name
+DATE_PATTERN = re.compile(r"\d{4}-\d{2}-\d{2}")
 
 
 def sanitize_filename(name: str, replacement: str = "_") -> str:
@@ -76,7 +78,7 @@ def place_file(
 ) -> Tuple[Path, List[str], bool]:
     """Переместить файл в структуру папок на основе *metadata*.
 
-    Структура: ``<dest_root>/<category>/<subcategory>/<person>/<issuer>/<DATE>__<NAME>.<ext>``.
+    Структура: ``<dest_root>/<person>/<category>/<subcategory>/<issuer>/<DATE>__<NAME>.<ext>``.
     Рядом с файлом сохраняется ``.json`` с теми же метаданными.
 
     Возвращает кортеж ``(dest_file, missing, confirmed)``, где:
@@ -109,8 +111,9 @@ def place_file(
         base_dir.mkdir(parents=True, exist_ok=True)
 
     ext = src.suffix
-    name = metadata.get("suggested_name") or src.stem
-    name = sanitize_filename(str(name))
+    raw_name = metadata.get("suggested_name") or src.stem
+    raw_name = DATE_PATTERN.sub("", str(raw_name)).strip(" _-")
+    name = sanitize_filename(raw_name)
     metadata["suggested_name"] = name
     translit = sanitize_filename(transliterate(name))
     metadata["suggested_name_translit"] = translit
@@ -122,20 +125,20 @@ def place_file(
     dest_dir = base_dir
     missing: List[str] = []
 
-    # Сначала category/subcategory
+    # Сначала person (или общий)
+    person = metadata.get("person") or GENERAL_FOLDER_NAME
+    metadata["person"] = person
+    dest_dir /= str(person)
+    if not dest_dir.exists():
+        missing.append(str(dest_dir.relative_to(base_dir)))
+
+    # Затем category/subcategory
     for key in ("category", "subcategory"):
         value = metadata.get(key)
         if value:
             dest_dir /= str(value)
             if not dest_dir.exists():
                 missing.append(str(dest_dir.relative_to(base_dir)))
-
-    # Затем person (или общий)
-    person = metadata.get("person") or GENERAL_FOLDER_NAME
-    metadata["person"] = person
-    dest_dir /= str(person)
-    if not dest_dir.exists():
-        missing.append(str(dest_dir.relative_to(base_dir)))
 
     # Затем issuer (если есть)
     issuer = metadata.get("issuer")

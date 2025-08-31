@@ -38,17 +38,14 @@ _ANALYZER_REGISTRY: Dict[str, type["MetadataAnalyzer"]] = {}
 
 def register_analyzer(name: str) -> Callable[[type["MetadataAnalyzer"]], type["MetadataAnalyzer"]]:
     """Декоратор для регистрации анализаторов метаданных."""
-
     def decorator(cls: type["MetadataAnalyzer"]) -> type["MetadataAnalyzer"]:
         _ANALYZER_REGISTRY[name] = cls
         return cls
-
     return decorator
 
 
 def get_analyzer(name: str) -> type["MetadataAnalyzer"]:
     """Получить класс анализатора по имени."""
-
     return _ANALYZER_REGISTRY[name]
 
 
@@ -103,20 +100,22 @@ class OpenRouterAnalyzer(MetadataAnalyzer):
         folder_tree: Optional[Dict[str, Any]] = None,
         file_info: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
-        prompt = build_metadata_prompt(
-            text, folder_tree=folder_tree, file_info=file_info
-        )
+        # Единый шаблон промпта
+        prompt = build_metadata_prompt(text, folder_tree=folder_tree, file_info=file_info)
 
         payload = {
             "model": self.model,
             "messages": [{"role": "user", "content": prompt}],
             "temperature": 0.1,
-            "extra_body": {"response_format": {"type": "json_object"}},
+            # OpenRouter совместим с OpenAI; просим строгий JSON
+            "response_format": {"type": "json_object"},
         }
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "HTTP-Referer": self.site_url,
             "X-Title": self.site_name,
+            "Content-Type": "application/json",
+            "Accept": "application/json",
         }
 
         logger.debug("OpenRouter payload: %s", payload)
@@ -124,9 +123,7 @@ class OpenRouterAnalyzer(MetadataAnalyzer):
         try:
             async with httpx.AsyncClient(timeout=60) as client:
                 response = await client.post(self.api_url, json=payload, headers=headers)
-            logger.debug(
-                "OpenRouter response status %s: %s", response.status_code, response.text
-            )
+            logger.debug("OpenRouter response status %s: %s", response.status_code, response.text)
             response.raise_for_status()
         except httpx.HTTPStatusError as exc:
             logger.error(
@@ -140,18 +137,41 @@ class OpenRouterAnalyzer(MetadataAnalyzer):
         except httpx.HTTPError as exc:
             logger.error("OpenRouter request failed: %s", exc)
             raise OpenRouterError("OpenRouter request failed") from exc
-        content = response.json()["choices"][0]["message"]["content"]
-        if not content.strip():
+
+        # Парсинг JSON-ответа
+        try:
+            data = response.json()
+        except ValueError:
+            logger.error("Non-JSON response from OpenRouter: %s", response.text[:800])
+            raise OpenRouterError("Invalid (non-JSON) response from OpenRouter")
+
+        try:
+            content = data["choices"][0]["message"]["content"]
+        except (KeyError, IndexError) as exc:
+            logger.error("Unexpected schema from OpenRouter: %s", data)
+            raise OpenRouterError("Unexpected response schema from OpenRouter") from exc
+
+        if not content or not content.strip():
             logger.error("Empty content from OpenRouter: %s", response.text)
             raise OpenRouterError("Empty response from OpenRouter")
-        if content.strip().startswith("```"):
-            content = "\n".join(content.strip().split("\n")[1:-1])
+
+        # Снимаем возможные ограды ```json
+        txt = content.strip()
+        if txt.startswith("```"):
+            lines = txt.splitlines()
+            if lines[0].startswith("```"):
+                lines = lines[1:]
+            if lines and lines[-1].strip().startswith("```"):
+                lines = lines[:-1]
+            txt = "\n".join(lines).strip()
+
         try:
-            metadata = json.loads(content)
-        except json.JSONDecodeError as exc:
-            logger.error("JSON decode error from OpenRouter: %s", response.text)
-            raise OpenRouterError("Invalid JSON from OpenRouter") from exc
-        return {"prompt": prompt, "raw_response": content, "metadata": metadata}
+            metadata = json.loads(txt)
+        except json.JSONDecodeError:
+            logger.error("JSON decode error from OpenRouter content: %s", txt[:800])
+            raise OpenRouterError("Invalid JSON from OpenRouter")
+
+        return {"prompt": prompt, "raw_response": txt, "metadata": metadata}
 
 
 async def generate_metadata(
@@ -171,13 +191,12 @@ async def generate_metadata(
     ``date``, ``amount``, ``counterparty``, ``document_number``, ``due_date``, ``currency``, ``tags``, ``tags_ru``,
     ``tags_en``, ``suggested_filename``, ``description``, ``needs_new_folder``.
     """
-
     if analyzer is None:
         analyzer = OpenRouterAnalyzer()
-    result = await analyzer.analyze(
-        text, folder_tree=folder_tree, file_info=file_info
-    )
+
+    result = await analyzer.analyze(text, folder_tree=folder_tree, file_info=file_info)
     metadata = result.get("metadata", {})
+
     defaults = {
         "category": None,
         "subcategory": None,
@@ -202,10 +221,12 @@ async def generate_metadata(
     }
     defaults.update(metadata or {})
 
+    # Вытаскиваем stem для suggested_name
     suggested_filename = defaults.get("suggested_filename")
     if suggested_filename:
         defaults["suggested_name"] = Path(suggested_filename).stem
 
+    # Автоподстановка из MRZ (если есть)
     mrz_info = parse_mrz(text)
     if mrz_info:
         if defaults.get("person") in (None, "") and mrz_info.get("person"):
@@ -213,6 +234,17 @@ async def generate_metadata(
         for key in ("date_of_birth", "expiration_date", "passport_number"):
             if mrz_info.get(key):
                 defaults[key] = mrz_info[key]
+
+    # Единый список тегов без дублей
+    tag_values = []
+    for key in ("tags", "tags_ru", "tags_en"):
+        tag_values.extend(defaults.get(key) or [])
+    for key in ("category", "subcategory", "doc_type", "issuer", "person"):
+        value = defaults.get(key)
+        if value:
+            tag_values.append(value)
+    defaults["tags"] = list(dict.fromkeys(tag for tag in tag_values if tag))
+
     metadata_model = Metadata(**defaults)
     return {
         "prompt": result.get("prompt"),
@@ -221,9 +253,9 @@ async def generate_metadata(
     }
 
 
-try:  # Автообнаружение плагинов
+# Автообнаружение плагинов (не критично, падать не будем)
+try:
     from plugins import load_plugins as _load_plugins
-
     _load_plugins()
-except Exception:  # pragma: no cover - отсутствие плагинов не критично
+except Exception:  # pragma: no cover
     logger.debug("Plugin loading skipped", exc_info=True)
