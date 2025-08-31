@@ -97,9 +97,10 @@ export function setupUpload() {
             if (xhr.status === 200) {
                 const result = JSON.parse(xhr.responseText);
                 if (result.status === 'pending') {
-                    suggestedPath.textContent = result.suggested_path || '';
+                    const pending = result;
+                    suggestedPath.textContent = pending.suggested_path || '';
                     missingList.innerHTML = '';
-                    (result.missing || []).forEach((path) => {
+                    (pending.missing || []).forEach((path) => {
                         const li = document.createElement('li');
                         li.textContent = path;
                         missingList.appendChild(li);
@@ -107,10 +108,10 @@ export function setupUpload() {
                     missingModal.style.display = 'flex';
                     missingConfirm.onclick = () => __awaiter(this, void 0, void 0, function* () {
                         try {
-                            const resp = yield fetch(`/files/${result.id}/finalize`, {
+                            const resp = yield fetch(`/files/${pending.id}/finalize`, {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ missing: result.missing || [] })
+                                body: JSON.stringify({ missing: pending.missing || [] })
                             });
                             if (!resp.ok)
                                 throw new Error();
@@ -198,7 +199,7 @@ export function setupUpload() {
 }
 function renderImageList() {
     imageList.innerHTML = '';
-    imageFiles.forEach(f => {
+    imageFiles.forEach((f) => {
         const li = document.createElement('li');
         li.textContent = f.name;
         li.addEventListener('click', () => openImageEditModal(f));
@@ -230,7 +231,7 @@ function uploadEditedImages() {
         if (!imageFiles.length)
             return;
         const data = new FormData();
-        imageFiles.forEach(f => {
+        imageFiles.forEach((f) => {
             const file = new File([f.blob], f.name, { type: 'image/jpeg' });
             data.append('files', file);
         });

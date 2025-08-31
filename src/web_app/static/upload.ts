@@ -1,5 +1,6 @@
 import { refreshFiles } from './files.js';
 import { refreshFolderTree } from './folders.js';
+import type { UploadResponse, UploadPendingResponse, ImageFile } from './types.js';
 
 let form: HTMLFormElement;
 let progress: HTMLProgressElement;
@@ -21,7 +22,7 @@ let rotateRightBtn: HTMLElement | null;
 let saveBtn: HTMLElement | null;
 let cropper: any = null;
 let currentImageIndex = -1;
-let imageFiles: Array<{ blob: Blob; name: string }> = [];
+let imageFiles: ImageFile[] = [];
 
 export function setupUpload() {
   form = document.querySelector('form') as HTMLFormElement;
@@ -87,11 +88,12 @@ export function setupUpload() {
     });
     xhr.onload = () => {
       if (xhr.status === 200) {
-        const result = JSON.parse(xhr.responseText);
+        const result: UploadResponse = JSON.parse(xhr.responseText);
         if (result.status === 'pending') {
-          suggestedPath.textContent = result.suggested_path || '';
+          const pending = result as UploadPendingResponse;
+          suggestedPath.textContent = pending.suggested_path || '';
           missingList.innerHTML = '';
-          (result.missing || []).forEach((path: string) => {
+          (pending.missing || []).forEach((path: string) => {
             const li = document.createElement('li');
             li.textContent = path;
             missingList.appendChild(li);
@@ -99,13 +101,13 @@ export function setupUpload() {
           missingModal.style.display = 'flex';
           missingConfirm.onclick = async () => {
             try {
-              const resp = await fetch(`/files/${result.id}/finalize`, {
+              const resp = await fetch(`/files/${pending.id}/finalize`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ missing: result.missing || [] })
+                body: JSON.stringify({ missing: pending.missing || [] })
               });
               if (!resp.ok) throw new Error();
-              const finalData = await resp.json();
+              const finalData: UploadResponse = await resp.json();
               missingModal.style.display = 'none';
               sent.textContent = finalData.prompt || '';
               received.textContent = finalData.raw_response || '';
@@ -192,7 +194,7 @@ export function setupUpload() {
 
 function renderImageList() {
   imageList.innerHTML = '';
-  imageFiles.forEach(f => {
+  imageFiles.forEach((f: ImageFile) => {
     const li = document.createElement('li');
     li.textContent = f.name;
     li.addEventListener('click', () => openImageEditModal(f));
@@ -200,7 +202,7 @@ function renderImageList() {
   });
 }
 
-function openImageEditModal(fileObj: { blob: Blob; name: string }) {
+function openImageEditModal(fileObj: ImageFile) {
   if (!fileObj) return;
   currentImageIndex = imageFiles.indexOf(fileObj);
   const ctx = editCanvas.getContext('2d')!;
@@ -223,13 +225,13 @@ function openImageEditModal(fileObj: { blob: Blob; name: string }) {
 async function uploadEditedImages() {
   if (!imageFiles.length) return;
   const data = new FormData();
-  imageFiles.forEach(f => {
+  imageFiles.forEach((f: ImageFile) => {
     const file = new File([f.blob], f.name, { type: 'image/jpeg' });
     data.append('files', file);
   });
   const resp = await fetch('/upload/images', { method: 'POST', body: data });
   if (resp.ok) {
-    const result = await resp.json();
+    const result: UploadResponse = await resp.json();
     sent.textContent = result.prompt || '';
     received.textContent = result.raw_response || '';
     imageFiles = [];
