@@ -12,7 +12,8 @@ npm install
 ## Сборка фронтенда
 
 ```bash
-npm run build  # или make build-frontend
+npm run dev    # запуск Vite в режиме разработки
+npm run build  # сборка бандла в dist/
 ```
 
 ## Настройка

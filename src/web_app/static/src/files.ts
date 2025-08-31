@@ -1,4 +1,4 @@
-import { openChatModal } from './chat.js';
+import { openChatModal } from './chat';
 
 let list: HTMLElement;
 let textPreview: HTMLElement;

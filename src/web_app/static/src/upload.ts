@@ -1,5 +1,6 @@
-import { refreshFiles } from './files.js';
-import { refreshFolderTree } from './folders.js';
+import { refreshFiles } from './files';
+import { refreshFolderTree } from './folders';
+import Cropper from 'cropperjs';
 
 let form: HTMLFormElement;
 let progress: HTMLProgressElement;
@@ -212,8 +213,7 @@ function openImageEditModal(fileObj: { blob: Blob; name: string }) {
     ctx.clearRect(0, 0, editCanvas.width, editCanvas.height);
     ctx.drawImage(img, 0, 0);
     cropper?.destroy();
-    const CropperCtor = (window as any).Cropper || (globalThis as any).Cropper;
-    cropper = new CropperCtor(editCanvas, { viewMode: 1 });
+    cropper = new Cropper(editCanvas, { viewMode: 1 });
     URL.revokeObjectURL(url);
   };
   img.src = url;
