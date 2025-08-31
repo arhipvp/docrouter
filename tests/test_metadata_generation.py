@@ -29,6 +29,9 @@ def test_folder_tree_in_prompt(monkeypatch):
     captured: dict[str, str] = {}
 
     class DummyResponse:
+        status_code = 200
+        text = "{}"
+
         def raise_for_status(self) -> None:
             pass
 
@@ -64,8 +67,43 @@ def test_folder_tree_in_prompt(monkeypatch):
     assert result["metadata"].needs_new_folder is True
 
 
+def test_response_format_in_extra_body(monkeypatch):
+    captured: dict[str, Any] = {}
+
+    class DummyResponse:
+        status_code = 200
+        text = "{}"
+
+        def raise_for_status(self) -> None:
+            pass
+
+        def json(self) -> Dict[str, Any]:  # type: ignore[override]
+            return {"choices": [{"message": {"content": json.dumps({})}}]}
+
+    async def fake_post(self, url, json=None, headers=None, **kwargs):  # type: ignore[no-redef]
+        captured["json"] = json
+        return DummyResponse()
+
+    monkeypatch.setenv("OPENROUTER_API_KEY", "test")
+    monkeypatch.setattr("metadata_generation.OPENROUTER_API_KEY", "test")
+    monkeypatch.setattr("metadata_generation.httpx.AsyncClient.post", fake_post)
+
+    asyncio.run(generate_metadata("text"))
+    assert "extra_body" in captured["json"]
+    assert captured["json"]["extra_body"] == {"response_format": {"type": "json_object"}}
+
+
 def test_multilanguage_tags_parsing(monkeypatch):
     class DummyResponse:
+        status_code = 200
+        text = json.dumps(
+            {
+                "choices": [
+                    {"message": {"content": json.dumps({"tags": []})}}
+                ]
+            }
+        )
+
         def raise_for_status(self) -> None:
             pass
 

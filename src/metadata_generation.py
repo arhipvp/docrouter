@@ -113,7 +113,7 @@ class OpenRouterAnalyzer(MetadataAnalyzer):
             "model": self.model,
             "messages": [{"role": "user", "content": prompt}],
             "temperature": 0.1,
-            "response_format": {"type": "json_object"},
+            "extra_body": {"response_format": {"type": "json_object"}},
         }
         headers = {
             "Authorization": f"Bearer {self.api_key}",
@@ -121,11 +121,26 @@ class OpenRouterAnalyzer(MetadataAnalyzer):
             "X-Title": self.site_name,
         }
 
+        logger.debug("OpenRouter payload: %s", payload)
+
         try:
             async with httpx.AsyncClient(timeout=60) as client:
                 response = await client.post(self.api_url, json=payload, headers=headers)
+            logger.debug(
+                "OpenRouter response status %s: %s", response.status_code, response.text
+            )
             response.raise_for_status()
+        except httpx.HTTPStatusError as exc:
+            logger.error(
+                "OpenRouter request failed: status=%s body=%s",
+                exc.response.status_code if exc.response else None,
+                exc.response.text if exc.response else None,
+            )
+            raise OpenRouterError(
+                f"OpenRouter request failed: {exc.response.status_code if exc.response else ''}"
+            ) from exc
         except httpx.HTTPError as exc:
+            logger.error("OpenRouter request failed: %s", exc)
             raise OpenRouterError("OpenRouter request failed") from exc
         content = response.json()["choices"][0]["message"]["content"]
         if not content.strip():
