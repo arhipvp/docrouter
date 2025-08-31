@@ -267,3 +267,25 @@ def test_generate_metadata_handles_invalid_metadata():
     meta: Metadata = result["metadata"]
     assert meta.category is None
     assert meta.tags == []
+
+
+class ListAnalyzer(MetadataAnalyzer):
+    async def analyze(
+        self,
+        text: str,
+        folder_tree: Dict[str, Any] | None = None,
+        folder_index: Dict[str, Any] | None = None,
+        file_info: Dict[str, Any] | None = None,
+    ) -> Dict[str, Any]:
+        return {
+            "prompt": None,
+            "raw_response": None,
+            "metadata": [{"category": "Health", "tags": ["a"]}],
+        }
+
+
+def test_generate_metadata_accepts_list_of_dicts():
+    result = asyncio.run(generate_metadata("text", analyzer=ListAnalyzer()))
+    meta: Metadata = result["metadata"]
+    assert meta.category == "Health"
+    assert set(meta.tags) == {"a", "Health"}
