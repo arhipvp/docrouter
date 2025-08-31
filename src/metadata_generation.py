@@ -257,7 +257,17 @@ async def generate_metadata(
         text, folder_tree=folder_tree, folder_index=folder_index, file_info=file_info
     )
     metadata = result.get("metadata") or {}
-    if not isinstance(metadata, dict):
+
+    if isinstance(metadata, list):
+        if metadata and isinstance(metadata[0], dict):
+            metadata = metadata[0]
+        else:
+            logger.error(
+                "Metadata should be a dict or list of dicts, got list of %s",
+                ",".join(type(item).__name__ for item in metadata) if metadata else "<empty>",
+            )
+            metadata = {}
+    elif not isinstance(metadata, dict):
         logger.error("Metadata should be a dict, got %s", type(metadata).__name__)
         metadata = {}
 
