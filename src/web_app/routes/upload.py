@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import logging
 import mimetypes
+import os
 import shutil
+import tempfile
 import uuid
 from pathlib import Path
 
@@ -17,8 +19,15 @@ from .. import db as database, server
 router = APIRouter()
 
 logger = logging.getLogger(__name__)
-UPLOAD_DIR = Path("uploads")
-UPLOAD_DIR.mkdir(exist_ok=True)
+# Allow overriding the upload directory via the ``UPLOAD_DIR`` environment
+# variable. If creating the directory fails due to insufficient permissions,
+# fall back to a temporary location to keep the application functional.
+UPLOAD_DIR = Path(os.environ.get("UPLOAD_DIR", "uploads"))
+try:
+    UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+except PermissionError:
+    UPLOAD_DIR = Path(tempfile.gettempdir()) / "uploads"
+    UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 # Сопоставление пользовательских кодов языков с кодами tesseract
 LANG_MAP = {"en": "eng", "ru": "rus", "de": "deu"}
