@@ -111,6 +111,7 @@ def run_ocr(
     alpha: float = 1.5,
     beta: float = 0.0,
     ksize: int = 3,
+    debug_dir: Path | None = None,
 ) -> str:
     """Run the OCR pipeline on the given image and return recognized text.
 
@@ -120,17 +121,33 @@ def run_ocr(
     :param alpha: Contrast control passed to :func:`increase_contrast`.
     :param beta: Brightness control passed to :func:`increase_contrast`.
     :param ksize: Kernel size for :func:`remove_noise`.
+    :param debug_dir: Optional directory to store intermediate images for
+        debugging.
     :return: Recognized text as a string.
     """
     image = cv2.imread(str(path))
     if image is None:
         raise FileNotFoundError(f"Image not found: {path}")
+
+    def _save(stage: str, img: np.ndarray) -> None:
+        if debug_dir is None:
+            return
+        debug_dir.mkdir(parents=True, exist_ok=True)
+        cv2.imwrite(str(debug_dir / f"{stage}.png"), img)
+
+    _save("original", image)
     image = resize_to_dpi(image, dpi)
+    _save("resized", image)
     image = increase_contrast(image, alpha=alpha, beta=beta)
+    _save("contrast", image)
     image = remove_noise(image, ksize=ksize)
+    _save("denoised", image)
     image = deskew(image)
+    _save("deskewed", image)
     image = crop_margins(image)
+    _save("cropped", image)
     image = binarize(image)
+    _save("binarized", image)
     pil_img = Image.fromarray(image)
     try:
         return pytesseract.image_to_string(pil_img, lang=lang)
@@ -151,7 +168,7 @@ def _parse_odd_int(value: str) -> int:
 
 if __name__ == "__main__":  # pragma: no cover - simple CLI
     parser = argparse.ArgumentParser(description="Run OCR pipeline on an image")
-    parser.add_argument("path", help="Path to image file")
+    parser.add_argument("--input", required=True, help="Path to image file")
     parser.add_argument("--lang", default="rus", help="Tesseract language code")
     parser.add_argument("--dpi", type=int, default=300, help="Target DPI")
     parser.add_argument("--alpha", type=float, default=1.5, help="Contrast control")
@@ -159,13 +176,23 @@ if __name__ == "__main__":  # pragma: no cover - simple CLI
     parser.add_argument(
         "--ksize", type=_parse_odd_int, default=3, help="Median blur kernel size"
     )
+    parser.add_argument(
+        "--debug-dir", type=Path, default=None, help="Directory to save debug images"
+    )
+    parser.add_argument(
+        "--output", type=Path, default=None, help="File to store recognized text"
+    )
     params = parser.parse_args()
     result = run_ocr(
-        params.path,
+        params.input,
         lang=params.lang,
         dpi=params.dpi,
         alpha=params.alpha,
         beta=params.beta,
         ksize=params.ksize,
+        debug_dir=params.debug_dir,
     )
-    print(result)
+    if params.output:
+        params.output.write_text(result, encoding="utf-8")
+    else:
+        print(result)
