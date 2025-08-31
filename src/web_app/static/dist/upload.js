@@ -22,19 +22,21 @@ export function setupUpload() {
  */
 export function openModal(modal, options = {}) {
   const { onEscape } = options;
-  const lastFocused = document.activeElement;
-  modal.__lastFocused = lastFocused || null;
 
+  // запомним, кто был в фокусе
+  modal.__lastFocused = document.activeElement || null;
+
+  // показать модалку
   modal.style.display = 'flex';
 
-  // Фокус на первый фокусируемый элемент
+  // сфокусироваться на первом фокусируемом элементе
   const focusable = modal.querySelectorAll(
     'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
   );
   const first = focusable[0] || modal;
   if (typeof first?.focus === 'function') first.focus();
 
-  // Обработчик клавиш: Tab — цикл фокуса, Esc — закрытие
+  // обработчик клавиш: Tab — цикл фокуса, Esc — закрытие
   const handleKeydown = (e) => {
     if (e.key === 'Tab') {
       const items = modal.querySelectorAll(
@@ -74,9 +76,7 @@ export function closeModal(modal) {
   }
   modal.__handleKeydown = null;
 
-  const lastFocused = modal.__lastFocused;
-  if (lastFocused && typeof lastFocused.focus === 'function') {
-    lastFocused.focus();
-  }
+  const last = modal.__lastFocused;
+  if (last && typeof last.focus === 'function') last.focus();
   modal.__lastFocused = null;
 }

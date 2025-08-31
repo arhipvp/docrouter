@@ -1,3 +1,5 @@
+import type { ChatHistory, FileInfo } from './types.js';
+
 let chatModal: HTMLElement;
 let chatHistory: HTMLElement;
 let chatForm: HTMLFormElement | null;
@@ -24,27 +26,27 @@ export function setupChat() {
       body: JSON.stringify({ message: msg })
     });
     if (resp.ok) {
-      const data = await resp.json();
+      const data = await resp.json() as { chat_history: ChatHistory[] };
       renderChat(data.chat_history);
       chatInput.value = '';
     }
   });
 }
 
-function renderChat(history: any[]) {
+function renderChat(history: ChatHistory[]) {
   chatHistory.innerHTML = '';
-  history.forEach((msg: any) => {
+  history.forEach((msg: ChatHistory) => {
     const div = document.createElement('div');
     div.textContent = `${msg.role}: ${msg.message}`;
     chatHistory.appendChild(div);
   });
 }
 
-export async function openChatModal(file: any) {
+export async function openChatModal(file: FileInfo) {
   currentChatId = file.id;
   try {
     const resp = await fetch(`/files/${file.id}/details`);
-    const data = resp.ok ? await resp.json() : {};
+    const data: FileInfo = resp.ok ? await resp.json() : {};
     renderChat(data.chat_history || []);
   } catch {
     renderChat([]);

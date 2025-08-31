@@ -1,5 +1,7 @@
 import { openChatModal } from './chat.js';
+import type { FileInfo, FileMetadata } from './types.js';
 import { showError } from './notifications.js';
+
 
 let list: HTMLElement;
 let textPreview: HTMLElement;
@@ -49,7 +51,7 @@ export function setupFiles() {
   editForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     if (!currentEditId) return;
-    const payload: any = {
+    const payload: { metadata: FileMetadata } = {
       metadata: {
         category: editCategory.value.trim(),
         subcategory: editSubcategory.value.trim(),
@@ -58,7 +60,7 @@ export function setupFiles() {
         suggested_name: editName.value.trim()
       }
     };
-    Object.keys(payload.metadata).forEach(k => {
+    (Object.keys(payload.metadata) as (keyof FileMetadata)[]).forEach(k => {
       if (!payload.metadata[k]) delete payload.metadata[k];
     });
     const resp = await fetch(`/files/${currentEditId}`, {
@@ -75,18 +77,19 @@ export function setupFiles() {
     }
   });
 
-  list.addEventListener('click', async (e: any) => {
-    if (e.target.closest('a.download-link') || e.target.closest('button.edit-btn') || e.target.closest('button.chat-btn')) return;
-    const tr = e.target.closest('tr');
+  list.addEventListener('click', async (e: MouseEvent) => {
+    const target = e.target as HTMLElement;
+    if (target.closest('a.download-link') || target.closest('button.edit-btn') || target.closest('button.chat-btn')) return;
+    const tr = target.closest('tr');
     if (!tr) return;
-    const id = tr.dataset.id;
+    const id = (tr as HTMLElement).dataset.id;
     if (!id) return;
     previewFrame.src = `/preview/${id}`;
     openModal(previewModal);
     try {
       const resp = await fetch(`/files/${id}/details`);
       if (resp.ok) {
-        const data = await resp.json();
+        const data: FileInfo = await resp.json();
         textPreview.textContent = data.extracted_text || '';
       } else {
         textPreview.textContent = '';
@@ -128,9 +131,9 @@ export function setupFiles() {
 export async function refreshFiles() {
   const resp = await fetch('/files');
   if (!resp.ok) return;
-  const files = await resp.json();
+  const files: FileInfo[] = await resp.json();
   list.innerHTML = '';
-  files.forEach((f: any) => {
+  files.forEach((f: FileInfo) => {
     const tr = document.createElement('tr');
     tr.dataset.id = f.id;
 
@@ -194,9 +197,9 @@ export async function refreshFiles() {
   });
 }
 
-function openMetadataModal(file: any) {
+function openMetadataModal(file: FileInfo) {
   currentEditId = file.id;
-  const m = file.metadata || {};
+  const m: FileMetadata = file.metadata || {};
   editCategory.value = m.category || '';
   editSubcategory.value = m.subcategory || '';
   editIssuer.value = m.issuer || '';

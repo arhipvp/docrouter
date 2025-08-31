@@ -83,9 +83,10 @@ export function setupFiles() {
         }
     }));
     list.addEventListener('click', (e) => __awaiter(this, void 0, void 0, function* () {
-        if (e.target.closest('a.download-link') || e.target.closest('button.edit-btn') || e.target.closest('button.chat-btn'))
+        const target = e.target;
+        if (target.closest('a.download-link') || target.closest('button.edit-btn') || target.closest('button.chat-btn'))
             return;
-        const tr = e.target.closest('tr');
+        const tr = target.closest('tr');
         if (!tr)
             return;
         const id = tr.dataset.id;
