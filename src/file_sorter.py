@@ -117,7 +117,7 @@ def place_file(
     metadata["suggested_name"] = name
     translit = sanitize_filename(transliterate(name))
     metadata["suggested_name_translit"] = translit
-    date = metadata.get("date", "unknown-date")
+    date = metadata.get("date") or "unknown-date"
 
     base_new_name = f"{date}__{name}"
     base_translit = f"{date}__{translit}"
