@@ -399,10 +399,10 @@ def test_upload_pending_then_finalize(tmp_path, monkeypatch):
         data = resp.json()
         assert data["status"] == "pending"
         assert data["missing"] == [
-            "Финансы",
-            "Финансы/Банки",
-            f"Финансы/Банки/{GENERAL_FOLDER_NAME}",
-            f"Финансы/Банки/{GENERAL_FOLDER_NAME}/Sparkasse",
+            f"{GENERAL_FOLDER_NAME}",
+            f"{GENERAL_FOLDER_NAME}/Финансы",
+            f"{GENERAL_FOLDER_NAME}/Финансы/Банки",
+            f"{GENERAL_FOLDER_NAME}/Финансы/Банки/Sparkasse",
         ]
         file_id = data["id"]
 

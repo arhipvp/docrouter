@@ -24,6 +24,6 @@ def test_process_directory_preserves_subdirs(tmp_path, monkeypatch):
     dest_root = tmp_path / "Archive"
     asyncio.run(process_directory(tmp_path / "input", dest_root))
 
-    expected = dest_root / "sub1" / "sub2" / GENERAL_FOLDER_NAME / "2024-01-01__data.txt"
+    expected = dest_root / GENERAL_FOLDER_NAME / "sub1" / "sub2" / "2024-01-01__data.txt"
     assert expected.exists()
     assert not file_path.exists()

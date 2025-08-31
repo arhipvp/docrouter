@@ -30,18 +30,18 @@ def test_place_file_path_and_name(tmp_path):
 
     expected = (
         dest_root
+        / GENERAL_FOLDER_NAME
         / "Финансы"
         / "Банки"
-        / GENERAL_FOLDER_NAME
         / "Sparkasse"
         / "2023-10-12__Kreditvertrag.pdf"
     )
     assert dest == expected
     assert missing == [
-        "Финансы",
-        "Финансы/Банки",
-        f"Финансы/Банки/{GENERAL_FOLDER_NAME}",
-        f"Финансы/Банки/{GENERAL_FOLDER_NAME}/Sparkasse",
+        f"{GENERAL_FOLDER_NAME}",
+        f"{GENERAL_FOLDER_NAME}/Финансы",
+        f"{GENERAL_FOLDER_NAME}/Финансы/Банки",
+        f"{GENERAL_FOLDER_NAME}/Финансы/Банки/Sparkasse",
     ]
 
 
@@ -56,18 +56,18 @@ def test_place_file_uses_person_folder(tmp_path):
 
     expected = (
         dest_root
+        / "Alice"
         / "Финансы"
         / "Банки"
-        / "Alice"
         / "Sparkasse"
         / "2023-10-12__Kreditvertrag.pdf"
     )
     assert dest == expected
     assert missing == [
-        "Финансы",
-        "Финансы/Банки",
-        "Финансы/Банки/Alice",
-        "Финансы/Банки/Alice/Sparkasse",
+        "Alice",
+        "Alice/Финансы",
+        "Alice/Финансы/Банки",
+        "Alice/Финансы/Банки/Sparkasse",
     ]
 
 
@@ -81,14 +81,14 @@ def test_place_file_uses_person_from_metadata(tmp_path):
     dest, missing, _ = place_file(src, metadata, dest_root, dry_run=True)
 
     expected = (
-        dest_root / "Финансы" / "Банки" / "Alice" / "Sparkasse" / "2023-10-12__Kreditvertrag.pdf"
+        dest_root / "Alice" / "Финансы" / "Банки" / "Sparkasse" / "2023-10-12__Kreditvertrag.pdf"
     )
     assert dest == expected
     assert missing == [
-        "Финансы",
-        "Финансы/Банки",
-        "Финансы/Банки/Alice",
-        "Финансы/Банки/Alice/Sparkasse",
+        "Alice",
+        "Alice/Финансы",
+        "Alice/Финансы/Банки",
+        "Alice/Финансы/Банки/Sparkasse",
     ]
 
 
@@ -122,9 +122,9 @@ def test_place_file_moves_and_creates_json(tmp_path):
     json_path = dest.with_suffix(dest.suffix + ".json")
     expected = (
         dest_root
+        / GENERAL_FOLDER_NAME
         / "Финансы"
         / "Банки"
-        / GENERAL_FOLDER_NAME
         / "Sparkasse"
         / "2023-10-12__Kreditvertrag.pdf"
     )
@@ -212,18 +212,18 @@ def test_place_file_returns_missing_dirs_and_does_not_move_when_needs_new_folder
 
     expected = (
         dest_root
+        / GENERAL_FOLDER_NAME
         / "Финансы"
         / "Банки"
-        / GENERAL_FOLDER_NAME
         / "Sparkasse"
         / "2023-10-12__Kreditvertrag.pdf"
     )
     assert dest == expected
     assert missing == [
-        "Финансы",
-        "Финансы/Банки",
-        f"Финансы/Банки/{GENERAL_FOLDER_NAME}",
-        f"Финансы/Банки/{GENERAL_FOLDER_NAME}/Sparkasse",
+        f"{GENERAL_FOLDER_NAME}",
+        f"{GENERAL_FOLDER_NAME}/Финансы",
+        f"{GENERAL_FOLDER_NAME}/Финансы/Банки",
+        f"{GENERAL_FOLDER_NAME}/Финансы/Банки/Sparkasse",
     ]
     # файл не должен быть перемещён
     assert not dest.exists()
@@ -261,9 +261,9 @@ def test_place_file_creates_dirs_on_confirmation(tmp_path):
 
     expected = (
         dest_root
+        / GENERAL_FOLDER_NAME
         / "Финансы"
         / "Банки"
-        / GENERAL_FOLDER_NAME
         / "Sparkasse"
         / "2023-10-12__Kreditvertrag.pdf"
     )
