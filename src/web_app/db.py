@@ -58,6 +58,9 @@ def init_db() -> None:
             )
             """
         )
+        _conn.execute(
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_files_id ON files(id)"
+        )
 
 
 def _serialize_record(record: FileRecord) -> Dict[str, Any]:

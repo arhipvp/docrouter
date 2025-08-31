@@ -103,7 +103,7 @@ def _scan_output_dir() -> None:
             except Exception:  # pragma: no cover
                 logger.warning("Failed to load metadata for %s", file_path)
 
-        file_id = hashlib.sha1(str(file_path).encode("utf-8")).hexdigest()
+        file_id = hashlib.sha1(file_path.read_bytes()).hexdigest()
         database.add_file(file_id, file_path.name, metadata, str(file_path), "processed")
         existing_records[file_path] = file_id
         existing_paths.add(file_path)
