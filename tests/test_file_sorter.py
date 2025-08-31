@@ -298,3 +298,18 @@ def test_place_file_creates_dirs_on_confirmation(tmp_path):
     assert dest == expected
     assert dest.exists()
     assert dest.parent.exists()
+
+
+def test_place_file_handles_missing_and_valid_date(tmp_path):
+    src = tmp_path / "doc.pdf"
+    src.write_text("data")
+
+    dest_root = tmp_path / "Archive"
+    metadata = sample_metadata()
+    metadata["date"] = None
+    dest, _, _ = place_file(src, metadata, dest_root, dry_run=True)
+    assert dest.name.startswith("unknown-date__")
+
+    metadata["date"] = "2024-07-05"
+    dest2, _, _ = place_file(src, metadata, dest_root, dry_run=True)
+    assert dest2.name.startswith("2024-07-05__")

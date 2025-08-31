@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import logging
 import re
+from datetime import datetime
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any, Dict, Optional, Callable
@@ -30,6 +31,29 @@ from config import (
 
 from services.openrouter import OpenRouterError
 from file_utils.mrz import parse_mrz
+
+
+MILITARY_DATE_PATTERN = re.compile(
+    r"(?:дата\s+выдачи|действителен\s+до)[:\s]*"
+    r"([0-3]?\d[\.\/-][0-1]?\d[\.\/-][1-2]\d{3})",
+    re.IGNORECASE,
+)
+
+
+def parse_military_id_date(text: str) -> Optional[str]:
+    """Вытащить дату из текста военного билета."""
+    if "военный билет" not in text.lower():
+        return None
+    match = MILITARY_DATE_PATTERN.search(text)
+    if not match:
+        return None
+    date_str = match.group(1)
+    for fmt in ("%d.%m.%Y", "%d-%m-%Y", "%d/%m/%Y"):
+        try:
+            return datetime.strptime(date_str, fmt).date().isoformat()
+        except ValueError:
+            continue
+    return None
 
 
 logger = logging.getLogger(__name__)
@@ -137,6 +161,7 @@ class OpenRouterAnalyzer(MetadataAnalyzer):
             "temperature": 0.1,
             # OpenRouter совместим с OpenAI; просим строгий JSON
             "response_format": {"type": "json_object"},
+            "extra_body": {"response_format": {"type": "json_object"}},
         }
         headers = {
             "Authorization": f"Bearer {self.api_key}",
@@ -246,8 +271,13 @@ async def generate_metadata(
         "suggested_filename": None,
         "description": None,
         "needs_new_folder": False,
-    }
+    } 
     defaults.update(metadata or {})
+
+    if not defaults.get("date"):
+        military_date = parse_military_id_date(text)
+        if military_date:
+            defaults["date"] = military_date
 
     # Вытаскиваем stem для suggested_name
     suggested_filename = defaults.get("suggested_filename")

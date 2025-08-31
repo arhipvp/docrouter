@@ -198,3 +198,10 @@ def test_generate_metadata_extracts_suggested_name():
     assert meta.document_number == "42"
     assert meta.due_date == "2024-12-31"
     assert meta.currency == "EUR"
+
+
+def test_generate_metadata_parses_military_id_date():
+    text = "Военный билет\nДата выдачи: 15.04.2020"
+    result = asyncio.run(generate_metadata(text, analyzer=DummyAnalyzer()))
+    meta: Metadata = result["metadata"]
+    assert meta.date == "2020-04-15"
