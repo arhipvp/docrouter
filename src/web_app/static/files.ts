@@ -96,7 +96,7 @@ export function setupFiles() {
     }
   });
 
-  const previewClose = previewModal.querySelector('.close') as HTMLElement;
+  const previewClose = previewModal.querySelector('.modal__close') as HTMLElement;
   previewClose.addEventListener('click', () => {
     closeModal(previewModal);
     previewFrame.src = '';
@@ -108,7 +108,7 @@ export function setupFiles() {
     }
   });
 
-  const metadataClose = metadataModal.querySelector('.close') as HTMLElement;
+  const metadataClose = metadataModal.querySelector('.modal__close') as HTMLElement;
   metadataClose.addEventListener('click', () => {
     closeModal(metadataModal);
     currentEditId = null;

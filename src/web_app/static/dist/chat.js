@@ -18,7 +18,7 @@ export function setupChat() {
     chatHistory = document.getElementById('chat-history');
     chatForm = document.getElementById('chat-form');
     chatInput = document.getElementById('chat-input');
-    const closeBtn = chatModal.querySelector('.close');
+    const closeBtn = chatModal.querySelector('.modal__close');
     closeBtn === null || closeBtn === void 0 ? void 0 : closeBtn.addEventListener('click', closeChat);
     chatForm === null || chatForm === void 0 ? void 0 : chatForm.addEventListener('submit', (e) => __awaiter(this, void 0, void 0, function* () {
         e.preventDefault();
