@@ -106,8 +106,14 @@ def test_multilanguage_tags_parsing(monkeypatch):
 
         def json(self) -> Dict[str, Any]:  # type: ignore[override]
             data = {
+                "tags": ["base"],
                 "tags_ru": ["тег1", "тег2"],
                 "tags_en": ["tag1", "tag2"],
+                "category": "Категория",
+                "subcategory": "Подкатегория",
+                "doc_type": "Тип",
+                "issuer": "Организация",
+                "person": "Иван Иванов",
             }
             return {"choices": [{"message": {"content": json.dumps(data)}}]}
 
@@ -122,6 +128,19 @@ def test_multilanguage_tags_parsing(monkeypatch):
     meta: Metadata = result["metadata"]
     assert meta.tags_ru == ["тег1", "тег2"]
     assert meta.tags_en == ["tag1", "tag2"]
+    expected = {
+        "base",
+        "тег1",
+        "тег2",
+        "tag1",
+        "tag2",
+        "Категория",
+        "Подкатегория",
+        "Тип",
+        "Организация",
+        "Иван Иванов",
+    }
+    assert expected.issubset(set(meta.tags))
 
 
 def test_generate_metadata_parses_mrz():
