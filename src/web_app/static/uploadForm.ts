@@ -1,17 +1,37 @@
 import { refreshFiles } from './files.js';
 import { refreshFolderTree } from './folders.js';
 
-export let sent: HTMLElement;
-export let received: HTMLElement;
+export let aiExchange: HTMLElement;
+
+export function renderDialog(
+  container: HTMLElement,
+  prompt?: string,
+  response?: string
+) {
+  container.innerHTML = '';
+  if (prompt) {
+    const userDiv = document.createElement('div');
+    userDiv.className = 'ai-message user';
+    userDiv.textContent = prompt;
+    container.appendChild(userDiv);
+  }
+  if (response) {
+    const aiDiv = document.createElement('div');
+    aiDiv.className = 'ai-message assistant';
+    aiDiv.textContent = response;
+    container.appendChild(aiDiv);
+  }
+}
 
 export function setupUploadForm() {
   const form = document.querySelector('form') as HTMLFormElement;
   const progress = document.getElementById('upload-progress') as HTMLProgressElement;
-  sent = document.getElementById('ai-sent')!;
-  received = document.getElementById('ai-received')!;
+  aiExchange = document.getElementById('ai-exchange')!;
   const missingModal = document.getElementById('missing-modal')!;
   const missingList = document.getElementById('missing-list')!;
   const missingConfirm = document.getElementById('missing-confirm')!;
+  const missingCancel = document.getElementById('missing-cancel')!;
+  const missingDialog = document.getElementById('missing-dialog')!;
   const suggestedPath = document.getElementById('suggested-path')!;
 
   form.addEventListener('submit', (e) => {
@@ -43,6 +63,7 @@ export function setupUploadForm() {
             li.textContent = path;
             missingList.appendChild(li);
           });
+          renderDialog(missingDialog, result.prompt, result.raw_response);
           missingModal.style.display = 'flex';
           missingConfirm.onclick = async () => {
             try {
@@ -54,8 +75,7 @@ export function setupUploadForm() {
               if (!resp.ok) throw new Error();
               const finalData = await resp.json();
               missingModal.style.display = 'none';
-              sent.textContent = finalData.prompt || '';
-              received.textContent = finalData.raw_response || '';
+              renderDialog(aiExchange, finalData.prompt, finalData.raw_response);
               form.reset();
               progress.value = 0;
               refreshFiles();
@@ -64,9 +84,11 @@ export function setupUploadForm() {
               alert('Ошибка обработки');
             }
           };
+          missingCancel.onclick = () => {
+            missingModal.style.display = 'none';
+          };
         } else {
-          sent.textContent = result.prompt || '';
-          received.textContent = result.raw_response || '';
+          renderDialog(aiExchange, result.prompt, result.raw_response);
           form.reset();
           progress.value = 0;
           refreshFiles();

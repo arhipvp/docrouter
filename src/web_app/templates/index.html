@@ -70,12 +70,7 @@
         </table>
         <div id="text-preview"></div>
 
-        <div id="ai-exchange">
-            <h3>Отправлено</h3>
-            <pre id="ai-sent"></pre>
-            <h3>Получено</h3>
-            <pre id="ai-received"></pre>
-        </div>
+        <div id="ai-exchange" class="ai-dialog"></div>
     </div>
 
     <div id="edit-modal" class="modal" role="dialog" aria-modal="true">
@@ -114,7 +109,11 @@
             <h3>Создать недостающие папки?</h3>
             <p id="suggested-path"></p>
             <ul id="missing-list"></ul>
-            <button id="missing-confirm">Продолжить</button>
+            <div id="missing-dialog" class="ai-dialog"></div>
+            <div class="modal__buttons">
+                <button id="missing-confirm">Продолжить</button>
+                <button id="missing-cancel" type="button">Отменить</button>
+            </div>
         </div>
     </div>
 

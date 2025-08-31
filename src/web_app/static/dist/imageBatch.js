@@ -10,7 +10,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 import { refreshFiles } from './files.js';
 import { refreshFolderTree } from './folders.js';
 import { openImageEditModal } from './imageEditor.js';
-import { sent, received } from './uploadForm.js';
+import { aiExchange, renderDialog } from './uploadForm.js';
 export let currentImageIndex = -1;
 export let imageFiles = [];
 let fileInput;
@@ -70,8 +70,7 @@ export function uploadEditedImages() {
         const resp = yield fetch('/upload/images', { method: 'POST', body: data });
         if (resp.ok) {
             const result = yield resp.json();
-            sent.textContent = result.prompt || '';
-            received.textContent = result.raw_response || '';
+            renderDialog(aiExchange, result.prompt, result.raw_response);
             imageFiles = [];
             currentImageIndex = -1;
             fileInput.value = '';

@@ -36,8 +36,25 @@ form { display: flex; flex-direction: column; gap: var(--spacing-md); }
 button, input[type="submit"] { padding: var(--spacing-sm) var(--spacing-md); border: none; background-color: var(--color-primary); color: var(--color-surface); border-radius: 4px; cursor: pointer; }
 button:hover, input[type="submit"]:hover { background-color: var(--color-primary-hover); }
 #upload-progress { width: 100%; margin-top: var(--spacing-md); }
-#ai-exchange { max-height: 200px; overflow-y: auto; font-family: var(--font-mono); background: var(--color-surface-alt); padding: var(--spacing-md); border: 1px solid var(--color-border); margin-top: var(--spacing-md); }
-#ai-exchange pre { white-space: pre-wrap; margin: 0 0 var(--spacing-md) 0; }
+#ai-exchange { margin-top: var(--spacing-md); }
+
+.ai-dialog {
+  max-height: 200px;
+  overflow-y: auto;
+  font-family: var(--font-mono);
+  background: var(--color-surface-alt);
+  padding: var(--spacing-md);
+  border: 1px solid var(--color-border);
+}
+
+.ai-message {
+  margin: var(--spacing-xs) 0;
+  white-space: pre-wrap;
+}
+
+.ai-message.user {
+  font-weight: bold;
+}
 #text-preview {
   font-family: var(--font-mono);
   white-space: pre-wrap;
@@ -57,6 +74,7 @@ button:hover, input[type="submit"]:hover { background-color: var(--color-primary
 #missing-list { list-style: none; padding: 0; margin: var(--spacing-md) 0; }
 #missing-list li { margin: var(--spacing-xs) 0; }
 #suggested-path { word-break: break-all; font-family: var(--font-mono); }
+#missing-dialog { margin-top: var(--spacing-md); }
 #preview-modal .modal__content { width: 80%; height: 80%; max-width: 1000px; max-height: 800px; }
 #preview-frame { width: 100%; height: 100%; border: none; }
 
@@ -90,9 +108,10 @@ button:hover, input[type="submit"]:hover { background-color: var(--color-primary
   max-width: 100%;
 }
 
-#edit-modal .modal__buttons {
+.modal__buttons {
   display: flex;
   gap: var(--spacing-sm);
+  justify-content: flex-end;
 }
 
 /* from codex/add-camera-capture-to-image-input */
