@@ -80,6 +80,8 @@ def resize_to_dpi(image: np.ndarray, dpi: int = 300) -> np.ndarray:
     :param dpi: Target DPI value.
     :return: Resized image.
     """
+    if dpi <= 0:
+        raise ValueError("dpi must be > 0")
     pil_img = Image.fromarray(image)
     orig_dpi = pil_img.info.get("dpi", (72, 72))[0] or 72
     scale = dpi / orig_dpi
@@ -121,13 +123,21 @@ def run_ocr(
     :param alpha: Contrast control passed to :func:`increase_contrast`.
     :param beta: Brightness control passed to :func:`increase_contrast`.
     :param ksize: Kernel size for :func:`remove_noise`.
-    :param debug_dir: Optional directory to store intermediate images for
-        debugging.
+    :param debug_dir: Optional directory to store intermediate images for debugging.
     :return: Recognized text as a string.
+    :raises FileNotFoundError: If the image file does not exist.
+    :raises ValueError: If the file has an unsupported extension or cannot be loaded.
     """
+    path = Path(path)
+    if not path.exists():
+        raise FileNotFoundError(f"Image not found: {path}")
+    if path.suffix.lower() not in {".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp", ".gif"}:
+        raise ValueError(f"Unsupported image extension: {path.suffix}")
+
     image = cv2.imread(str(path))
     if image is None:
-        raise FileNotFoundError(f"Image not found: {path}")
+        # Файл существует, но OpenCV не смог прочитать
+        raise ValueError(f"Unable to load image: {path}")
 
     def _save(stage: str, img: np.ndarray) -> None:
         if debug_dir is None:
@@ -136,18 +146,25 @@ def run_ocr(
         cv2.imwrite(str(debug_dir / f"{stage}.png"), img)
 
     _save("original", image)
+
     image = resize_to_dpi(image, dpi)
     _save("resized", image)
+
     image = increase_contrast(image, alpha=alpha, beta=beta)
     _save("contrast", image)
+
     image = remove_noise(image, ksize=ksize)
     _save("denoised", image)
+
     image = deskew(image)
     _save("deskewed", image)
+
     image = crop_margins(image)
     _save("cropped", image)
+
     image = binarize(image)
     _save("binarized", image)
+
     pil_img = Image.fromarray(image)
     try:
         return pytesseract.image_to_string(pil_img, lang=lang)
@@ -173,16 +190,11 @@ if __name__ == "__main__":  # pragma: no cover - simple CLI
     parser.add_argument("--dpi", type=int, default=300, help="Target DPI")
     parser.add_argument("--alpha", type=float, default=1.5, help="Contrast control")
     parser.add_argument("--beta", type=float, default=0.0, help="Brightness control")
-    parser.add_argument(
-        "--ksize", type=_parse_odd_int, default=3, help="Median blur kernel size"
-    )
-    parser.add_argument(
-        "--debug-dir", type=Path, default=None, help="Directory to save debug images"
-    )
-    parser.add_argument(
-        "--output", type=Path, default=None, help="File to store recognized text"
-    )
+    parser.add_argument("--ksize", type=_parse_odd_int, default=3, help="Median blur kernel size")
+    parser.add_argument("--debug-dir", type=Path, default=None, help="Directory to save debug images")
+    parser.add_argument("--output", type=Path, default=None, help="File to store recognized text")
     params = parser.parse_args()
+
     result = run_ocr(
         params.input,
         lang=params.lang,
