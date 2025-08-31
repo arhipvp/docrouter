@@ -80,6 +80,8 @@ def resize_to_dpi(image: np.ndarray, dpi: int = 300) -> np.ndarray:
     :param dpi: Target DPI value.
     :return: Resized image.
     """
+    if dpi <= 0:
+        raise ValueError("dpi must be > 0")
     pil_img = Image.fromarray(image)
     orig_dpi = pil_img.info.get("dpi", (72, 72))[0] or 72
     scale = dpi / orig_dpi
@@ -121,10 +123,25 @@ def run_ocr(
     :param beta: Brightness control passed to :func:`increase_contrast`.
     :param ksize: Kernel size for :func:`remove_noise`.
     :return: Recognized text as a string.
+    :raises FileNotFoundError: If the image file does not exist.
+    :raises ValueError: If the file has an unsupported extension or cannot be loaded.
     """
+    path = Path(path)
+    if not path.exists():
+        raise FileNotFoundError(f"Image not found: {path}")
+    if path.suffix.lower() not in {
+        ".png",
+        ".jpg",
+        ".jpeg",
+        ".tif",
+        ".tiff",
+        ".bmp",
+        ".gif",
+    }:
+        raise ValueError(f"Unsupported image extension: {path.suffix}")
     image = cv2.imread(str(path))
     if image is None:
-        raise FileNotFoundError(f"Image not found: {path}")
+        raise ValueError(f"Unable to load image: {path}")
     image = resize_to_dpi(image, dpi)
     image = increase_contrast(image, alpha=alpha, beta=beta)
     image = remove_noise(image, ksize=ksize)
