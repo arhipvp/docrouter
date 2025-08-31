@@ -315,7 +315,8 @@ def test_details_endpoint_returns_full_record(tmp_path, monkeypatch):
         assert details_json_no_emb == expected
 
 
-def test_download_file_not_found_returns_404(tmp_path):
+def test_download_file_not_found_returns_404(tmp_path, monkeypatch):
+    monkeypatch.setattr(server.metadata_generation, "generate_metadata", _mock_generate_metadata)
     server.config.output_dir = str(tmp_path)
     with LiveClient(app) as client:
         # Загружаем корректно
@@ -350,9 +351,10 @@ def test_root_returns_form_unprotected():
         assert 'id="folder-tree"' in resp.text
 
 
-def test_files_endpoint_lists_uploaded_files(tmp_path):
+def test_files_endpoint_lists_uploaded_files(tmp_path, monkeypatch):
     """После загрузки файл отображается в списке."""
     server.database.init_db()
+    monkeypatch.setattr(server.metadata_generation, "generate_metadata", _mock_generate_metadata)
     server.config.output_dir = str(tmp_path)
     with LiveClient(app) as client:
         resp = client.post("/upload", files={"file": ("example.txt", b"content")})
@@ -453,8 +455,9 @@ def test_upload_pending_then_finalize(tmp_path, monkeypatch):
         assert Path(final_data["path"]).exists()
 
 
-def test_preview_endpoint_serves_file(tmp_path):
+def test_preview_endpoint_serves_file(tmp_path, monkeypatch):
     server.database.init_db()
+    monkeypatch.setattr(server.metadata_generation, "generate_metadata", _mock_generate_metadata)
     server.config.output_dir = str(tmp_path)
     with LiveClient(app) as client:
         resp = client.post("/upload", files={"file": ("example.txt", b"content")})

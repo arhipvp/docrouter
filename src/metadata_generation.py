@@ -1,16 +1,15 @@
 """
 Metadata generation module.
 
-This module provides a high level :func:`generate_metadata` function that can
-use either OpenRouter LLM or a local rule-based analyzer.  The abstraction makes
-it easy to switch between cloud and local models.
+This module предоставляет высокоуровневую функцию :func:`generate_metadata`,
+которая использует LLM через OpenRouter. При необходимости можно подключить
+иные анализаторы.
 """
 
 from __future__ import annotations
 
 import json
 import logging
-import re
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Optional, Callable
 
@@ -50,11 +49,15 @@ def get_analyzer(name: str) -> type["MetadataAnalyzer"]:
     return _ANALYZER_REGISTRY[name]
 
 
+class OpenRouterError(RuntimeError):
+    """Исключение при обращении к OpenRouter."""
+
+
 __all__ = [
     "generate_metadata",
     "MetadataAnalyzer",
     "OpenRouterAnalyzer",
-    "RegexAnalyzer",
+    "OpenRouterError",
     "register_analyzer",
     "get_analyzer",
 ]
@@ -84,7 +87,7 @@ class OpenRouterAnalyzer(MetadataAnalyzer):
     ):
         self.api_key = api_key or OPENROUTER_API_KEY
         if not self.api_key:
-            raise RuntimeError("OPENROUTER_API_KEY environment variable required")
+            raise OpenRouterError("OPENROUTER_API_KEY environment variable required")
 
         self.model = model or OPENROUTER_MODEL or "openai/chatgpt-4o-latest"
         self.base_url = base_url or OPENROUTER_BASE_URL or "https://openrouter.ai/api/v1"
@@ -117,47 +120,18 @@ class OpenRouterAnalyzer(MetadataAnalyzer):
             "X-Title": self.site_name,
         }
 
-        async with httpx.AsyncClient(timeout=60) as client:
-            response = await client.post(self.api_url, json=payload, headers=headers)
-        response.raise_for_status()
+        try:
+            async with httpx.AsyncClient(timeout=60) as client:
+                response = await client.post(self.api_url, json=payload, headers=headers)
+            response.raise_for_status()
+        except httpx.HTTPError as exc:
+            raise OpenRouterError("OpenRouter request failed") from exc
         content = response.json()["choices"][0]["message"]["content"]
         try:
             metadata = json.loads(content)
         except json.JSONDecodeError as exc:
-            raise RuntimeError("Invalid JSON from OpenRouter") from exc
+            raise OpenRouterError("Invalid JSON from OpenRouter") from exc
         return {"prompt": prompt, "raw_response": content, "metadata": metadata}
-
-
-@register_analyzer("regex")
-class RegexAnalyzer(MetadataAnalyzer):
-    """A very small local analyzer based on regular expressions.
-
-    This implementation is intentionally simple and is intended for testing or
-    as a fallback when no LLM is available."""
-
-    DATE_RE = re.compile(r"(\d{4}-\d{2}-\d{2})")
-    AMOUNT_RE = re.compile(r"([0-9]+(?:[.,][0-9]{2})?)")
-
-    async def analyze(
-        self, text: str, folder_tree: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
-        date_match = self.DATE_RE.search(text)
-        amount_match = self.AMOUNT_RE.search(text)
-        metadata = {
-            "category": None,
-            "subcategory": None,
-            "issuer": None,
-            "person": None,
-            "doc_type": None,
-            "date": date_match.group(1) if date_match else None,
-            "amount": amount_match.group(1) if amount_match else None,
-            "tags": [],
-            "tags_ru": [],
-            "tags_en": [],
-            "suggested_filename": None,
-            "description": None,
-        }
-        return {"prompt": None, "raw_response": None, "metadata": metadata}
 
 
 async def generate_metadata(
@@ -168,10 +142,8 @@ async def generate_metadata(
 ) -> Dict[str, Any]:
     """Generate metadata for *text* using the provided *analyzer*.
 
-    If *analyzer* is ``None`` the function tries to create an
-    :class:`OpenRouterAnalyzer`.  When an API key is missing or the
-    OpenRouter analyzer cannot be instantiated for any reason, the
-    lightweight :class:`RegexAnalyzer` is used as a fallback.
+    If *analyzer* is ``None`` the function creates an :class:`OpenRouterAnalyzer`.
+    Любые ошибки при обращении к OpenRouter пробрасываются вызывающему коду.
 
     The returned dictionary always contains the following fields:
     ``category``, ``subcategory``, ``issuer``, ``person``, ``doc_type``,
@@ -180,21 +152,8 @@ async def generate_metadata(
     """
 
     if analyzer is None:
-        try:
-            analyzer = OpenRouterAnalyzer()
-        except Exception as exc:
-            logger.error("Failed to initialize OpenRouterAnalyzer: %s", exc)
-            analyzer = RegexAnalyzer()
-    try:
-        result = await analyzer.analyze(text, folder_tree=folder_tree)
-    except Exception as exc:
-        logger.error(
-            "Analyzer %s failed: %s. Falling back to RegexAnalyzer",
-            type(analyzer).__name__,
-            exc,
-        )
-        analyzer = RegexAnalyzer()
-        result = await analyzer.analyze(text, folder_tree=folder_tree)
+        analyzer = OpenRouterAnalyzer()
+    result = await analyzer.analyze(text, folder_tree=folder_tree)
     metadata = result.get("metadata", {})
     defaults = {
         "category": None,

@@ -1,54 +1,31 @@
+import asyncio
 import json
 from typing import Any, Dict
 
 import pytest
 
-from metadata_generation import generate_metadata, OpenRouterAnalyzer, RegexAnalyzer
+from metadata_generation import (
+    generate_metadata,
+    OpenRouterError,
+    MetadataAnalyzer,
+)
 from models import Metadata
 
 
-@pytest.mark.asyncio
-async def test_generate_metadata_without_api_key(monkeypatch):
+class DummyAnalyzer(MetadataAnalyzer):
+    async def analyze(
+        self, text: str, folder_tree: Dict[str, Any] | None = None
+    ) -> Dict[str, Any]:
+        return {"prompt": None, "raw_response": None, "metadata": {}}
+
+
+def test_generate_metadata_without_api_key(monkeypatch):
     monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
-    text = "Total 123.45 on 2023-05-17"
-    result = await generate_metadata(text)
-    meta: Metadata = result["metadata"]
-    assert meta.date == "2023-05-17"
-    assert meta.amount == "123.45"
-    assert meta.category is None
-    assert meta.needs_new_folder is False
-    assert meta.tags_ru == []
-    assert meta.tags_en == []
-    assert result["prompt"] is None
-    assert result["raw_response"] is None
+    with pytest.raises(OpenRouterError):
+        asyncio.run(generate_metadata("text"))
 
 
-@pytest.mark.asyncio
-async def test_fallback_to_regex_on_analyze_error(monkeypatch):
-    async def fail(self, text, folder_tree=None):  # type: ignore[no-redef]
-        raise RuntimeError("boom")
-
-    monkeypatch.setattr(OpenRouterAnalyzer, "analyze", fail)
-
-    called: dict[str, bool] = {}
-
-    async def fake_regex(self, text, folder_tree=None):  # type: ignore[no-redef]
-        called["called"] = True
-        return {"prompt": None, "raw_response": None, "metadata": {"category": "regex"}}
-
-    monkeypatch.setattr(RegexAnalyzer, "analyze", fake_regex)
-
-    analyzer = OpenRouterAnalyzer(api_key="test")
-    result = await generate_metadata("text", analyzer=analyzer)
-
-    assert called.get("called")
-    meta = result["metadata"]
-    assert meta.category == "regex"
-    assert meta.needs_new_folder is False
-
-
-@pytest.mark.asyncio
-async def test_folder_tree_in_prompt(monkeypatch):
+def test_folder_tree_in_prompt(monkeypatch):
     captured: dict[str, str] = {}
 
     class DummyResponse:
@@ -58,11 +35,7 @@ async def test_folder_tree_in_prompt(monkeypatch):
         def json(self) -> Dict[str, Any]:  # type: ignore[override]
             return {
                 "choices": [
-                    {
-                        "message": {
-                            "content": json.dumps({"needs_new_folder": True})
-                        }
-                    }
+                    {"message": {"content": json.dumps({"needs_new_folder": True})}}
                 ]
             }
 
@@ -70,19 +43,18 @@ async def test_folder_tree_in_prompt(monkeypatch):
         captured["prompt"] = json["messages"][0]["content"]
         return DummyResponse()
 
+    monkeypatch.setenv("OPENROUTER_API_KEY", "test")
+    monkeypatch.setattr("metadata_generation.OPENROUTER_API_KEY", "test")
     monkeypatch.setattr("metadata_generation.httpx.AsyncClient.post", fake_post)
 
-    analyzer = OpenRouterAnalyzer(api_key="test")
     tree = [
         {
             "name": "Финансы",
             "path": "Финансы",
-            "children": [
-                {"name": "Банки", "path": "Финансы/Банки", "children": []}
-            ],
+            "children": [{"name": "Банки", "path": "Финансы/Банки", "children": []}],
         }
     ]
-    result = await generate_metadata("text", analyzer=analyzer, folder_tree=tree)
+    result = asyncio.run(generate_metadata("text", folder_tree=tree))
     instruction = "Если ни одна папка не подходит, предложи новую category/subcategory."
     tree_json = json.dumps(tree, ensure_ascii=False)
     assert tree_json in captured["prompt"]
@@ -92,8 +64,7 @@ async def test_folder_tree_in_prompt(monkeypatch):
     assert result["metadata"].needs_new_folder is True
 
 
-@pytest.mark.asyncio
-async def test_multilanguage_tags_parsing(monkeypatch):
+def test_multilanguage_tags_parsing(monkeypatch):
     class DummyResponse:
         def raise_for_status(self) -> None:
             pass
@@ -108,22 +79,22 @@ async def test_multilanguage_tags_parsing(monkeypatch):
     async def fake_post(self, url, json=None, headers=None, **kwargs):  # type: ignore[no-redef]
         return DummyResponse()
 
+    monkeypatch.setenv("OPENROUTER_API_KEY", "test")
+    monkeypatch.setattr("metadata_generation.OPENROUTER_API_KEY", "test")
     monkeypatch.setattr("metadata_generation.httpx.AsyncClient.post", fake_post)
 
-    analyzer = OpenRouterAnalyzer(api_key="test")
-    result = await generate_metadata("text", analyzer=analyzer)
-    meta = result["metadata"]
+    result = asyncio.run(generate_metadata("text"))
+    meta: Metadata = result["metadata"]
     assert meta.tags_ru == ["тег1", "тег2"]
     assert meta.tags_en == ["tag1", "tag2"]
 
 
-@pytest.mark.asyncio
-async def test_generate_metadata_parses_mrz():
+def test_generate_metadata_parses_mrz():
     text = (
         "P<UTOERIKSSON<<ANNA<MARIA<<<<<<<<<<<<<<<<<<<\n"
         "L898902C<3UTO7408122F1204159ZE184226B<<<<<<<<<10"
     )
-    result = await generate_metadata(text, analyzer=RegexAnalyzer())
+    result = asyncio.run(generate_metadata(text, analyzer=DummyAnalyzer()))
     meta = result["metadata"]
     assert meta.person == "ANNA MARIA ERIKSSON"
     assert meta.date_of_birth == "1974-08-12"
