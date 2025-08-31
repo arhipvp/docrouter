@@ -98,6 +98,13 @@ def place_file(
     """
     src = Path(src_path)
     base_dir = Path(dest_root)
+    if base_dir.exists():
+        if not base_dir.is_dir():
+            raise NotADirectoryError(
+                f"Destination root exists and is not a directory: {base_dir}"
+            )
+    else:  # Создаём корень архива, если его нет
+        base_dir.mkdir(parents=True, exist_ok=True)
 
     ext = src.suffix
     name = metadata.get("suggested_name") or src.stem
@@ -148,7 +155,12 @@ def place_file(
 
     # Создаём недостающие каталоги только при подтверждении
     if missing and needs_new_folder and confirm_callback(missing):
-        dest_dir.mkdir(parents=True, exist_ok=True)
+        try:
+            dest_dir.mkdir(parents=True, exist_ok=True)
+        except FileExistsError as exc:
+            raise NotADirectoryError(
+                f"Cannot create directory '{exc.filename}'"
+            ) from exc
         confirmed = True
         missing = []
 

@@ -105,7 +105,7 @@ def test_upload_retrieve_and_download(tmp_path, monkeypatch):
         # Загрузка
         resp = client.post(
             "/upload",
-            data={"language": "deu"},
+            data={"language": "de"},
             files={"file": ("example.txt", b"content")},
         )
         assert resp.status_code == 200
@@ -125,7 +125,7 @@ def test_upload_retrieve_and_download(tmp_path, monkeypatch):
         assert data["status"] in {"dry_run", "processed"}
         assert data["missing"] == []
         assert data["metadata"]["extracted_text"].strip() == "content"
-        assert data["metadata"]["language"] == "deu"
+        assert data["metadata"]["language"] == "de"
         assert captured["language"] == "deu"
         assert data["prompt"] == "PROMPT"
         assert data["raw_response"] == "{\"date\": \"2024-01-01\"}"
@@ -152,14 +152,14 @@ def test_upload_retrieve_and_download(tmp_path, monkeypatch):
 
         monkeypatch.setattr(server, "translate_text", _mock_translate)
 
-        details = client.get(f"/files/{file_id}/details?lang=eng")
+        details = client.get(f"/files/{file_id}/details?lang=en")
         assert details.status_code == 200
-        assert details.json()["translated_text"] == "content-eng"
-        assert details.json()["translation_lang"] == "eng"
+        assert details.json()["translated_text"] == "content-en"
+        assert details.json()["translation_lang"] == "en"
 
-        translated = client.get(f"/download/{file_id}?lang=eng")
+        translated = client.get(f"/download/{file_id}?lang=en")
         assert translated.status_code == 200
-        assert translated.text == "content-eng"
+        assert translated.text == "content-en"
         assert calls["n"] == 1
 
         record = server.database.get_file(file_id)
@@ -195,13 +195,13 @@ def test_upload_images_returns_sources(tmp_path, monkeypatch):
         ]
         resp = client.post(
             "/upload/images",
-            data={"language": "deu"},
+            data={"language": "de"},
             files=files,
         )
         assert resp.status_code == 200
         data = resp.json()
         assert data["sources"] == ["a.jpg", "b.jpg"]
-        assert data["metadata"]["language"] == "deu"
+        assert data["metadata"]["language"] == "de"
         assert captured["language"] == "deu"
         file_id = data["id"]
 
@@ -244,7 +244,7 @@ def test_upload_images_download_and_metadata(tmp_path, monkeypatch):
         ]
         resp = client.post(
             "/upload/images",
-            data={"language": "deu"},
+            data={"language": "de"},
             files=files,
         )
         assert resp.status_code == 200
@@ -281,7 +281,7 @@ def test_details_endpoint_returns_full_record(tmp_path, monkeypatch):
     with LiveClient(app) as client:
         resp = client.post(
             "/upload",
-            data={"language": "deu"},
+            data={"language": "de"},
             files={"file": ("example.txt", b"content")},
         )
         assert resp.status_code == 200
