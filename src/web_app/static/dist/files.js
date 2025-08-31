@@ -83,10 +83,10 @@ export function setupFiles() {
     list.addEventListener('click', (e) => __awaiter(this, void 0, void 0, function* () {
         if (e.target.closest('a.download-link') || e.target.closest('button.edit-btn') || e.target.closest('button.chat-btn'))
             return;
-        const li = e.target.closest('li');
-        if (!li)
+        const tr = e.target.closest('tr');
+        if (!tr)
             return;
-        const id = li.dataset.id;
+        const id = tr.dataset.id;
         if (!id)
             return;
         previewFrame.src = `/preview/${id}`;
@@ -153,19 +153,37 @@ export function refreshFiles() {
         list.innerHTML = '';
         files.forEach((f) => {
             var _a, _b;
-            const li = document.createElement('li');
-            li.dataset.id = f.id;
+            const tr = document.createElement('tr');
+            tr.dataset.id = f.id;
+            const pathTd = document.createElement('td');
+            pathTd.textContent = f.path || '';
+            tr.appendChild(pathTd);
+            const categoryTd = document.createElement('td');
             const category = (_b = (_a = f.metadata) === null || _a === void 0 ? void 0 : _a.category) !== null && _b !== void 0 ? _b : '';
+            categoryTd.textContent = category;
+            tr.appendChild(categoryTd);
+            const tagsTd = document.createElement('td');
             const lang = tagLanguage.value;
             const tags = f.metadata ? (lang === 'ru' ? f.metadata.tags_ru : f.metadata.tags_en) : [];
             const tagsText = Array.isArray(tags) ? tags.join(', ') : '';
-            li.innerHTML = `<strong>${f.filename}</strong> — ${category} — ${tagsText} — ${f.status} `;
-            const link = document.createElement('a');
+            tagsTd.textContent = tagsText;
+            tr.appendChild(tagsTd);
+            const statusTd = document.createElement('td');
+            statusTd.textContent = f.status;
+            tr.appendChild(statusTd);
+            const actionsTd = document.createElement('td');
             const langParam = displayLang ? `?lang=${encodeURIComponent(displayLang)}` : '';
+            const link = document.createElement('a');
             link.href = `/download/${f.id}${langParam}`;
             link.textContent = 'скачать';
             link.classList.add('download-link');
-            li.appendChild(link);
+            actionsTd.appendChild(link);
+            const jsonLink = document.createElement('a');
+            jsonLink.href = `/files/${f.id}/details`;
+            jsonLink.textContent = 'json';
+            jsonLink.target = '_blank';
+            actionsTd.appendChild(document.createTextNode(' '));
+            actionsTd.appendChild(jsonLink);
             const editBtn = document.createElement('button');
             editBtn.type = 'button';
             editBtn.textContent = 'Редактировать';
@@ -174,7 +192,7 @@ export function refreshFiles() {
                 ev.stopPropagation();
                 openMetadataModal(f);
             });
-            li.appendChild(editBtn);
+            actionsTd.appendChild(editBtn);
             const chatBtn = document.createElement('button');
             chatBtn.type = 'button';
             chatBtn.textContent = 'Чат';
@@ -183,8 +201,9 @@ export function refreshFiles() {
                 ev.stopPropagation();
                 openChatModal(f);
             });
-            li.appendChild(chatBtn);
-            list.appendChild(li);
+            actionsTd.appendChild(chatBtn);
+            tr.appendChild(actionsTd);
+            list.appendChild(tr);
         });
     });
 }

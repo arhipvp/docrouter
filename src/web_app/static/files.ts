@@ -75,9 +75,9 @@ export function setupFiles() {
 
   list.addEventListener('click', async (e: any) => {
     if (e.target.closest('a.download-link') || e.target.closest('button.edit-btn') || e.target.closest('button.chat-btn')) return;
-    const li = e.target.closest('li');
-    if (!li) return;
-    const id = li.dataset.id;
+    const tr = e.target.closest('tr');
+    if (!tr) return;
+    const id = tr.dataset.id;
     if (!id) return;
     previewFrame.src = `/preview/${id}`;
     previewModal.style.display = 'flex';
@@ -141,21 +141,43 @@ export async function refreshFiles() {
   const files = await resp.json();
   list.innerHTML = '';
   files.forEach((f: any) => {
-    const li = document.createElement('li');
-    li.dataset.id = f.id;
+    const tr = document.createElement('tr');
+    tr.dataset.id = f.id;
 
+    const pathTd = document.createElement('td');
+    pathTd.textContent = f.path || '';
+    tr.appendChild(pathTd);
+
+    const categoryTd = document.createElement('td');
     const category = f.metadata?.category ?? '';
+    categoryTd.textContent = category;
+    tr.appendChild(categoryTd);
+
+    const tagsTd = document.createElement('td');
     const lang = tagLanguage.value;
     const tags = f.metadata ? (lang === 'ru' ? f.metadata.tags_ru : f.metadata.tags_en) : [];
     const tagsText = Array.isArray(tags) ? tags.join(', ') : '';
-    li.innerHTML = `<strong>${f.filename}</strong> — ${category} — ${tagsText} — ${f.status} `;
+    tagsTd.textContent = tagsText;
+    tr.appendChild(tagsTd);
 
-    const link = document.createElement('a');
+    const statusTd = document.createElement('td');
+    statusTd.textContent = f.status;
+    tr.appendChild(statusTd);
+
+    const actionsTd = document.createElement('td');
     const langParam = displayLang ? `?lang=${encodeURIComponent(displayLang)}` : '';
+    const link = document.createElement('a');
     link.href = `/download/${f.id}${langParam}`;
     link.textContent = 'скачать';
     link.classList.add('download-link');
-    li.appendChild(link);
+    actionsTd.appendChild(link);
+
+    const jsonLink = document.createElement('a');
+    jsonLink.href = `/files/${f.id}/details`;
+    jsonLink.textContent = 'json';
+    jsonLink.target = '_blank';
+    actionsTd.appendChild(document.createTextNode(' '));
+    actionsTd.appendChild(jsonLink);
 
     const editBtn = document.createElement('button');
     editBtn.type = 'button';
@@ -165,7 +187,7 @@ export async function refreshFiles() {
       ev.stopPropagation();
       openMetadataModal(f);
     });
-    li.appendChild(editBtn);
+    actionsTd.appendChild(editBtn);
 
     const chatBtn = document.createElement('button');
     chatBtn.type = 'button';
@@ -175,9 +197,10 @@ export async function refreshFiles() {
       ev.stopPropagation();
       openChatModal(f);
     });
-    li.appendChild(chatBtn);
+    actionsTd.appendChild(chatBtn);
 
-    list.appendChild(li);
+    tr.appendChild(actionsTd);
+    list.appendChild(tr);
   });
 }
 
