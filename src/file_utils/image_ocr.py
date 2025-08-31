@@ -2,6 +2,7 @@
 
 from pathlib import Path
 from typing import Union
+import logging
 
 try:
     from PIL import Image
@@ -12,6 +13,9 @@ except ModuleNotFoundError as exc:  # pragma: no cover - handled at runtime
     ) from exc
 
 
+logger = logging.getLogger(__name__)
+
+
 def extract_text_image(image_path: Union[str, Path], language: str = "eng") -> str:
     """Extract text from an image using Tesseract OCR.
 
@@ -20,4 +24,15 @@ def extract_text_image(image_path: Union[str, Path], language: str = "eng") -> s
     :return: Extracted text as a string.
     """
     img = Image.open(Path(image_path))
-    return pytesseract.image_to_string(img, lang=language)
+    try:
+        return pytesseract.image_to_string(img, lang=language)
+    except pytesseract.TesseractError as exc:
+        if language != "eng":
+            logger.warning(
+                "Tesseract language '%s' unavailable, falling back to 'eng'", language
+            )
+            try:
+                return pytesseract.image_to_string(img, lang="eng")
+            except pytesseract.TesseractError:
+                pass
+        raise exc
