@@ -36,7 +36,12 @@ async def process_directory(
             else:
                 metadata = raw_meta.model_dump()
             rel_dir = path.parent.relative_to(input_path)
-            dest_base = Path(dest_root) / rel_dir
+            rel_parts = list(rel_dir.parts)
+            if rel_parts and not metadata.get("category"):
+                metadata["category"] = rel_parts[0]
+            if len(rel_parts) > 1 and not metadata.get("subcategory"):
+                metadata["subcategory"] = rel_parts[1]
+            dest_base = Path(dest_root)
             dest_base.mkdir(parents=True, exist_ok=True)
             place_file(
                 path,
