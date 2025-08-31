@@ -31,5 +31,6 @@ def build_metadata_prompt(
         "Return a JSON object with the fields: category, subcategory, needs_new_folder (boolean), issuer, person, doc_type, "
         "date, amount, counterparty, document_number, due_date, currency, tags_ru (list of strings), tags_en (list of strings), "
         "suggested_filename, description.\n"
+        "Field 'person' must be in the format 'Фамилия Имя Отчество'; do not use the person's name in category or subcategory.\n"
         f"Document text:\n{text}"
     )

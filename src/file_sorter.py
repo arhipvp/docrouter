@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Tuple, Callable
 
 from config import GENERAL_FOLDER_NAME
+from utils.names import normalize_person_name
 
 try:
     from unidecode import unidecode
@@ -126,7 +127,7 @@ def place_file(
     missing: List[str] = []
 
     # Сначала person (или общий)
-    person = metadata.get("person")
+    person = normalize_person_name(metadata.get("person"))
     if not person or not str(person).strip():
         person = GENERAL_FOLDER_NAME
     metadata["person"] = person
@@ -134,13 +135,15 @@ def place_file(
     if not dest_dir.exists():
         missing.append(str(dest_dir.relative_to(base_dir)))
 
-    # Затем category/subcategory
+    # Затем category/subcategory, игнорируя совпадения с person
     for key in ("category", "subcategory"):
         value = metadata.get(key)
-        if value:
+        if value and str(value).strip().lower() != str(person).strip().lower():
             dest_dir /= str(value)
             if not dest_dir.exists():
                 missing.append(str(dest_dir.relative_to(base_dir)))
+        else:
+            metadata[key] = None
 
     # Затем issuer (если есть)
     issuer = metadata.get("issuer")

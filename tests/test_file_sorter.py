@@ -92,6 +92,25 @@ def test_place_file_uses_person_from_metadata(tmp_path):
     ]
 
 
+def test_place_file_ignores_person_in_category(tmp_path):
+    src = tmp_path / "input.pdf"
+    src.write_text("data")
+
+    dest_root = tmp_path / "Archive"
+    metadata = sample_metadata()
+    metadata["person"] = "Иванов Иван"
+    metadata["category"] = "Иванов Иван"
+    metadata["subcategory"] = "Иванов Иван"
+    dest, missing, _ = place_file(src, metadata, dest_root, dry_run=True)
+
+    expected = dest_root / "Иванов Иван" / "Sparkasse" / "2023-10-12__Kreditvertrag.pdf"
+    assert dest == expected
+    assert missing == [
+        "Иванов Иван",
+        "Иванов Иван/Sparkasse",
+    ]
+
+
 def test_place_file_uses_general_when_person_empty(tmp_path):
     src = tmp_path / "input.pdf"
     src.write_text("data")
