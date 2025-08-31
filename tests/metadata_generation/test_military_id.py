@@ -9,6 +9,7 @@ class DummyAnalyzer(MetadataAnalyzer):
         self,
         text: str,
         folder_tree: Dict[str, Any] | None = None,
+        folder_index: Dict[str, Any] | None = None,
         file_info: Dict[str, Any] | None = None,
     ) -> Dict[str, Any]:
         return {"prompt": None, "raw_response": None, "metadata": {}}

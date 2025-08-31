@@ -5,7 +5,7 @@ import logging
 from pathlib import Path
 
 from error_handling import handle_error
-from file_sorter import place_file
+from file_sorter import place_file, get_folder_tree
 from file_utils import extract_text
 import metadata_generation
 
@@ -25,11 +25,18 @@ async def process_directory(
     input_path = Path(input_dir)
     logger.info("Processing directory %s", input_path)
 
+    tree, index = get_folder_tree(dest_root)
+
     async def process_file(path: Path) -> None:
         logger.info("Processing file %s", path)
         try:
             text = extract_text(path)
-            meta_result = await metadata_generation.generate_metadata(text)
+            try:
+                meta_result = await metadata_generation.generate_metadata(
+                    text, folder_tree=tree, folder_index=index
+                )
+            except TypeError:
+                meta_result = await metadata_generation.generate_metadata(text)  # type: ignore[arg-type]
             raw_meta = meta_result["metadata"]
             if isinstance(raw_meta, dict):
                 metadata = raw_meta

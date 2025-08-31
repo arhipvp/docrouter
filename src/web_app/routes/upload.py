@@ -49,10 +49,10 @@ async def upload_file(
         )
         lang_ocr = LANG_MAP.get(lang_display, lang_display)
         text = server.extract_text(temp_path, language=lang_ocr)
-        folder_tree = get_folder_tree(server.config.output_dir)
+        folder_tree, folder_index = get_folder_tree(server.config.output_dir)
         try:
             meta_result = await server.metadata_generation.generate_metadata(
-                text, folder_tree=folder_tree
+                text, folder_tree=folder_tree, folder_index=folder_index
             )
         except OpenRouterError as exc:
             logger.exception("Metadata generation failed for %s", file.filename)
@@ -180,10 +180,10 @@ async def upload_images(
         )
         lang_ocr = LANG_MAP.get(lang_display, lang_display)
         text = server.extract_text(pdf_path, language=lang_ocr)
-        folder_tree = get_folder_tree(server.config.output_dir)
+        folder_tree, folder_index = get_folder_tree(server.config.output_dir)
         try:
             meta_result = await server.metadata_generation.generate_metadata(
-                text, folder_tree=folder_tree
+                text, folder_tree=folder_tree, folder_index=folder_index
             )
         except OpenRouterError as exc:
             logger.exception("Metadata generation failed for images")
