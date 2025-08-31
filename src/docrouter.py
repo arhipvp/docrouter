@@ -1,34 +1,35 @@
 from __future__ import annotations
 
-from pathlib import Path
-import logging
-
-from file_utils import extract_text
-import metadata_generation
 import asyncio
-from file_sorter import place_file
+import logging
+from pathlib import Path
 
 from error_handling import handle_error
+from file_sorter import place_file
+from file_utils import extract_text
+import metadata_generation
 
 logger = logging.getLogger(__name__)
 
 
-def process_directory(input_dir: str | Path, dest_root: str | Path, dry_run: bool = False) -> None:
-    """Process all files from *input_dir* and place them under *dest_root*.
+async def process_directory(
+    input_dir: str | Path, dest_root: str | Path, dry_run: bool = False
+) -> None:
+    """Асинхронно обработать все файлы из *input_dir* и разместить их под *dest_root*.
 
-    Each file is passed through the pipeline: ``extract_text`` →
-    ``metadata_generation.generate_metadata`` → ``place_file``.  Any exception during processing is
-    delegated to :func:`handle_error`.
+    Для каждого файла вызывается конвейер ``extract_text`` →
+    ``metadata_generation.generate_metadata`` → ``place_file``. Любое исключение
+    обрабатывается функцией :func:`handle_error`.
     """
+
     input_path = Path(input_dir)
     logger.info("Processing directory %s", input_path)
-    for path in input_path.rglob("*"):
-        if not path.is_file():
-            continue
+
+    async def process_file(path: Path) -> None:
         logger.info("Processing file %s", path)
         try:
             text = extract_text(path)
-            meta_result = asyncio.run(metadata_generation.generate_metadata(text))
+            meta_result = await metadata_generation.generate_metadata(text)
             raw_meta = meta_result["metadata"]
             if isinstance(raw_meta, dict):
                 metadata = raw_meta
@@ -49,3 +50,7 @@ def process_directory(input_dir: str | Path, dest_root: str | Path, dry_run: boo
         except Exception as exc:  # pragma: no cover - depending on runtime errors
             handle_error(path, exc)
             logger.error("Failed to process %s: %s", path, exc)
+
+    tasks = [process_file(path) for path in input_path.rglob("*") if path.is_file()]
+    await asyncio.gather(*tasks)
+

@@ -2,6 +2,7 @@ import json
 import os
 import sys
 from pathlib import Path
+import asyncio
 
 import pytest
 
@@ -22,7 +23,7 @@ def test_parse_error_moves_file_and_creates_json(tmp_path):
     cwd = os.getcwd()
     os.chdir(tmp_path)
     try:
-        process_directory(input_dir, dest_root, dry_run=True)
+        asyncio.run(process_directory(input_dir, dest_root, dry_run=True))
     finally:
         os.chdir(cwd)
 
