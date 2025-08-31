@@ -119,3 +119,24 @@ button:hover, input[type="submit"]:hover { background-color: var(--color-primary
   #files-table td:nth-child(3) { display: none; }
   #folder-tree { display: none; }
 }
+
+#notifications {
+  position: fixed;
+  top: 1em;
+  right: 1em;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5em;
+  z-index: 1000;
+}
+
+.notification {
+  padding: 0.5em 1em;
+  border-radius: 4px;
+  color: #fff;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.notification.error { background-color: #dc3545; }
+
+.notification.info { background-color: #17a2b8; }

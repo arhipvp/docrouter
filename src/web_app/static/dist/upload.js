@@ -9,6 +9,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 import { refreshFiles } from './files.js';
 import { refreshFolderTree } from './folders.js';
+import { showError } from './notifications.js';
 let form;
 let progress;
 let sent;
@@ -30,6 +31,7 @@ let saveBtn;
 let cropper = null;
 let currentImageIndex = -1;
 let imageFiles = [];
+let lastFocused = null;
 export function setupUpload() {
     form = document.querySelector('form');
     progress = document.getElementById('upload-progress');
@@ -61,7 +63,7 @@ export function setupUpload() {
                 imageFiles[currentImageIndex] = { blob, name };
                 renderImageList();
             }
-            imageEditModal.style.display = 'none';
+            closeModal(imageEditModal);
             cropper.destroy();
             cropper = null;
             const nextIndex = currentImageIndex + 1;
@@ -80,7 +82,7 @@ export function setupUpload() {
         const fileInput = form.querySelector('input[type="file"]');
         const file = (_a = fileInput === null || fileInput === void 0 ? void 0 : fileInput.files) === null || _a === void 0 ? void 0 : _a[0];
         if (!file || !file.name) {
-            alert('Файл должен иметь имя');
+            showError('Файл должен иметь имя');
             return;
         }
         const data = new FormData(form);
@@ -104,7 +106,7 @@ export function setupUpload() {
                         li.textContent = path;
                         missingList.appendChild(li);
                     });
-                    missingModal.style.display = 'flex';
+                    openModal(missingModal);
                     missingConfirm.onclick = () => __awaiter(this, void 0, void 0, function* () {
                         try {
                             const resp = yield fetch(`/files/${result.id}/finalize`, {
@@ -115,7 +117,7 @@ export function setupUpload() {
                             if (!resp.ok)
                                 throw new Error();
                             const finalData = yield resp.json();
-                            missingModal.style.display = 'none';
+                            closeModal(missingModal);
                             sent.textContent = finalData.prompt || '';
                             received.textContent = finalData.raw_response || '';
                             form.reset();
@@ -124,7 +126,7 @@ export function setupUpload() {
                             refreshFolderTree();
                         }
                         catch (_a) {
-                            alert('Ошибка обработки');
+                            showError('Ошибка обработки');
                         }
                     });
                 }
@@ -138,7 +140,7 @@ export function setupUpload() {
                 }
             }
             else {
-                alert('Ошибка загрузки');
+                showError('Ошибка загрузки');
             }
         };
         xhr.send(data);
@@ -185,14 +187,17 @@ export function setupUpload() {
     }
     imageDropArea.addEventListener('click', () => imageInput.click());
     uploadImagesBtn.addEventListener('click', () => uploadEditedImages());
-    document.addEventListener('keydown', (e) => {
-        if (e.key !== 'Escape')
-            return;
-        if (imageEditModal.style.display === 'flex') {
-            imageEditModal.style.display = 'none';
-        }
-        if (missingModal.style.display === 'flex') {
-            missingModal.style.display = 'none';
+    const editClose = imageEditModal.querySelector('.close');
+    editClose === null || editClose === void 0 ? void 0 : editClose.addEventListener('click', () => {
+        closeModal(imageEditModal);
+        cropper === null || cropper === void 0 ? void 0 : cropper.destroy();
+        cropper = null;
+    });
+    imageEditModal.addEventListener('click', (e) => {
+        if (e.target === imageEditModal) {
+            closeModal(imageEditModal);
+            cropper === null || cropper === void 0 ? void 0 : cropper.destroy();
+            cropper = null;
         }
     });
 }
@@ -223,7 +228,7 @@ function openImageEditModal(fileObj) {
         URL.revokeObjectURL(url);
     };
     img.src = url;
-    imageEditModal.style.display = 'flex';
+    openModal(imageEditModal);
 }
 function uploadEditedImages() {
     return __awaiter(this, void 0, void 0, function* () {
@@ -247,7 +252,52 @@ function uploadEditedImages() {
             refreshFolderTree();
         }
         else {
-            alert('Ошибка загрузки');
+            showError('Ошибка загрузки');
         }
     });
+}
+function openModal(modal) {
+    lastFocused = document.activeElement;
+    modal.style.display = 'flex';
+    const focusable = modal.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+    const first = (focusable[0] || modal);
+    if (typeof first.focus === 'function') {
+        first.focus();
+    }
+    const handleKeydown = (e) => {
+        if (e.key === 'Tab') {
+            const items = modal.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+            if (!items.length)
+                return;
+            const firstEl = items[0];
+            const lastEl = items[items.length - 1];
+            if (e.shiftKey && document.activeElement === firstEl) {
+                e.preventDefault();
+                lastEl.focus();
+            }
+            else if (!e.shiftKey && document.activeElement === lastEl) {
+                e.preventDefault();
+                firstEl.focus();
+            }
+        }
+        else if (e.key === 'Escape') {
+            closeModal(modal);
+            if (modal === imageEditModal) {
+                cropper === null || cropper === void 0 ? void 0 : cropper.destroy();
+                cropper = null;
+            }
+        }
+    };
+    modal.addEventListener('keydown', handleKeydown);
+    modal._handleKeydown = handleKeydown;
+}
+function closeModal(modal) {
+    modal.style.display = 'none';
+    const handler = modal._handleKeydown;
+    if (handler && typeof modal.removeEventListener === 'function') {
+        modal.removeEventListener('keydown', handler);
+    }
+    modal._handleKeydown = null;
+    lastFocused === null || lastFocused === void 0 ? void 0 : lastFocused.focus();
+    lastFocused = null;
 }
