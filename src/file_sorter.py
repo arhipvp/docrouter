@@ -63,6 +63,23 @@ def sanitize_filename(name: str, replacement: str = "_") -> str:
     return INVALID_CHARS_PATTERN.sub(replacement, name)
 
 
+def sanitize_dirname(name: str, replacement: str = "_") -> str:
+    """Очистить имя каталога от недопустимых символов и ``..``.
+
+    :param name: исходное имя каталога.
+    :param replacement: символ для подстановки.
+    :return: безопасное имя каталога.
+    """
+    # Сначала применяем те же правила, что и для имён файлов
+    sanitized = sanitize_filename(name, replacement)
+    # Удаляем попытки перехода к родительским каталогам
+    sanitized = sanitized.replace("..", "")
+    # Убираем ведущие символы подстановки
+    if replacement:
+        sanitized = sanitized.lstrip(replacement)
+    return sanitized.strip()
+
+
 def transliterate(name: str) -> str:
     """Преобразовать *name* в латиницу.
 
@@ -154,6 +171,7 @@ def place_file(
 
     # Сначала person (или общий)
     person = normalize_person_name(metadata.get("person"))
+    person = sanitize_dirname(person or "")
     if not person or not str(person).strip():
         person = GENERAL_FOLDER_NAME
     metadata["person"] = person
@@ -164,19 +182,27 @@ def place_file(
     # Затем category/subcategory, игнорируя совпадения с person
     for key in ("category", "subcategory"):
         value = metadata.get(key)
+        if value:
+            value = sanitize_dirname(str(value))
         if value and str(value).strip().lower() != str(person).strip().lower():
             dest_dir /= str(value)
             if not dest_dir.exists():
                 missing.append(str(dest_dir.relative_to(base_dir)))
+            metadata[key] = value
         else:
             metadata[key] = None
 
     # Затем issuer (если есть)
     issuer = metadata.get("issuer")
     if issuer:
-        dest_dir /= str(issuer)
-        if not dest_dir.exists():
-            missing.append(str(dest_dir.relative_to(base_dir)))
+        issuer = sanitize_dirname(str(issuer))
+        if issuer:
+            dest_dir /= str(issuer)
+            if not dest_dir.exists():
+                missing.append(str(dest_dir.relative_to(base_dir)))
+            metadata["issuer"] = issuer
+        else:
+            metadata["issuer"] = None
 
     def _unique_path() -> tuple[Path, str]:
         dest = dest_dir / f"{base_new_name}{ext}"
