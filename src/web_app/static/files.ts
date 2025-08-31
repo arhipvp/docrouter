@@ -1,4 +1,5 @@
 import { openChatModal } from './chat.js';
+import { showError } from './notifications.js';
 
 let list: HTMLElement;
 let textPreview: HTMLElement;
@@ -70,7 +71,7 @@ export function setupFiles() {
       currentEditId = null;
       await refreshFiles();
     } else {
-      alert('Ошибка обновления');
+      showError('Ошибка обновления');
     }
   });
 
