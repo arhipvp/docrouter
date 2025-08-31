@@ -48,7 +48,6 @@ class FileRecord(BaseModel):
     translation_lang: Optional[str] = None
     chat_history: List[dict[str, Any]] = []
     sources: Optional[List[str]] = None
-    embedding: Optional[List[float]] = None
     suggested_path: Optional[str] = None
     created_path: Optional[str] = None
     confirmed: bool = False

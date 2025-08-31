@@ -9,8 +9,6 @@ from pathlib import Path
 from fastapi import APIRouter, HTTPException, Body
 from fastapi.responses import FileResponse, PlainTextResponse
 
-from file_utils.embeddings import get_embedding, cosine_similarity
-from services.openrouter import OpenRouterError
 from file_sorter import place_file
 from models import Metadata, FileRecord
 from .. import db as database, server
@@ -102,23 +100,6 @@ async def get_file_details(file_id: str, lang: str | None = None):
 async def list_files():
     return database.list_files()
 
-
-@router.get("/search/semantic")
-async def semantic_search(q: str):
-    """Семантический поиск по сохранённым документам."""
-    try:
-        query_vec = await get_embedding(q)
-    except OpenRouterError as exc:
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
-    results: list[dict[str, object]] = []
-    for rec in database.list_files():
-        emb = rec.embedding
-        if not emb:
-            continue
-        score = cosine_similarity(query_vec, emb)
-        results.append({"id": rec.id, "filename": rec.filename, "score": score})
-    results.sort(key=lambda x: x["score"], reverse=True)
-    return {"results": results}
 
 
 @router.patch("/files/{file_id}", response_model=FileRecord)

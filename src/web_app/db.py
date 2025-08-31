@@ -52,7 +52,6 @@ def init_db() -> None:
                 translation_lang TEXT,
                 chat_history TEXT,
                 sources TEXT,
-                embedding TEXT,
                 suggested_path TEXT,
                 created_path TEXT,
                 confirmed INTEGER
@@ -81,7 +80,6 @@ def _serialize_record(record: FileRecord) -> Dict[str, Any]:
         "translation_lang": record.translation_lang,
         "chat_history": json.dumps(record.chat_history, ensure_ascii=False),
         "sources": json.dumps(record.sources, ensure_ascii=False) if record.sources is not None else None,
-        "embedding": json.dumps(record.embedding, ensure_ascii=False) if record.embedding is not None else None,
         "suggested_path": record.suggested_path,
         "created_path": record.created_path,
         "confirmed": 1 if record.confirmed else 0,
@@ -109,7 +107,6 @@ def _row_to_record(row: sqlite3.Row) -> FileRecord:
         translation_lang=row["translation_lang"],
         chat_history=json.loads(row["chat_history"]) if row["chat_history"] else [],
         sources=json.loads(row["sources"]) if row["sources"] else None,
-        embedding=json.loads(row["embedding"]) if row["embedding"] else None,
         suggested_path=row["suggested_path"],
         created_path=row["created_path"],
         confirmed=bool(row["confirmed"]),
@@ -140,7 +137,6 @@ def add_file(
     sources: Optional[List[str]] = None,
     translated_text: str | None = None,
     translation_lang: str | None = None,
-    embedding: list[float] | None = None,
     suggested_path: str | None = None,
     confirmed: bool = False,
     created_path: str | None = None,
@@ -164,7 +160,6 @@ def add_file(
         translation_lang=translation_lang,
         chat_history=[],
         sources=sources,
-        embedding=embedding,
         suggested_path=suggested_path,
         created_path=created_path,
         confirmed=confirmed,
@@ -195,7 +190,6 @@ def update_file(
     sources: Optional[List[str]] = None,
     translated_text: str | None = None,
     translation_lang: str | None = None,
-    embedding: list[float] | None = None,
     suggested_path: str | None = None,
     confirmed: bool | None = None,
     created_path: str | None = None,
@@ -227,8 +221,6 @@ def update_file(
         record.translated_text = translated_text
     if translation_lang is not None:
         record.translation_lang = translation_lang
-    if embedding is not None:
-        record.embedding = embedding
     if suggested_path is not None:
         record.suggested_path = suggested_path
     if confirmed is not None:
