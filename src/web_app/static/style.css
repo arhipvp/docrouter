@@ -28,15 +28,17 @@ button:hover, input[type="submit"]:hover { background-color: #0056b3; }
 .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); justify-content: center; align-items: center; }
 .modal-content { background: #fff; padding: 1em; border-radius: 4px; width: 90%; max-width: 400px; }
 .modal .close { float: right; cursor: pointer; }
-  .modal .close:hover { color: #0056b3; }
-  #missing-list { list-style: none; padding: 0; margin: 1em 0; }
-  #missing-list li { margin: 0.2em 0; }
-  #suggested-path { word-break: break-all; font-family: monospace; }
+.modal .close:hover { color: #0056b3; }
+#missing-list { list-style: none; padding: 0; margin: 1em 0; }
+#missing-list li { margin: 0.2em 0; }
+#suggested-path { word-break: break-all; font-family: monospace; }
 #preview-modal .modal-content { width: 80%; height: 80%; max-width: 1000px; max-height: 800px; }
 #preview-frame { width: 100%; height: 100%; border: none; }
 
 #image-drop-area { border: 2px dashed #007bff; padding: 1em; text-align: center; margin-top: 1em; background: #fafafa; cursor: pointer; }
 #image-drop-area.dragover { background: #e0e0e0; }
+#select-images-btn { padding: 1em 2em; font-size: 1em; }
+#image-files { display: none; }
 #selected-images { list-style: none; padding: 0; margin-top: 1em; }
 #selected-images li { margin: 0.2em 0; }
 
@@ -72,6 +74,16 @@ button:hover, input[type="submit"]:hover { background-color: #0056b3; }
   gap: 0.5em;
 }
 
+/* from codex/add-camera-capture-to-image-input */
+@media (pointer: coarse) {
+  #image-drop-area {
+    border: none;
+    padding: 0;
+    background: none;
+  }
+}
+
+/* from main */
 @media (max-width: 600px) {
   .container { margin: 0; padding: 1em; }
   #folder-controls,

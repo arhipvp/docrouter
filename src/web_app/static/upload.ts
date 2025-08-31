@@ -11,6 +11,7 @@ let missingConfirm: HTMLElement;
 let suggestedPath: HTMLElement;
 let imageInput: HTMLInputElement;
 let imageDropArea: HTMLElement;
+let selectImagesBtn: HTMLElement;
 let imageList: HTMLElement;
 let uploadImagesBtn: HTMLElement;
 let imageEditModal: HTMLElement;
@@ -33,6 +34,7 @@ export function setupUpload() {
   suggestedPath = document.getElementById('suggested-path')!;
   imageInput = document.getElementById('image-files') as HTMLInputElement;
   imageDropArea = document.getElementById('image-drop-area')!;
+  selectImagesBtn = document.getElementById('select-images-btn')!;
   imageList = document.getElementById('selected-images')!;
   uploadImagesBtn = document.getElementById('upload-images-btn')!;
   imageEditModal = document.getElementById('edit-modal')!;
@@ -140,30 +142,40 @@ export function setupUpload() {
     }
   });
 
-  ['dragenter', 'dragover'].forEach(evt => {
-    imageDropArea.addEventListener(evt, (e) => {
-      e.preventDefault();
-      imageDropArea.classList.add('dragover');
-    });
-  });
+  const isTouchDevice = typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches;
 
-  ['dragleave', 'drop'].forEach(evt => {
-    imageDropArea.addEventListener(evt, (e) => {
-      e.preventDefault();
-      imageDropArea.classList.remove('dragover');
-    });
-  });
-
-  imageDropArea.addEventListener('drop', (e: DragEvent) => {
+  selectImagesBtn.addEventListener('click', () => imageInput.click());
+  selectImagesBtn.addEventListener('touchstart', (e) => {
     e.preventDefault();
-    const files = Array.from(e.dataTransfer?.files || []).filter((f: File) => f.type === 'image/jpeg');
-    if (files.length) {
-      imageFiles = files.map(f => ({ blob: f, name: f.name }));
-      currentImageIndex = 0;
-      renderImageList();
-      openImageEditModal(imageFiles[0]);
-    }
+    imageInput.click();
   });
+
+  if (!isTouchDevice) {
+    ['dragenter', 'dragover'].forEach(evt => {
+      imageDropArea.addEventListener(evt, (e) => {
+        e.preventDefault();
+        imageDropArea.classList.add('dragover');
+      });
+    });
+
+    ['dragleave', 'drop'].forEach(evt => {
+      imageDropArea.addEventListener(evt, (e) => {
+        e.preventDefault();
+        imageDropArea.classList.remove('dragover');
+      });
+    });
+
+    imageDropArea.addEventListener('drop', (e: DragEvent) => {
+      e.preventDefault();
+      const files = Array.from(e.dataTransfer?.files || []).filter((f: File) => f.type === 'image/jpeg');
+      if (files.length) {
+        imageFiles = files.map(f => ({ blob: f, name: f.name }));
+        currentImageIndex = 0;
+        renderImageList();
+        openImageEditModal(imageFiles[0]);
+      }
+    });
+  }
   imageDropArea.addEventListener('click', () => imageInput.click());
   uploadImagesBtn.addEventListener('click', () => uploadEditedImages());
 

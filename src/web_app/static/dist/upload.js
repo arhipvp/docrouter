@@ -19,6 +19,7 @@ let missingConfirm;
 let suggestedPath;
 let imageInput;
 let imageDropArea;
+let selectImagesBtn;
 let imageList;
 let uploadImagesBtn;
 let imageEditModal;
@@ -40,6 +41,7 @@ export function setupUpload() {
     suggestedPath = document.getElementById('suggested-path');
     imageInput = document.getElementById('image-files');
     imageDropArea = document.getElementById('image-drop-area');
+    selectImagesBtn = document.getElementById('select-images-btn');
     imageList = document.getElementById('selected-images');
     uploadImagesBtn = document.getElementById('upload-images-btn');
     imageEditModal = document.getElementById('edit-modal');
@@ -150,29 +152,37 @@ export function setupUpload() {
             openImageEditModal(imageFiles[0]);
         }
     });
-    ['dragenter', 'dragover'].forEach(evt => {
-        imageDropArea.addEventListener(evt, (e) => {
-            e.preventDefault();
-            imageDropArea.classList.add('dragover');
-        });
-    });
-    ['dragleave', 'drop'].forEach(evt => {
-        imageDropArea.addEventListener(evt, (e) => {
-            e.preventDefault();
-            imageDropArea.classList.remove('dragover');
-        });
-    });
-    imageDropArea.addEventListener('drop', (e) => {
-        var _a;
+    const isTouchDevice = typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches;
+    selectImagesBtn.addEventListener('click', () => imageInput.click());
+    selectImagesBtn.addEventListener('touchstart', (e) => {
         e.preventDefault();
-        const files = Array.from(((_a = e.dataTransfer) === null || _a === void 0 ? void 0 : _a.files) || []).filter((f) => f.type === 'image/jpeg');
-        if (files.length) {
-            imageFiles = files.map(f => ({ blob: f, name: f.name }));
-            currentImageIndex = 0;
-            renderImageList();
-            openImageEditModal(imageFiles[0]);
-        }
+        imageInput.click();
     });
+    if (!isTouchDevice) {
+        ['dragenter', 'dragover'].forEach(evt => {
+            imageDropArea.addEventListener(evt, (e) => {
+                e.preventDefault();
+                imageDropArea.classList.add('dragover');
+            });
+        });
+        ['dragleave', 'drop'].forEach(evt => {
+            imageDropArea.addEventListener(evt, (e) => {
+                e.preventDefault();
+                imageDropArea.classList.remove('dragover');
+            });
+        });
+        imageDropArea.addEventListener('drop', (e) => {
+            var _a;
+            e.preventDefault();
+            const files = Array.from(((_a = e.dataTransfer) === null || _a === void 0 ? void 0 : _a.files) || []).filter((f) => f.type === 'image/jpeg');
+            if (files.length) {
+                imageFiles = files.map(f => ({ blob: f, name: f.name }));
+                currentImageIndex = 0;
+                renderImageList();
+                openImageEditModal(imageFiles[0]);
+            }
+        });
+    }
     imageDropArea.addEventListener('click', () => imageInput.click());
     uploadImagesBtn.addEventListener('click', () => uploadEditedImages());
     document.addEventListener('keydown', (e) => {
