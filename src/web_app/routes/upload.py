@@ -10,6 +10,7 @@ from fastapi import APIRouter, UploadFile, File, HTTPException, Form
 from file_utils.embeddings import get_embedding
 from file_sorter import place_file, get_folder_tree
 from models import Metadata, UploadResponse
+from metadata_generation import OpenRouterError
 from .. import db as database, server
 
 router = APIRouter()
@@ -37,7 +38,13 @@ async def upload_file(
         lang = language or server.config.tesseract_lang
         text = server.extract_text(temp_path, language=lang)
         folder_tree = get_folder_tree(server.config.output_dir)
-        meta_result = await server.metadata_generation.generate_metadata(text, folder_tree=folder_tree)
+        try:
+            meta_result = await server.metadata_generation.generate_metadata(
+                text, folder_tree=folder_tree
+            )
+        except OpenRouterError as exc:
+            logger.exception("Metadata generation failed for %s", file.filename)
+            raise HTTPException(status_code=502, detail=str(exc)) from exc
         raw_meta = meta_result["metadata"]
         if isinstance(raw_meta, dict):
             metadata = Metadata(**raw_meta)
@@ -58,6 +65,8 @@ async def upload_file(
         )
         metadata = Metadata(**meta_dict)
 
+    except HTTPException:
+        raise
     except Exception as exc:  # pragma: no cover
         logger.exception("Upload/processing failed for %s", file.filename)
         raise HTTPException(status_code=500, detail=str(exc)) from exc
@@ -148,7 +157,13 @@ async def upload_images(
         lang = language or server.config.tesseract_lang
         text = server.extract_text(pdf_path, language=lang)
         folder_tree = get_folder_tree(server.config.output_dir)
-        meta_result = await server.metadata_generation.generate_metadata(text, folder_tree=folder_tree)
+        try:
+            meta_result = await server.metadata_generation.generate_metadata(
+                text, folder_tree=folder_tree
+            )
+        except OpenRouterError as exc:
+            logger.exception("Metadata generation failed for images")
+            raise HTTPException(status_code=502, detail=str(exc)) from exc
         raw_meta = meta_result["metadata"]
         if isinstance(raw_meta, dict):
             metadata = Metadata(**raw_meta)
@@ -167,6 +182,8 @@ async def upload_images(
             create_missing=False,
         )
         metadata = Metadata(**meta_dict)
+    except HTTPException:
+        raise
     except Exception as exc:  # pragma: no cover
         logger.exception("Upload/processing failed for images")
         raise HTTPException(status_code=500, detail=str(exc)) from exc
