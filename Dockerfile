@@ -20,9 +20,11 @@ WORKDIR /app
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY . .
+# Create a non-root user ahead of time to avoid expensive chown operations
+RUN useradd -m app
 
-RUN useradd -m app && chown -R app /app
+# Copy source code and assign ownership in one step
+COPY --chown=app:app . .
 
 EXPOSE 8000
 
