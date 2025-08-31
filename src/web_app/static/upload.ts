@@ -22,6 +22,7 @@ let saveBtn: HTMLElement | null;
 let cropper: any = null;
 let currentImageIndex = -1;
 let imageFiles: Array<{ blob: Blob; name: string }> = [];
+let lastFocused: HTMLElement | null = null;
 
 export function setupUpload() {
   form = document.querySelector('form') as HTMLFormElement;
@@ -54,7 +55,7 @@ export function setupUpload() {
         imageFiles[currentImageIndex] = { blob, name };
         renderImageList();
       }
-      imageEditModal.style.display = 'none';
+      closeModal(imageEditModal);
       cropper.destroy();
       cropper = null;
       const nextIndex = currentImageIndex + 1;
@@ -96,7 +97,7 @@ export function setupUpload() {
             li.textContent = path;
             missingList.appendChild(li);
           });
-          missingModal.style.display = 'flex';
+          openModal(missingModal);
           missingConfirm.onclick = async () => {
             try {
               const resp = await fetch(`/files/${result.id}/finalize`, {
@@ -106,7 +107,7 @@ export function setupUpload() {
               });
               if (!resp.ok) throw new Error();
               const finalData = await resp.json();
-              missingModal.style.display = 'none';
+              closeModal(missingModal);
               sent.textContent = finalData.prompt || '';
               received.textContent = finalData.raw_response || '';
               form.reset();
@@ -178,14 +179,17 @@ export function setupUpload() {
   }
   imageDropArea.addEventListener('click', () => imageInput.click());
   uploadImagesBtn.addEventListener('click', () => uploadEditedImages());
-
-  document.addEventListener('keydown', (e) => {
-    if (e.key !== 'Escape') return;
-    if (imageEditModal.style.display === 'flex') {
-      imageEditModal.style.display = 'none';
-    }
-    if (missingModal.style.display === 'flex') {
-      missingModal.style.display = 'none';
+  const editClose = imageEditModal.querySelector('.close') as HTMLElement | null;
+  editClose?.addEventListener('click', () => {
+    closeModal(imageEditModal);
+    cropper?.destroy();
+    cropper = null;
+  });
+  imageEditModal.addEventListener('click', (e) => {
+    if (e.target === imageEditModal) {
+      closeModal(imageEditModal);
+      cropper?.destroy();
+      cropper = null;
     }
   });
 }
@@ -217,7 +221,7 @@ function openImageEditModal(fileObj: { blob: Blob; name: string }) {
     URL.revokeObjectURL(url);
   };
   img.src = url;
-  imageEditModal.style.display = 'flex';
+  openModal(imageEditModal);
 }
 
 async function uploadEditedImages() {
@@ -241,4 +245,52 @@ async function uploadEditedImages() {
   } else {
     alert('Ошибка загрузки');
   }
+}
+
+function openModal(modal: HTMLElement) {
+  lastFocused = document.activeElement as HTMLElement;
+  modal.style.display = 'flex';
+  const focusable = modal.querySelectorAll<HTMLElement>(
+    'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+  );
+  const first = (focusable[0] || modal) as HTMLElement;
+  if (typeof (first as any).focus === 'function') {
+    (first as any).focus();
+  }
+  const handleKeydown = (e: KeyboardEvent) => {
+    if (e.key === 'Tab') {
+      const items = modal.querySelectorAll<HTMLElement>(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      );
+      if (!items.length) return;
+      const firstEl = items[0];
+      const lastEl = items[items.length - 1];
+      if (e.shiftKey && document.activeElement === firstEl) {
+        e.preventDefault();
+        lastEl.focus();
+      } else if (!e.shiftKey && document.activeElement === lastEl) {
+        e.preventDefault();
+        firstEl.focus();
+      }
+    } else if (e.key === 'Escape') {
+      closeModal(modal);
+      if (modal === imageEditModal) {
+        cropper?.destroy();
+        cropper = null;
+      }
+    }
+  };
+  modal.addEventListener('keydown', handleKeydown);
+  (modal as any)._handleKeydown = handleKeydown;
+}
+
+function closeModal(modal: HTMLElement) {
+  modal.style.display = 'none';
+  const handler = (modal as any)._handleKeydown;
+  if (handler && typeof (modal as any).removeEventListener === 'function') {
+    modal.removeEventListener('keydown', handler);
+  }
+  (modal as any)._handleKeydown = null;
+  lastFocused?.focus();
+  lastFocused = null;
 }

@@ -79,9 +79,9 @@
         </div>
     </div>
 
-    <div id="edit-modal" class="modal">
+    <div id="edit-modal" class="modal" role="dialog" aria-modal="true">
         <div class="modal-content">
-            <span class="close" data-close="edit-modal">&times;</span>
+            <span class="close" data-close="edit-modal" aria-label="Закрыть">&times;</span>
             <canvas id="edit-canvas"></canvas>
             <div class="modal-buttons">
                 <button id="rotate-left-btn" type="button">Повернуть влево</button>
@@ -91,9 +91,9 @@
         </div>
     </div>
 
-    <div id="metadata-modal" class="modal">
+    <div id="metadata-modal" class="modal" role="dialog" aria-modal="true">
         <div class="modal-content">
-            <span class="close" data-close="metadata-modal">&times;</span>
+            <span class="close" data-close="metadata-modal" aria-label="Закрыть">&times;</span>
             <h3>Редактировать метаданные</h3>
             <form id="edit-form">
                 <label>Категория: <input type="text" id="edit-category" /></label>
@@ -110,7 +110,7 @@
         </div>
     </div>
 
-    <div id="missing-modal" class="modal">
+    <div id="missing-modal" class="modal" role="dialog" aria-modal="true">
         <div class="modal-content">
             <h3>Создать недостающие папки?</h3>
             <p id="suggested-path"></p>
@@ -119,33 +119,33 @@
         </div>
     </div>
 
-    <div id="rename-modal" class="modal">
+    <div id="rename-modal" class="modal" role="dialog" aria-modal="true">
         <div class="modal-content">
-            <span class="close" data-close="rename-modal">&times;</span>
+            <span class="close" data-close="rename-modal" aria-label="Закрыть">&times;</span>
             <h3>Переименовать папку</h3>
             <input type="text" id="rename-input" />
             <button id="rename-confirm">Сохранить</button>
         </div>
     </div>
 
-    <div id="delete-modal" class="modal">
+    <div id="delete-modal" class="modal" role="dialog" aria-modal="true">
         <div class="modal-content">
-            <span class="close" data-close="delete-modal">&times;</span>
+            <span class="close" data-close="delete-modal" aria-label="Закрыть">&times;</span>
             <p>Удалить папку <span id="delete-target"></span>?</p>
             <button id="delete-confirm">Удалить</button>
         </div>
     </div>
 
-    <div id="preview-modal" class="modal">
+    <div id="preview-modal" class="modal" role="dialog" aria-modal="true">
         <div class="modal-content">
-            <span class="close" data-close="preview-modal">&times;</span>
+            <span class="close" data-close="preview-modal" aria-label="Закрыть">&times;</span>
             <iframe id="preview-frame"></iframe>
         </div>
     </div>
 
-    <div id="chat-modal" class="modal">
+    <div id="chat-modal" class="modal" role="dialog" aria-modal="true">
         <div class="modal-content">
-            <span class="close" data-close="chat-modal">&times;</span>
+            <span class="close" data-close="chat-modal" aria-label="Закрыть">&times;</span>
             <div id="chat-history"></div>
             <form id="chat-form">
                 <input type="text" id="chat-input" placeholder="Сообщение" />
