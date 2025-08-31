@@ -22,6 +22,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
+RUN useradd -m app && chown -R app /app
+
 EXPOSE 8000
+
+USER app
 
 CMD ["python", "main.py"]
