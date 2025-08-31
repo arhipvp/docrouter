@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import logging
 from abc import ABC, abstractmethod
+from pathlib import Path
 from typing import Any, Dict, Optional, Callable
 
 import httpx
@@ -193,6 +194,11 @@ async def generate_metadata(
         "needs_new_folder": False,
     }
     defaults.update(metadata or {})
+
+    suggested_filename = defaults.get("suggested_filename")
+    if suggested_filename:
+        defaults["suggested_name"] = Path(suggested_filename).stem
+
     mrz_info = parse_mrz(text)
     if mrz_info:
         if defaults.get("person") in (None, "") and mrz_info.get("person"):
