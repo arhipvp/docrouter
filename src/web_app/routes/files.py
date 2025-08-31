@@ -4,6 +4,7 @@ import json
 import logging
 import mimetypes
 import shutil
+import hashlib
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Body
@@ -17,6 +18,34 @@ from .folders import _resolve_in_output
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+
+
+def _scan_output_dir() -> None:
+    """Просканировать выходную папку и добавить новые файлы в БД."""
+    output_dir = Path(server.config.output_dir)
+    if not output_dir.exists():
+        return
+
+    existing_paths = {Path(rec.path) for rec in database.list_files()}
+
+    for file_path in output_dir.rglob("*"):
+        if file_path.is_dir() or file_path.suffix == ".json":
+            continue
+        if file_path in existing_paths:
+            continue
+
+        metadata = Metadata()
+        meta_file = file_path.with_suffix(file_path.suffix + ".json")
+        if meta_file.exists():
+            try:
+                meta_dict = json.loads(meta_file.read_text(encoding="utf-8"))
+                metadata = Metadata(**meta_dict)
+            except Exception:  # pragma: no cover
+                logger.warning("Failed to load metadata for %s", file_path)
+
+        file_id = hashlib.sha1(str(file_path).encode("utf-8")).hexdigest()
+        database.add_file(file_id, file_path.name, metadata, str(file_path), "processed")
+        existing_paths.add(file_path)
 
 
 @router.get("/metadata/{file_id}", response_model=Metadata)
@@ -98,6 +127,7 @@ async def get_file_details(file_id: str, lang: str | None = None):
 
 @router.get("/files", response_model=list[FileRecord])
 async def list_files():
+    _scan_output_dir()
     return database.list_files()
 
 
