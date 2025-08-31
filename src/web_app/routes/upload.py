@@ -19,6 +19,10 @@ logger = logging.getLogger(__name__)
 UPLOAD_DIR = Path("uploads")
 UPLOAD_DIR.mkdir(exist_ok=True)
 
+# Сопоставление пользовательских кодов языков с кодами tesseract
+LANG_MAP = {"en": "eng", "ru": "rus", "de": "deu"}
+REV_LANG_MAP = {v: k for k, v in LANG_MAP.items()}
+
 
 @router.post("/upload", response_model=UploadResponse)
 async def upload_file(
@@ -39,8 +43,11 @@ async def upload_file(
             dest.write(contents)
 
         # Извлечение текста + генерация метаданных
-        lang = language or server.config.tesseract_lang
-        text = server.extract_text(temp_path, language=lang)
+        lang_display = language or REV_LANG_MAP.get(
+            server.config.tesseract_lang, server.config.tesseract_lang
+        )
+        lang_ocr = LANG_MAP.get(lang_display, lang_display)
+        text = server.extract_text(temp_path, language=lang_ocr)
         folder_tree = get_folder_tree(server.config.output_dir)
         try:
             meta_result = await server.metadata_generation.generate_metadata(
@@ -55,7 +62,7 @@ async def upload_file(
         else:
             metadata = raw_meta
         metadata.extracted_text = text
-        metadata.language = lang
+        metadata.language = lang_display
 
         meta_dict = metadata.model_dump()
         # Раскладываем файл по директориям без создания недостающих
@@ -162,8 +169,11 @@ async def upload_images(
     shutil.rmtree(temp_dir, ignore_errors=True)
 
     try:
-        lang = language or server.config.tesseract_lang
-        text = server.extract_text(pdf_path, language=lang)
+        lang_display = language or REV_LANG_MAP.get(
+            server.config.tesseract_lang, server.config.tesseract_lang
+        )
+        lang_ocr = LANG_MAP.get(lang_display, lang_display)
+        text = server.extract_text(pdf_path, language=lang_ocr)
         folder_tree = get_folder_tree(server.config.output_dir)
         try:
             meta_result = await server.metadata_generation.generate_metadata(
@@ -178,7 +188,7 @@ async def upload_images(
         else:
             metadata = raw_meta
         metadata.extracted_text = text
-        metadata.language = lang
+        metadata.language = lang_display
 
         meta_dict = metadata.model_dump()
         dest_path, missing, confirmed = place_file(
