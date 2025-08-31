@@ -126,7 +126,9 @@ def place_file(
     missing: List[str] = []
 
     # Сначала person (или общий)
-    person = metadata.get("person") or GENERAL_FOLDER_NAME
+    person = metadata.get("person")
+    if not person or not str(person).strip():
+        person = GENERAL_FOLDER_NAME
     metadata["person"] = person
     dest_dir /= str(person)
     if not dest_dir.exists():

@@ -97,8 +97,8 @@ def test_response_format_in_extra_body(monkeypatch):
     monkeypatch.setattr("metadata_generation.httpx.AsyncClient.post", fake_post)
 
     asyncio.run(generate_metadata("text"))
-    assert "extra_body" in captured["json"]
-    assert captured["json"]["extra_body"] == {"response_format": {"type": "json_object"}}
+    assert "response_format" in captured["json"]
+    assert captured["json"]["response_format"] == {"type": "json_object"}
 
 
 def test_multilanguage_tags_parsing(monkeypatch):

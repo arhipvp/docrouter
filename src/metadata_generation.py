@@ -74,6 +74,33 @@ def get_analyzer(name: str) -> type["MetadataAnalyzer"]:
     return _ANALYZER_REGISTRY[name]
 
 
+def _parse_person_from_text(text: str) -> Optional[str]:
+    """Попытаться извлечь ФИО владельца из текста документа.
+
+    Ориентируемся на ключевые слова "Фамилия", "Имя", "Отчество" и
+    комбинируем найденные значения.
+    """
+
+    patterns = {
+        "surname": r"Фамилия[:\s]+([A-Za-zА-Яа-яЁё-]+)",
+        "name": r"Имя[:\s]+([A-Za-zА-Яа-яЁё-]+)",
+        "patronymic": r"Отчество[:\s]+([A-Za-zА-Яа-яЁё-]+)",
+    }
+
+    found: dict[str, str] = {}
+    for key, pattern in patterns.items():
+        match = re.search(pattern, text, flags=re.IGNORECASE)
+        if match:
+            found[key] = match.group(1).strip()
+
+    if not found:
+        return None
+
+    parts = [found.get("surname"), found.get("name"), found.get("patronymic")]
+    person = " ".join(part for part in parts if part)
+    return person or None
+
+
 __all__ = [
     "generate_metadata",
     "MetadataAnalyzer",
@@ -265,6 +292,12 @@ async def generate_metadata(
         for key in ("date_of_birth", "expiration_date", "passport_number"):
             if mrz_info.get(key):
                 defaults[key] = mrz_info[key]
+
+    # Если LLM и MRZ не дали владельца, пробуем извлечь из текста документа
+    if not (defaults.get("person") or "").strip():
+        parsed_person = _parse_person_from_text(text)
+        if parsed_person:
+            defaults["person"] = parsed_person
 
     # Единый список тегов без дублей
     tag_values = []
