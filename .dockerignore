@@ -8,3 +8,4 @@ logs/
 uploads/
 sorted/
 tests/
+node_modules/
