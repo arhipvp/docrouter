@@ -5,6 +5,7 @@ from typing import Any, Dict
 import pytest
 
 from metadata_generation import generate_metadata, MetadataAnalyzer
+from file_sorter import build_folder_index
 from services.openrouter import OpenRouterError
 from models import Metadata
 
@@ -14,6 +15,7 @@ class DummyAnalyzer(MetadataAnalyzer):
         self,
         text: str,
         folder_tree: Dict[str, Any] | None = None,
+        folder_index: Dict[str, Any] | None = None,
         file_info: Dict[str, Any] | None = None,
     ) -> Dict[str, Any]:
         return {"prompt": None, "raw_response": None, "metadata": {}}
@@ -57,21 +59,31 @@ def test_prompt_includes_context(monkeypatch):
             "children": [{"name": "Банки", "path": "Финансы/Банки", "children": []}],
         }
     ]
+    index = {"иванов иван": {"финансы": "Иванов Иван/Финансы"}}
     file_info = {"name": "invoice", "extension": ".pdf", "size": 100, "type": "pdf"}
     result = asyncio.run(
-        generate_metadata("text", folder_tree=tree, file_info=file_info)
+        generate_metadata(
+            "text", folder_tree=tree, folder_index=index, file_info=file_info
+        )
     )
     prompt = captured["prompt"]
-    instruction = "Если ни одна папка не подходит, предложи новую category/subcategory."
     tree_json = json.dumps(tree, ensure_ascii=False)
+    index_json = json.dumps(index, ensure_ascii=False)
+    instruction_part1 = "Если ни одна папка не подходит, предложи новую category/subcategory."
+    instruction_part2 = (
+        "Выбирай person/category строго из Existing folders index, если совпадение найдено; needs_new_folder=true только при полном отсутствии."
+    )
     assert tree_json in prompt
+    assert index_json in prompt
     assert file_info["name"] in prompt
     assert file_info["extension"] in prompt
     assert str(file_info["size"]) in prompt
     assert file_info["type"] in prompt
     assert "contracts" in prompt
-    assert instruction in prompt
+    assert instruction_part1 in prompt
+    assert instruction_part2 in prompt
     assert tree_json in result["prompt"]
+    assert index_json in result["prompt"]
     assert result["metadata"].needs_new_folder is True
 
 
@@ -172,6 +184,7 @@ class DummyFilenameAnalyzer(MetadataAnalyzer):
         self,
         text: str,
         folder_tree: Dict[str, Any] | None = None,
+        folder_index: Dict[str, Any] | None = None,
         file_info: Dict[str, Any] | None = None,
     ) -> Dict[str, Any]:
         return {
@@ -205,3 +218,34 @@ def test_generate_metadata_parses_military_id_date():
     result = asyncio.run(generate_metadata(text, analyzer=DummyAnalyzer()))
     meta: Metadata = result["metadata"]
     assert meta.date == "2020-04-15"
+
+
+def test_folder_index_reuses_existing_folder(tmp_path):
+    (tmp_path / "BONCH-OSMOLOVSKAIA, Natalia" / "Taxes").mkdir(parents=True)
+    index = build_folder_index(tmp_path)
+
+    class Analyzer(MetadataAnalyzer):
+        async def analyze(
+            self,
+            text: str,
+            folder_tree: Dict[str, Any] | None = None,
+            folder_index: Dict[str, Any] | None = None,
+            file_info: Dict[str, Any] | None = None,
+        ) -> Dict[str, Any]:
+            return {
+                "prompt": None,
+                "raw_response": None,
+                "metadata": {
+                    "person": "Natalia Bonch-Osmolovskaia",
+                    "category": "Taxes",
+                    "needs_new_folder": True,
+                },
+            }
+
+    result = asyncio.run(
+        generate_metadata("text", analyzer=Analyzer(), folder_index=index)
+    )
+    meta: Metadata = result["metadata"]
+    assert meta.person == "BONCH-OSMOLOVSKAIA, Natalia"
+    assert meta.category == "Taxes"
+    assert meta.needs_new_folder is False

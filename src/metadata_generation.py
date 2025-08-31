@@ -120,6 +120,7 @@ class MetadataAnalyzer(ABC):
         self,
         text: str,
         folder_tree: Optional[Dict[str, Any]] = None,
+        folder_index: Optional[Dict[str, Any]] = None,
         file_info: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """Analyze *text* and return a dict with keys ``prompt``, ``raw_response`` and ``metadata``."""
@@ -151,10 +152,13 @@ class OpenRouterAnalyzer(MetadataAnalyzer):
         self,
         text: str,
         folder_tree: Optional[Dict[str, Any]] = None,
+        folder_index: Optional[Dict[str, Any]] = None,
         file_info: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         # Единый шаблон промпта
-        prompt = build_metadata_prompt(text, folder_tree=folder_tree, file_info=file_info)
+        prompt = build_metadata_prompt(
+            text, folder_tree=folder_tree, folder_index=folder_index, file_info=file_info
+        )
 
         payload = {
             "model": self.model,
@@ -233,6 +237,7 @@ async def generate_metadata(
     analyzer: Optional[MetadataAnalyzer] = None,
     *,
     folder_tree: Optional[Dict[str, Any]] = None,
+    folder_index: Optional[Dict[str, Any]] = None,
     file_info: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """Generate metadata for *text* using the provided *analyzer*.
@@ -248,7 +253,9 @@ async def generate_metadata(
     if analyzer is None:
         analyzer = OpenRouterAnalyzer()
 
-    result = await analyzer.analyze(text, folder_tree=folder_tree, file_info=file_info)
+    result = await analyzer.analyze(
+        text, folder_tree=folder_tree, folder_index=folder_index, file_info=file_info
+    )
     metadata = result.get("metadata", {})
 
     defaults = {
@@ -302,6 +309,27 @@ async def generate_metadata(
 
     if defaults.get("person"):
         defaults["person"] = normalize_person_name(defaults["person"])
+
+    if folder_index:
+        def _person_key(name: str | None) -> str:
+            norm = normalize_person_name(name) or ""
+            parts = norm.lower().split()
+            return " ".join(sorted(parts))
+
+        def _category_key(name: str | None) -> str:
+            return (name or "").strip().lower()
+
+        p_key = _person_key(defaults.get("person"))
+        c_key = _category_key(defaults.get("category"))
+        person_map = folder_index.get(p_key)
+        if person_map and c_key in person_map:
+            rel = Path(person_map[c_key])
+            parts = rel.parts
+            if parts:
+                defaults["person"] = parts[0]
+            if len(parts) > 1:
+                defaults["category"] = parts[1]
+            defaults["needs_new_folder"] = False
 
     # Единый список тегов без дублей
     tag_values = []

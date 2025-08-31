@@ -62,7 +62,12 @@ class LiveClient:
         return self.session.delete(self.base_url + path, **kwargs)
 
 
-async def _mock_generate_metadata(text: str, folder_tree=None):
+async def _mock_generate_metadata(
+    text: str,
+    folder_tree=None,
+    folder_index=None,
+    file_info=None,
+):
     """Детерминированные метаданные для стабильных проверок."""
     meta = Metadata(
         person="John Doe",
@@ -377,7 +382,7 @@ def test_upload_pending_then_finalize(tmp_path, monkeypatch):
         with open(path, "r", encoding="utf-8") as f:
             return f.read()
 
-    async def _metadata_pending(text: str, folder_tree=None):
+    async def _metadata_pending(text: str, folder_tree=None, folder_index=None, file_info=None):
         meta = Metadata(
             category="Финансы",
             subcategory="Банки",

@@ -17,6 +17,36 @@ except Exception:  # pragma: no cover
 
 logger = logging.getLogger(__name__)
 
+
+def _normalize_person_key(name: str | None) -> str:
+    norm = normalize_person_name(name) or ""
+    parts = norm.lower().split()
+    return " ".join(sorted(parts))
+
+
+def _normalize_category_key(name: str | None) -> str:
+    return (name or "").strip().lower()
+
+
+def build_folder_index(root_dir: str | Path) -> Dict[str, Dict[str, str]]:
+    """Построить индекс существующих папок.
+
+    Возвращает структуру ``{normalized_person: {normalized_category: path}}``.
+    """
+    root = Path(root_dir).resolve()
+    index: Dict[str, Dict[str, str]] = {}
+    if not root.exists():
+        return index
+
+    for person_dir in sorted(p for p in root.iterdir() if p.is_dir()):
+        person_key = _normalize_person_key(person_dir.name)
+        categories: Dict[str, str] = {}
+        for cat_dir in sorted(p for p in person_dir.iterdir() if p.is_dir()):
+            cat_key = _normalize_category_key(cat_dir.name)
+            categories[cat_key] = str(cat_dir.relative_to(root))
+        index[person_key] = categories
+    return index
+
 # Запрещённые для имён файлов символы (Windows-совместимо)
 INVALID_CHARS_PATTERN = re.compile(r'[<>:"/\\|?*]')
 # Паттерн даты YYYY-MM-DD для удаления из suggested_name
@@ -43,16 +73,10 @@ def transliterate(name: str) -> str:
     return unidecode(name)
 
 
-def get_folder_tree(root_dir: str | Path) -> List[Dict[str, Any]]:
-    """Построить список словарей с деревом папок, начиная с *root_dir*.
-
-    Каждый узел содержит поля ``name`` и ``path`` (относительный путь от
-    ``root_dir``) и список ``children``. Пустые каталоги имеют пустой список
-    ``children``.
-
-    :param root_dir: корневая директория, которую нужно просканировать.
-    :return: список словарей, описывающих структуру папок.
-    """
+def get_folder_tree(
+    root_dir: str | Path,
+) -> Tuple[List[Dict[str, Any]], Dict[str, Dict[str, str]]]:
+    """Построить дерево папок и индекс существующих категорий."""
     root = Path(root_dir).resolve()
 
     def build(node: Path) -> Dict[str, Any]:
@@ -64,9 +88,11 @@ def get_folder_tree(root_dir: str | Path) -> List[Dict[str, Any]]:
         }
 
     if not root.exists():
-        return []
+        return [], {}
 
-    return [build(p) for p in sorted(root.iterdir()) if p.is_dir()]
+    tree = [build(p) for p in sorted(root.iterdir()) if p.is_dir()]
+    index = build_folder_index(root)
+    return tree, index
 
 
 def place_file(

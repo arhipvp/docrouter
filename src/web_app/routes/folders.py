@@ -20,5 +20,6 @@ def _resolve_in_output(relative: str) -> Path:
 @router.get("/folder-tree")
 async def folder_tree():
     """Вернуть структуру папок в выходном каталоге."""
-    return get_folder_tree(server.config.output_dir)
+    tree, _ = get_folder_tree(server.config.output_dir)
+    return tree
 
