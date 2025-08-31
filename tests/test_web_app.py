@@ -9,6 +9,7 @@ import requests
 import uvicorn
 from PIL import Image
 import pytest
+import httpx
 
 # Добавляем путь к src ДО импорта сервера
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", "src"))
@@ -173,6 +174,37 @@ def test_upload_retrieve_and_download(tmp_path, monkeypatch):
         assert record.person == "John Doe"
         assert record.date_of_birth == "1990-01-02"
         assert record.expiration_date == "2030-01-02"
+
+
+def test_translation_error_returns_502(tmp_path, monkeypatch):
+    server.database.init_db()
+
+    def _mock_extract_text(path, language="eng"):
+        with open(path, "r", encoding="utf-8") as f:
+            return f.read()
+
+    monkeypatch.setattr(server, "extract_text", _mock_extract_text)
+    monkeypatch.setattr(server.metadata_generation, "generate_metadata", _mock_generate_metadata)
+    server.config.output_dir = str(tmp_path)
+    (tmp_path / "John Doe").mkdir()
+
+    with LiveClient(app) as client:
+        resp = client.post(
+            "/upload",
+            data={"language": "de"},
+            files={"file": ("example.txt", b"content")},
+        )
+        assert resp.status_code == 200
+        file_id = resp.json()["id"]
+
+        async def _raise_http_error(text, target_lang):
+            raise httpx.HTTPError("boom")
+
+        monkeypatch.setattr(server, "translate_text", _raise_http_error)
+
+        translated = client.get(f"/download/{file_id}?lang=en")
+        assert translated.status_code == 502
+        assert translated.json()["detail"] == "Translation service unavailable"
 
 
 def test_upload_images_returns_sources(tmp_path, monkeypatch):

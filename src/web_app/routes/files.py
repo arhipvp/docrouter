@@ -6,6 +6,7 @@ import mimetypes
 import shutil
 import hashlib
 from pathlib import Path
+import httpx
 
 from fastapi import APIRouter, HTTPException, Body
 from fastapi.responses import FileResponse, PlainTextResponse
@@ -103,7 +104,13 @@ async def download_file(file_id: str, lang: str | None = None):
         elif record.translation_lang == lang and record.translated_text:
             text = record.translated_text
         else:
-            text = await server.translate_text(extracted, lang)
+            try:
+                text = await server.translate_text(extracted, lang)
+            except httpx.HTTPError as e:
+                raise HTTPException(
+                    status_code=502,
+                    detail="Translation service unavailable",
+                ) from e
             database.update_file(
                 file_id,
                 translated_text=text,
@@ -145,7 +152,13 @@ async def get_file_details(file_id: str, lang: str | None = None):
         elif record.translation_lang == lang and record.translated_text:
             text = record.translated_text
         else:
-            text = await server.translate_text(extracted, lang)
+            try:
+                text = await server.translate_text(extracted, lang)
+            except httpx.HTTPError as e:
+                raise HTTPException(
+                    status_code=502,
+                    detail="Translation service unavailable",
+                ) from e
             database.update_file(
                 file_id,
                 translated_text=text,
