@@ -42,6 +42,7 @@ export function setupFiles() {
   nameLatinRadio = document.getElementById('name-latin') as HTMLInputElement;
   nameOriginalLabel = document.getElementById('name-original-label');
   nameLatinLabel = document.getElementById('name-latin-label');
+  const refreshBtn = document.getElementById('refresh-btn');
 
   displayLangSelect?.addEventListener('change', () => {
     displayLang = displayLangSelect.value;
@@ -132,6 +133,10 @@ export function setupFiles() {
   });
   nameLatinRadio?.addEventListener('change', () => {
     if (nameLatinRadio.checked) editName.value = nameLatinRadio.value;
+  });
+
+  refreshBtn?.addEventListener('click', () => {
+    refreshFiles();
   });
 
   refreshFiles();
