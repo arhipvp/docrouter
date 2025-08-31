@@ -5,6 +5,7 @@ import logging
 import mimetypes
 import shutil
 import hashlib
+import time
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Body
@@ -18,6 +19,37 @@ from .folders import _resolve_in_output
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+
+SCAN_CACHE_TTL = 5.0  # seconds
+_last_scan_time = 0.0
+_last_upload_mtime = 0.0
+
+
+def _latest_upload_mtime() -> float:
+    """Вернуть максимальное время изменения в каталоге загрузок."""
+    if not UPLOAD_DIR.exists():
+        return 0.0
+    mtimes = [UPLOAD_DIR.stat().st_mtime]
+    for path in UPLOAD_DIR.rglob("*"):
+        try:
+            mtimes.append(path.stat().st_mtime)
+        except FileNotFoundError:
+            continue
+        except PermissionError:
+            continue
+    return max(mtimes)
+
+
+def _should_rescan() -> bool:
+    """Нужно ли повторно сканировать выходной каталог."""
+    global _last_scan_time, _last_upload_mtime
+    now = time.time()
+    latest_upload = _latest_upload_mtime()
+    if (now - _last_scan_time > SCAN_CACHE_TTL) or (latest_upload > _last_upload_mtime):
+        _last_scan_time = now
+        _last_upload_mtime = latest_upload
+        return True
+    return False
 
 
 def _scan_output_dir() -> None:
@@ -160,7 +192,8 @@ async def get_file_details(file_id: str, lang: str | None = None):
 
 @router.get("/files", response_model=list[FileRecord])
 async def list_files():
-    _scan_output_dir()
+    if _should_rescan():
+        _scan_output_dir()
     return database.list_files()
 
 
