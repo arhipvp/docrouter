@@ -11,7 +11,10 @@ from models import Metadata
 
 class DummyAnalyzer(MetadataAnalyzer):
     async def analyze(
-        self, text: str, folder_tree: Dict[str, Any] | None = None
+        self,
+        text: str,
+        folder_tree: Dict[str, Any] | None = None,
+        file_info: Dict[str, Any] | None = None,
     ) -> Dict[str, Any]:
         return {"prompt": None, "raw_response": None, "metadata": {}}
 
@@ -22,7 +25,7 @@ def test_generate_metadata_without_api_key(monkeypatch):
         asyncio.run(generate_metadata("text"))
 
 
-def test_folder_tree_in_prompt(monkeypatch):
+def test_prompt_includes_context(monkeypatch):
     captured: dict[str, str] = {}
 
     class DummyResponse:
@@ -54,13 +57,21 @@ def test_folder_tree_in_prompt(monkeypatch):
             "children": [{"name": "Банки", "path": "Финансы/Банки", "children": []}],
         }
     ]
-    result = asyncio.run(generate_metadata("text", folder_tree=tree))
+    file_info = {"name": "invoice", "extension": ".pdf", "size": 100, "type": "pdf"}
+    result = asyncio.run(
+        generate_metadata("text", folder_tree=tree, file_info=file_info)
+    )
+    prompt = captured["prompt"]
     instruction = "Если ни одна папка не подходит, предложи новую category/subcategory."
     tree_json = json.dumps(tree, ensure_ascii=False)
-    assert tree_json in captured["prompt"]
+    assert tree_json in prompt
+    assert file_info["name"] in prompt
+    assert file_info["extension"] in prompt
+    assert str(file_info["size"]) in prompt
+    assert file_info["type"] in prompt
+    assert "contracts" in prompt
+    assert instruction in prompt
     assert tree_json in result["prompt"]
-    assert instruction in captured["prompt"]
-    assert instruction in result["prompt"]
     assert result["metadata"].needs_new_folder is True
 
 
@@ -158,12 +169,21 @@ def test_generate_metadata_parses_mrz():
 
 class DummyFilenameAnalyzer(MetadataAnalyzer):
     async def analyze(
-        self, text: str, folder_tree: Dict[str, Any] | None = None
+        self,
+        text: str,
+        folder_tree: Dict[str, Any] | None = None,
+        file_info: Dict[str, Any] | None = None,
     ) -> Dict[str, Any]:
         return {
             "prompt": None,
             "raw_response": None,
-            "metadata": {"suggested_filename": "invoice.pdf"},
+            "metadata": {
+                "suggested_filename": "invoice.pdf",
+                "counterparty": "ACME",
+                "document_number": "42",
+                "due_date": "2024-12-31",
+                "currency": "EUR",
+            },
         }
 
 
@@ -174,3 +194,7 @@ def test_generate_metadata_extracts_suggested_name():
     meta: Metadata = result["metadata"]
     assert meta.suggested_filename == "invoice.pdf"
     assert meta.suggested_name == "invoice"
+    assert meta.counterparty == "ACME"
+    assert meta.document_number == "42"
+    assert meta.due_date == "2024-12-31"
+    assert meta.currency == "EUR"

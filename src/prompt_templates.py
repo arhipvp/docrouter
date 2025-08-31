@@ -1,0 +1,35 @@
+from __future__ import annotations
+
+import json
+from typing import Any, Dict, Optional
+
+
+def build_metadata_prompt(
+    text: str,
+    *,
+    folder_tree: Optional[Dict[str, Any]] = None,
+    file_info: Optional[Dict[str, Any]] = None,
+) -> str:
+    """Сформировать промт для извлечения метаданных."""
+    tree_json = json.dumps(folder_tree or {}, ensure_ascii=False)
+    info = file_info or {}
+    filename = info.get("name")
+    extension = info.get("extension")
+    size = info.get("size")
+    file_type = info.get("type")
+
+    return (
+        "You are an assistant that extracts structured metadata from documents.\n"
+        f"Original file name: {filename}\n"
+        f"Extension: {extension}\n"
+        f"Size: {size}\n"
+        f"File type: {file_type}\n"
+        "Possible document types include: contracts, receipts, notifications, advertisement.\n"
+        "Existing folder tree (JSON):\n"
+        f"{tree_json}\n"
+        "Если ни одна папка не подходит, предложи новую category/subcategory.\n"
+        "Return a JSON object with the fields: category, subcategory, needs_new_folder (boolean), issuer, person, doc_type, "
+        "date, amount, counterparty, document_number, due_date, currency, tags_ru (list of strings), tags_en (list of strings), "
+        "suggested_filename, description.\n"
+        f"Document text:\n{text}"
+    )
