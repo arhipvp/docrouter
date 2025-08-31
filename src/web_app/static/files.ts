@@ -1,5 +1,7 @@
 import { openChatModal } from './chat.js';
 import type { FileInfo, FileMetadata } from './types.js';
+import { showError } from './notifications.js';
+
 
 let list: HTMLElement;
 let textPreview: HTMLElement;
@@ -20,6 +22,7 @@ let nameOriginalLabel: HTMLElement | null;
 let nameLatinLabel: HTMLElement | null;
 let currentEditId: string | null = null;
 let displayLang = '';
+let lastFocused: HTMLElement | null = null;
 
 export function setupFiles() {
   list = document.getElementById('files')!;
@@ -66,11 +69,11 @@ export function setupFiles() {
       body: JSON.stringify(payload)
     });
     if (resp.ok) {
-      metadataModal.style.display = 'none';
+      closeModal(metadataModal);
       currentEditId = null;
       await refreshFiles();
     } else {
-      alert('Ошибка обновления');
+      showError('Ошибка обновления');
     }
   });
 
@@ -82,7 +85,7 @@ export function setupFiles() {
     const id = (tr as HTMLElement).dataset.id;
     if (!id) return;
     previewFrame.src = `/preview/${id}`;
-    previewModal.style.display = 'flex';
+    openModal(previewModal);
     try {
       const resp = await fetch(`/files/${id}/details`);
       if (resp.ok) {
@@ -96,34 +99,22 @@ export function setupFiles() {
     }
   });
 
-  const previewClose = previewModal.querySelector('.close') as HTMLElement;
+  const previewClose = previewModal.querySelector('.modal__close') as HTMLElement;
   previewClose.addEventListener('click', () => {
-    previewModal.style.display = 'none';
+    closeModal(previewModal);
     previewFrame.src = '';
   });
   previewModal.addEventListener('click', (e) => {
     if (e.target === previewModal) {
-      previewModal.style.display = 'none';
+      closeModal(previewModal);
       previewFrame.src = '';
     }
   });
 
-  const metadataClose = metadataModal.querySelector('.close') as HTMLElement;
+  const metadataClose = metadataModal.querySelector('.modal__close') as HTMLElement;
   metadataClose.addEventListener('click', () => {
-    metadataModal.style.display = 'none';
+    closeModal(metadataModal);
     currentEditId = null;
-  });
-
-  document.addEventListener('keydown', (e) => {
-    if (e.key !== 'Escape') return;
-    if (previewModal.style.display === 'flex') {
-      previewModal.style.display = 'none';
-      previewFrame.src = '';
-    }
-    if (metadataModal.style.display === 'flex') {
-      metadataModal.style.display = 'none';
-      currentEditId = null;
-    }
   });
 
   tagLanguage.addEventListener('change', refreshFiles);
@@ -226,5 +217,51 @@ function openMetadataModal(file: FileInfo) {
   }
   if (nameOriginalLabel) nameOriginalLabel.textContent = orig;
   if (nameLatinLabel) nameLatinLabel.textContent = latin;
-  metadataModal.style.display = 'flex';
+  openModal(metadataModal);
+}
+
+function openModal(modal: HTMLElement) {
+  lastFocused = document.activeElement as HTMLElement;
+  modal.style.display = 'flex';
+  const focusable = modal.querySelectorAll<HTMLElement>(
+    'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+  );
+  const first = (focusable[0] || modal) as HTMLElement;
+  if (typeof (first as any).focus === 'function') {
+    (first as any).focus();
+  }
+  const handleKeydown = (e: KeyboardEvent) => {
+    if (e.key === 'Tab') {
+      const items = modal.querySelectorAll<HTMLElement>(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      );
+      if (!items.length) return;
+      const firstEl = items[0];
+      const lastEl = items[items.length - 1];
+      if (e.shiftKey && document.activeElement === firstEl) {
+        e.preventDefault();
+        lastEl.focus();
+      } else if (!e.shiftKey && document.activeElement === lastEl) {
+        e.preventDefault();
+        firstEl.focus();
+      }
+    } else if (e.key === 'Escape') {
+      closeModal(modal);
+      if (modal === previewModal) previewFrame.src = '';
+      if (modal === metadataModal) currentEditId = null;
+    }
+  };
+  modal.addEventListener('keydown', handleKeydown);
+  (modal as any)._handleKeydown = handleKeydown;
+}
+
+function closeModal(modal: HTMLElement) {
+  modal.style.display = 'none';
+  const handler = (modal as any)._handleKeydown;
+  if (handler && typeof (modal as any).removeEventListener === 'function') {
+    modal.removeEventListener('keydown', handler);
+  }
+  (modal as any)._handleKeydown = null;
+  lastFocused?.focus();
+  lastFocused = null;
 }
