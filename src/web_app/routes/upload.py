@@ -11,7 +11,7 @@ from fastapi import APIRouter, UploadFile, File, HTTPException, Form
 from file_utils.embeddings import get_embedding
 from file_sorter import place_file, get_folder_tree
 from models import Metadata, UploadResponse
-from metadata_generation import OpenRouterError
+from services.openrouter import OpenRouterError
 from .. import db as database, server
 
 router = APIRouter()
@@ -72,6 +72,9 @@ async def upload_file(
 
     except HTTPException:
         raise
+    except OpenRouterError as exc:
+        logger.exception("Embedding failed for %s", filename)
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
     except ValueError as exc:
         logger.exception("Upload/processing failed for %s", filename)
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -196,6 +199,9 @@ async def upload_images(
         metadata = Metadata(**meta_dict)
     except HTTPException:
         raise
+    except OpenRouterError as exc:
+        logger.exception("Embedding failed for images")
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
     except Exception as exc:  # pragma: no cover
         logger.exception("Upload/processing failed for images")
         raise HTTPException(status_code=500, detail=str(exc)) from exc
