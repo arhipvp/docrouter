@@ -7,6 +7,8 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+import { apiRequest } from './http.js';
+import { showNotification } from './notify.js';
 let chatModal;
 let chatHistory;
 let chatForm;
@@ -27,15 +29,18 @@ export function setupChat() {
         const msg = chatInput.value.trim();
         if (!msg)
             return;
-        const resp = yield fetch(`/chat/${currentChatId}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message: msg })
-        });
-        if (resp.ok) {
+        try {
+            const resp = yield apiRequest(`/chat/${currentChatId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: msg })
+            });
             const data = yield resp.json();
             renderChat(data.chat_history);
             chatInput.value = '';
+        }
+        catch (_a) {
+            showNotification('Ошибка отправки сообщения');
         }
     }));
 }
@@ -51,12 +56,13 @@ export function openChatModal(file) {
     return __awaiter(this, void 0, void 0, function* () {
         currentChatId = file.id;
         try {
-            const resp = yield fetch(`/files/${file.id}/details`);
-            const data = resp.ok ? yield resp.json() : {};
+            const resp = yield apiRequest(`/files/${file.id}/details`);
+            const data = yield resp.json();
             renderChat(data.chat_history || []);
         }
         catch (_a) {
             renderChat([]);
+            showNotification('Не удалось загрузить чат');
         }
         openModal(chatModal);
     });

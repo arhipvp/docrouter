@@ -1,7 +1,7 @@
 import { openChatModal } from './chat.js';
+import { apiRequest } from './http.js';
+import { showNotification } from './notify.js';
 import type { FileInfo, FileMetadata } from './types.js';
-import { showError } from './notifications.js';
-
 
 let list: HTMLElement;
 let textPreview: HTMLElement;
@@ -51,51 +51,60 @@ export function setupFiles() {
   editForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     if (!currentEditId) return;
+
     const payload: { metadata: FileMetadata } = {
       metadata: {
         category: editCategory.value.trim(),
         subcategory: editSubcategory.value.trim(),
         issuer: editIssuer.value.trim(),
         date: editDate.value,
-        suggested_name: editName.value.trim()
-      }
+        suggested_name: editName.value.trim(),
+      },
     };
-    (Object.keys(payload.metadata) as (keyof FileMetadata)[]).forEach(k => {
+    (Object.keys(payload.metadata) as (keyof FileMetadata)[]).forEach((k) => {
       if (!payload.metadata[k]) delete payload.metadata[k];
     });
-    const resp = await fetch(`/files/${currentEditId}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-    if (resp.ok) {
+
+    try {
+      const resp = await apiRequest(`/files/${currentEditId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!resp.ok) throw new Error();
       closeModal(metadataModal);
       currentEditId = null;
       await refreshFiles();
-    } else {
-      showError('Ошибка обновления');
+    } catch {
+      showNotification('Ошибка обновления');
     }
   });
 
   list.addEventListener('click', async (e: MouseEvent) => {
     const target = e.target as HTMLElement;
-    if (target.closest('a.download-link') || target.closest('button.edit-btn') || target.closest('button.chat-btn')) return;
+    if (
+      target.closest('a.download-link') ||
+      target.closest('button.edit-btn') ||
+      target.closest('button.chat-btn')
+    )
+      return;
+
     const tr = target.closest('tr');
     if (!tr) return;
     const id = (tr as HTMLElement).dataset.id;
     if (!id) return;
+
     previewFrame.src = `/preview/${id}`;
     openModal(previewModal);
+
     try {
-      const resp = await fetch(`/files/${id}/details`);
-      if (resp.ok) {
-        const data: FileInfo = await resp.json();
-        textPreview.textContent = data.extracted_text || '';
-      } else {
-        textPreview.textContent = '';
-      }
+      const resp = await apiRequest(`/files/${id}/details`);
+      if (!resp.ok) throw new Error();
+      const data: FileInfo = await resp.json();
+      textPreview.textContent = data.extracted_text || '';
     } catch {
       textPreview.textContent = '';
+      showNotification('Не удалось получить содержимое файла');
     }
   });
 
@@ -129,72 +138,78 @@ export function setupFiles() {
 }
 
 export async function refreshFiles() {
-  const resp = await fetch('/files');
-  if (!resp.ok) return;
-  const files: FileInfo[] = await resp.json();
-  list.innerHTML = '';
-  files.forEach((f: FileInfo) => {
-    const tr = document.createElement('tr');
-    tr.dataset.id = f.id;
+  try {
+    const resp = await apiRequest('/files');
+    if (!resp.ok) throw new Error();
+    const files: FileInfo[] = await resp.json();
 
-    const pathTd = document.createElement('td');
-    pathTd.textContent = f.path || '';
-    tr.appendChild(pathTd);
+    list.innerHTML = '';
+    files.forEach((f: FileInfo) => {
+      const tr = document.createElement('tr');
+      tr.dataset.id = f.id;
 
-    const categoryTd = document.createElement('td');
-    const category = f.metadata?.category ?? '';
-    categoryTd.textContent = category;
-    tr.appendChild(categoryTd);
+      const pathTd = document.createElement('td');
+      pathTd.textContent = f.path || '';
+      tr.appendChild(pathTd);
 
-    const tagsTd = document.createElement('td');
-    const lang = tagLanguage.value;
-    const tags = f.metadata ? (lang === 'ru' ? f.metadata.tags_ru : f.metadata.tags_en) : [];
-    const tagsText = Array.isArray(tags) ? tags.join(', ') : '';
-    tagsTd.textContent = tagsText;
-    tr.appendChild(tagsTd);
+      const categoryTd = document.createElement('td');
+      const category = f.metadata?.category ?? '';
+      categoryTd.textContent = category;
+      tr.appendChild(categoryTd);
 
-    const statusTd = document.createElement('td');
-    statusTd.textContent = f.status;
-    tr.appendChild(statusTd);
+      const tagsTd = document.createElement('td');
+      const lang = tagLanguage.value;
+      const tags = f.metadata ? (lang === 'ru' ? f.metadata.tags_ru : f.metadata.tags_en) : [];
+      const tagsText = Array.isArray(tags) ? tags.join(', ') : '';
+      tagsTd.textContent = tagsText;
+      tr.appendChild(tagsTd);
 
-    const actionsTd = document.createElement('td');
-    const langParam = displayLang ? `?lang=${encodeURIComponent(displayLang)}` : '';
-    const link = document.createElement('a');
-    link.href = `/download/${f.id}${langParam}`;
-    link.textContent = 'скачать';
-    link.classList.add('download-link');
-    actionsTd.appendChild(link);
+      const statusTd = document.createElement('td');
+      statusTd.textContent = f.status;
+      tr.appendChild(statusTd);
 
-    const jsonLink = document.createElement('a');
-    jsonLink.href = `/files/${f.id}/details`;
-    jsonLink.textContent = 'json';
-    jsonLink.target = '_blank';
-    actionsTd.appendChild(document.createTextNode(' '));
-    actionsTd.appendChild(jsonLink);
+      const actionsTd = document.createElement('td');
+      const langParam = displayLang ? `?lang=${encodeURIComponent(displayLang)}` : '';
 
-    const editBtn = document.createElement('button');
-    editBtn.type = 'button';
-    editBtn.textContent = 'Редактировать';
-    editBtn.classList.add('edit-btn');
-    editBtn.addEventListener('click', (ev) => {
-      ev.stopPropagation();
-      openMetadataModal(f);
+      const link = document.createElement('a');
+      link.href = `/download/${f.id}${langParam}`;
+      link.textContent = 'скачать';
+      link.classList.add('download-link');
+      actionsTd.appendChild(link);
+
+      const jsonLink = document.createElement('a');
+      jsonLink.href = `/files/${f.id}/details`;
+      jsonLink.textContent = 'json';
+      jsonLink.target = '_blank';
+      actionsTd.appendChild(document.createTextNode(' '));
+      actionsTd.appendChild(jsonLink);
+
+      const editBtn = document.createElement('button');
+      editBtn.type = 'button';
+      editBtn.textContent = 'Редактировать';
+      editBtn.classList.add('edit-btn');
+      editBtn.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        openMetadataModal(f);
+      });
+      actionsTd.appendChild(editBtn);
+
+      const chatBtn = document.createElement('button');
+      chatBtn.type = 'button';
+      chatBtn.textContent = 'Чат';
+      chatBtn.classList.add('chat-btn');
+      chatBtn.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        openChatModal(f);
+      });
+      actionsTd.appendChild(chatBtn);
+
+      tr.appendChild(actionsTd);
+      list.appendChild(tr);
     });
-    actionsTd.appendChild(editBtn);
-
-    const chatBtn = document.createElement('button');
-    chatBtn.type = 'button';
-    chatBtn.textContent = 'Чат';
-    chatBtn.classList.add('chat-btn');
-    chatBtn.addEventListener('click', (ev) => {
-      ev.stopPropagation();
-      openChatModal(f);
-    });
-    actionsTd.appendChild(chatBtn);
-
-    tr.appendChild(actionsTd);
-    list.appendChild(tr);
-  });
+  } catch {
+    showNotification('Не удалось загрузить список файлов');
+  }
 }
 
 function openMetadataModal(file: FileInfo) {
@@ -207,6 +222,7 @@ function openMetadataModal(file: FileInfo) {
   const orig = m.suggested_name || '';
   const latin = m.suggested_name_translit || orig;
   editName.value = orig;
+
   if (nameOriginalRadio) {
     nameOriginalRadio.value = orig;
     nameOriginalRadio.checked = true;
@@ -217,6 +233,7 @@ function openMetadataModal(file: FileInfo) {
   }
   if (nameOriginalLabel) nameOriginalLabel.textContent = orig;
   if (nameLatinLabel) nameLatinLabel.textContent = latin;
+
   openModal(metadataModal);
 }
 
@@ -227,9 +244,8 @@ function openModal(modal: HTMLElement) {
     'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
   );
   const first = (focusable[0] || modal) as HTMLElement;
-  if (typeof (first as any).focus === 'function') {
-    (first as any).focus();
-  }
+  if (typeof (first as any).focus === 'function') (first as any).focus();
+
   const handleKeydown = (e: KeyboardEvent) => {
     if (e.key === 'Tab') {
       const items = modal.querySelectorAll<HTMLElement>(
@@ -238,6 +254,7 @@ function openModal(modal: HTMLElement) {
       if (!items.length) return;
       const firstEl = items[0];
       const lastEl = items[items.length - 1];
+
       if (e.shiftKey && document.activeElement === firstEl) {
         e.preventDefault();
         lastEl.focus();

@@ -1,3 +1,5 @@
+import { apiRequest } from './http.js';
+import { showNotification } from './notify.js';
 import type { ChatHistory, FileInfo } from './types.js';
 
 let chatModal: HTMLElement;
@@ -12,23 +14,28 @@ export function setupChat() {
   chatHistory = document.getElementById('chat-history')!;
   chatForm = document.getElementById('chat-form') as HTMLFormElement;
   chatInput = document.getElementById('chat-input') as HTMLInputElement;
+
   const closeBtn = chatModal.querySelector('.modal__close') as HTMLElement;
   closeBtn?.addEventListener('click', closeChat);
 
   chatForm?.addEventListener('submit', async (e) => {
     e.preventDefault();
     if (!currentChatId || !chatInput) return;
+
     const msg = chatInput.value.trim();
     if (!msg) return;
-    const resp = await fetch(`/chat/${currentChatId}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: msg })
-    });
-    if (resp.ok) {
-      const data = await resp.json() as { chat_history: ChatHistory[] };
+
+    try {
+      const resp = await apiRequest(`/chat/${currentChatId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: msg }),
+      });
+      const data = (await resp.json()) as { chat_history: ChatHistory[] };
       renderChat(data.chat_history);
       chatInput.value = '';
+    } catch {
+      showNotification('Ошибка отправки сообщения');
     }
   });
 }
@@ -45,11 +52,12 @@ function renderChat(history: ChatHistory[]) {
 export async function openChatModal(file: FileInfo) {
   currentChatId = file.id;
   try {
-    const resp = await fetch(`/files/${file.id}/details`);
-    const data: FileInfo = resp.ok ? await resp.json() : {};
-    renderChat(data.chat_history || []);
+    const resp = await apiRequest(`/files/${file.id}/details`);
+    const data = (await resp.json()) as FileInfo;
+    renderChat((data as any)?.chat_history || []);
   } catch {
     renderChat([]);
+    showNotification('Не удалось загрузить чат');
   }
   openModal(chatModal);
 }
@@ -62,13 +70,13 @@ export function closeChat() {
 function openModal(modal: HTMLElement) {
   lastFocused = document.activeElement as HTMLElement;
   modal.style.display = 'flex';
+
   const focusable = modal.querySelectorAll<HTMLElement>(
     'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
   );
   const first = (focusable[0] || modal) as HTMLElement;
-  if (typeof (first as any).focus === 'function') {
-    (first as any).focus();
-  }
+  if (typeof (first as any).focus === 'function') (first as any).focus();
+
   const handleKeydown = (e: KeyboardEvent) => {
     if (e.key === 'Tab') {
       const items = modal.querySelectorAll<HTMLElement>(
@@ -88,17 +96,20 @@ function openModal(modal: HTMLElement) {
       closeChat();
     }
   };
+
   modal.addEventListener('keydown', handleKeydown);
   (modal as any)._handleKeydown = handleKeydown;
 }
 
 function closeModal(modal: HTMLElement) {
   modal.style.display = 'none';
+
   const handler = (modal as any)._handleKeydown;
   if (handler && typeof (modal as any).removeEventListener === 'function') {
     modal.removeEventListener('keydown', handler);
   }
   (modal as any)._handleKeydown = null;
+
   lastFocused?.focus();
   lastFocused = null;
 }

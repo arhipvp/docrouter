@@ -23,13 +23,13 @@ export function setupUpload() {
 export function openModal(modal, options = {}) {
   const { onEscape } = options;
 
-  // запомним, кто был в фокусе
+  // кто был в фокусе до открытия
   modal.__lastFocused = document.activeElement || null;
 
   // показать модалку
   modal.style.display = 'flex';
 
-  // сфокусироваться на первом фокусируемом элементе
+  // фокус на первый фокусируемый элемент
   const focusable = modal.querySelectorAll(
     'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
   );

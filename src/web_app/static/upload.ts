@@ -29,7 +29,7 @@ export function openModal(modal, options = {}) {
   // показать модалку
   modal.style.display = 'flex';
 
-  // сфокусироваться на первый фокусируемый элемент
+  // сфокусироваться на первом фокусируемом элементе
   const focusable = modal.querySelectorAll(
     'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
   );
