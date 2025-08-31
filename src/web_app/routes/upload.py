@@ -107,6 +107,8 @@ async def upload_file(
             status="pending",
             missing=missing,
             suggested_path=str(dest_path),
+            prompt=meta_result.get("prompt"),
+            raw_response=meta_result.get("raw_response"),
         )
 
     status = "dry_run" if dry_run else "processed"
@@ -235,6 +237,8 @@ async def upload_images(
             missing=missing,
             sources=sources,
             suggested_path=str(dest_path),
+            prompt=meta_result.get("prompt"),
+            raw_response=meta_result.get("raw_response"),
         )
 
     status = "dry_run" if dry_run else "processed"
