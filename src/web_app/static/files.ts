@@ -1,4 +1,6 @@
 import { openChatModal } from './chat.js';
+import { apiRequest } from './http.js';
+import { showNotification } from './notify.js';
 
 let list: HTMLElement;
 let textPreview: HTMLElement;
@@ -59,17 +61,17 @@ export function setupFiles() {
     Object.keys(payload.metadata).forEach(k => {
       if (!payload.metadata[k]) delete payload.metadata[k];
     });
-    const resp = await fetch(`/files/${currentEditId}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-    if (resp.ok) {
+    try {
+      const resp = await apiRequest(`/files/${currentEditId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
       metadataModal.style.display = 'none';
       currentEditId = null;
       await refreshFiles();
-    } else {
-      alert('Ошибка обновления');
+    } catch {
+      showNotification('Ошибка обновления');
     }
   });
 
@@ -82,15 +84,12 @@ export function setupFiles() {
     previewFrame.src = `/preview/${id}`;
     previewModal.style.display = 'flex';
     try {
-      const resp = await fetch(`/files/${id}/details`);
-      if (resp.ok) {
-        const data = await resp.json();
-        textPreview.textContent = data.extracted_text || '';
-      } else {
-        textPreview.textContent = '';
-      }
+      const resp = await apiRequest(`/files/${id}/details`);
+      const data = await resp.json();
+      textPreview.textContent = data.extracted_text || '';
     } catch {
       textPreview.textContent = '';
+      showNotification('Не удалось получить содержимое файла');
     }
   });
 
@@ -136,11 +135,11 @@ export function setupFiles() {
 }
 
 export async function refreshFiles() {
-  const resp = await fetch('/files');
-  if (!resp.ok) return;
-  const files = await resp.json();
-  list.innerHTML = '';
-  files.forEach((f: any) => {
+  try {
+    const resp = await apiRequest('/files');
+    const files = await resp.json();
+    list.innerHTML = '';
+    files.forEach((f: any) => {
     const tr = document.createElement('tr');
     tr.dataset.id = f.id;
 
@@ -201,7 +200,10 @@ export async function refreshFiles() {
 
     tr.appendChild(actionsTd);
     list.appendChild(tr);
-  });
+    });
+  } catch {
+    showNotification('Не удалось загрузить список файлов');
+  }
 }
 
 function openMetadataModal(file: any) {

@@ -1,3 +1,6 @@
+import { apiRequest } from './http.js';
+import { showNotification } from './notify.js';
+
 let chatModal: HTMLElement;
 let chatHistory: HTMLElement;
 let chatForm: HTMLFormElement | null;
@@ -17,15 +20,17 @@ export function setupChat() {
     if (!currentChatId || !chatInput) return;
     const msg = chatInput.value.trim();
     if (!msg) return;
-    const resp = await fetch(`/chat/${currentChatId}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: msg })
-    });
-    if (resp.ok) {
+    try {
+      const resp = await apiRequest(`/chat/${currentChatId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: msg })
+      });
       const data = await resp.json();
       renderChat(data.chat_history);
       chatInput.value = '';
+    } catch {
+      showNotification('Ошибка отправки сообщения');
     }
   });
 }
@@ -42,11 +47,12 @@ function renderChat(history: any[]) {
 export async function openChatModal(file: any) {
   currentChatId = file.id;
   try {
-    const resp = await fetch(`/files/${file.id}/details`);
-    const data = resp.ok ? await resp.json() : {};
+    const resp = await apiRequest(`/files/${file.id}/details`);
+    const data = await resp.json();
     renderChat(data.chat_history || []);
   } catch {
     renderChat([]);
+    showNotification('Не удалось загрузить чат');
   }
   chatModal.style.display = 'flex';
 }

@@ -1,3 +1,6 @@
+import { apiRequest } from './http.js';
+import { showNotification } from './notify.js';
+
 let folderTree: HTMLElement;
 
 function renderTree(container: HTMLElement, tree: any) {
@@ -20,10 +23,13 @@ function renderTree(container: HTMLElement, tree: any) {
 
 export async function refreshFolderTree() {
   folderTree = document.getElementById('folder-tree')!;
-  const resp = await fetch('/folder-tree');
-  if (!resp.ok) return;
-  const tree = await resp.json();
-  folderTree.innerHTML = '';
-  renderTree(folderTree, tree);
+  try {
+    const resp = await apiRequest('/folder-tree');
+    const tree = await resp.json();
+    folderTree.innerHTML = '';
+    renderTree(folderTree, tree);
+  } catch {
+    showNotification('Не удалось загрузить дерево папок');
+  }
 }
 

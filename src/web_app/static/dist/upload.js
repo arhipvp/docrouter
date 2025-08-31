@@ -9,6 +9,8 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 import { refreshFiles } from './files.js';
 import { refreshFolderTree } from './folders.js';
+import { apiRequest } from './http.js';
+import { showNotification } from './notify.js';
 let form;
 let progress;
 let sent;
@@ -30,6 +32,28 @@ let saveBtn;
 let cropper = null;
 let currentImageIndex = -1;
 let imageFiles = [];
+function uploadWithProgress(url, data, onProgress) {
+    return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', url);
+        xhr.upload.addEventListener('progress', onProgress);
+        xhr.onload = () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+                try {
+                    resolve(JSON.parse(xhr.responseText));
+                }
+                catch (e) {
+                    reject(e);
+                }
+            }
+            else {
+                reject(new Error(xhr.statusText));
+            }
+        };
+        xhr.onerror = () => reject(new Error('Network error'));
+        xhr.send(data);
+    });
+}
 export function setupUpload() {
     form = document.querySelector('form');
     progress = document.getElementById('upload-progress');
@@ -80,68 +104,58 @@ export function setupUpload() {
         const fileInput = form.querySelector('input[type="file"]');
         const file = (_a = fileInput === null || fileInput === void 0 ? void 0 : fileInput.files) === null || _a === void 0 ? void 0 : _a[0];
         if (!file || !file.name) {
-            alert('Файл должен иметь имя');
+            showNotification('Файл должен иметь имя');
             return;
         }
         const data = new FormData(form);
         progress.value = 0;
-        const xhr = new XMLHttpRequest();
-        xhr.open('POST', '/upload');
-        xhr.upload.addEventListener('progress', (ev) => {
+        uploadWithProgress('/upload', data, (ev) => {
             if (ev.lengthComputable) {
                 progress.max = ev.total;
                 progress.value = ev.loaded;
             }
-        });
-        xhr.onload = () => {
-            if (xhr.status === 200) {
-                const result = JSON.parse(xhr.responseText);
-                if (result.status === 'pending') {
-                    suggestedPath.textContent = result.suggested_path || '';
-                    missingList.innerHTML = '';
-                    (result.missing || []).forEach((path) => {
-                        const li = document.createElement('li');
-                        li.textContent = path;
-                        missingList.appendChild(li);
-                    });
-                    missingModal.style.display = 'flex';
-                    missingConfirm.onclick = () => __awaiter(this, void 0, void 0, function* () {
-                        try {
-                            const resp = yield fetch(`/files/${result.id}/finalize`, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ missing: result.missing || [] })
-                            });
-                            if (!resp.ok)
-                                throw new Error();
-                            const finalData = yield resp.json();
-                            missingModal.style.display = 'none';
-                            sent.textContent = finalData.prompt || '';
-                            received.textContent = finalData.raw_response || '';
-                            form.reset();
-                            progress.value = 0;
-                            refreshFiles();
-                            refreshFolderTree();
-                        }
-                        catch (_a) {
-                            alert('Ошибка обработки');
-                        }
-                    });
-                }
-                else {
-                    sent.textContent = result.prompt || '';
-                    received.textContent = result.raw_response || '';
-                    form.reset();
-                    progress.value = 0;
-                    refreshFiles();
-                    refreshFolderTree();
-                }
+        }).then((result) => {
+            if (result.status === 'pending') {
+                suggestedPath.textContent = result.suggested_path || '';
+                missingList.innerHTML = '';
+                (result.missing || []).forEach((path) => {
+                    const li = document.createElement('li');
+                    li.textContent = path;
+                    missingList.appendChild(li);
+                });
+                missingModal.style.display = 'flex';
+                missingConfirm.onclick = () => __awaiter(this, void 0, void 0, function* () {
+                    try {
+                        const resp = yield apiRequest(`/files/${result.id}/finalize`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ missing: result.missing || [] })
+                        });
+                        const finalData = yield resp.json();
+                        missingModal.style.display = 'none';
+                        sent.textContent = finalData.prompt || '';
+                        received.textContent = finalData.raw_response || '';
+                        form.reset();
+                        progress.value = 0;
+                        refreshFiles();
+                        refreshFolderTree();
+                    }
+                    catch (_a) {
+                        showNotification('Ошибка обработки');
+                    }
+                });
             }
             else {
-                alert('Ошибка загрузки');
+                sent.textContent = result.prompt || '';
+                received.textContent = result.raw_response || '';
+                form.reset();
+                progress.value = 0;
+                refreshFiles();
+                refreshFolderTree();
             }
-        };
-        xhr.send(data);
+        }).catch(() => {
+            showNotification('Ошибка загрузки');
+        });
     });
     imageInput.addEventListener('change', (e) => {
         const files = Array.from(e.target.files || []).filter(f => f.type === 'image/jpeg');
@@ -234,8 +248,8 @@ function uploadEditedImages() {
             const file = new File([f.blob], f.name, { type: 'image/jpeg' });
             data.append('files', file);
         });
-        const resp = yield fetch('/upload/images', { method: 'POST', body: data });
-        if (resp.ok) {
+        try {
+            const resp = yield apiRequest('/upload/images', { method: 'POST', body: data });
             const result = yield resp.json();
             sent.textContent = result.prompt || '';
             received.textContent = result.raw_response || '';
@@ -246,8 +260,8 @@ function uploadEditedImages() {
             refreshFiles();
             refreshFolderTree();
         }
-        else {
-            alert('Ошибка загрузки');
+        catch (_a) {
+            showNotification('Ошибка загрузки');
         }
     });
 }

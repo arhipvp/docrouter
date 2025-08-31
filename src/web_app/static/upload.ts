@@ -1,5 +1,7 @@
 import { refreshFiles } from './files.js';
 import { refreshFolderTree } from './folders.js';
+import { apiRequest } from './http.js';
+import { showNotification } from './notify.js';
 
 let form: HTMLFormElement;
 let progress: HTMLProgressElement;
@@ -22,6 +24,27 @@ let saveBtn: HTMLElement | null;
 let cropper: any = null;
 let currentImageIndex = -1;
 let imageFiles: Array<{ blob: Blob; name: string }> = [];
+
+function uploadWithProgress(url: string, data: FormData, onProgress: (ev: ProgressEvent) => void): Promise<any> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', url);
+    xhr.upload.addEventListener('progress', onProgress);
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          resolve(JSON.parse(xhr.responseText));
+        } catch (e) {
+          reject(e);
+        }
+      } else {
+        reject(new Error(xhr.statusText));
+      }
+    };
+    xhr.onerror = () => reject(new Error('Network error'));
+    xhr.send(data);
+  });
+}
 
 export function setupUpload() {
   form = document.querySelector('form') as HTMLFormElement;
@@ -72,64 +95,56 @@ export function setupUpload() {
     const fileInput = form.querySelector('input[type="file"]') as HTMLInputElement;
     const file = fileInput?.files?.[0];
     if (!file || !file.name) {
-      alert('Файл должен иметь имя');
+      showNotification('Файл должен иметь имя');
       return;
     }
     const data = new FormData(form);
     progress.value = 0;
-    const xhr = new XMLHttpRequest();
-    xhr.open('POST', '/upload');
-    xhr.upload.addEventListener('progress', (ev) => {
+    uploadWithProgress('/upload', data, (ev) => {
       if (ev.lengthComputable) {
         progress.max = ev.total;
         progress.value = ev.loaded;
       }
-    });
-    xhr.onload = () => {
-      if (xhr.status === 200) {
-        const result = JSON.parse(xhr.responseText);
-        if (result.status === 'pending') {
-          suggestedPath.textContent = result.suggested_path || '';
-          missingList.innerHTML = '';
-          (result.missing || []).forEach((path: string) => {
-            const li = document.createElement('li');
-            li.textContent = path;
-            missingList.appendChild(li);
-          });
-          missingModal.style.display = 'flex';
-          missingConfirm.onclick = async () => {
-            try {
-              const resp = await fetch(`/files/${result.id}/finalize`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ missing: result.missing || [] })
-              });
-              if (!resp.ok) throw new Error();
-              const finalData = await resp.json();
-              missingModal.style.display = 'none';
-              sent.textContent = finalData.prompt || '';
-              received.textContent = finalData.raw_response || '';
-              form.reset();
-              progress.value = 0;
-              refreshFiles();
-              refreshFolderTree();
-            } catch {
-              alert('Ошибка обработки');
-            }
-          };
-        } else {
-          sent.textContent = result.prompt || '';
-          received.textContent = result.raw_response || '';
-          form.reset();
-          progress.value = 0;
-          refreshFiles();
-          refreshFolderTree();
-        }
+    }).then((result) => {
+      if (result.status === 'pending') {
+        suggestedPath.textContent = result.suggested_path || '';
+        missingList.innerHTML = '';
+        (result.missing || []).forEach((path: string) => {
+          const li = document.createElement('li');
+          li.textContent = path;
+          missingList.appendChild(li);
+        });
+        missingModal.style.display = 'flex';
+        missingConfirm.onclick = async () => {
+          try {
+            const resp = await apiRequest(`/files/${result.id}/finalize`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ missing: result.missing || [] })
+            });
+            const finalData = await resp.json();
+            missingModal.style.display = 'none';
+            sent.textContent = finalData.prompt || '';
+            received.textContent = finalData.raw_response || '';
+            form.reset();
+            progress.value = 0;
+            refreshFiles();
+            refreshFolderTree();
+          } catch {
+            showNotification('Ошибка обработки');
+          }
+        };
       } else {
-        alert('Ошибка загрузки');
+        sent.textContent = result.prompt || '';
+        received.textContent = result.raw_response || '';
+        form.reset();
+        progress.value = 0;
+        refreshFiles();
+        refreshFolderTree();
       }
-    };
-    xhr.send(data);
+    }).catch(() => {
+      showNotification('Ошибка загрузки');
+    });
   });
 
   imageInput.addEventListener('change', (e) => {
@@ -227,8 +242,8 @@ async function uploadEditedImages() {
     const file = new File([f.blob], f.name, { type: 'image/jpeg' });
     data.append('files', file);
   });
-  const resp = await fetch('/upload/images', { method: 'POST', body: data });
-  if (resp.ok) {
+  try {
+    const resp = await apiRequest('/upload/images', { method: 'POST', body: data });
     const result = await resp.json();
     sent.textContent = result.prompt || '';
     received.textContent = result.raw_response || '';
@@ -238,7 +253,7 @@ async function uploadEditedImages() {
     renderImageList();
     refreshFiles();
     refreshFolderTree();
-  } else {
-    alert('Ошибка загрузки');
+  } catch {
+    showNotification('Ошибка загрузки');
   }
 }

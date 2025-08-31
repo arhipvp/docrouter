@@ -7,6 +7,8 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+import { apiRequest } from './http.js';
+import { showNotification } from './notify.js';
 let folderTree;
 function renderTree(container, tree) {
     Object.keys(tree).forEach(key => {
@@ -26,11 +28,14 @@ function renderTree(container, tree) {
 export function refreshFolderTree() {
     return __awaiter(this, void 0, void 0, function* () {
         folderTree = document.getElementById('folder-tree');
-        const resp = yield fetch('/folder-tree');
-        if (!resp.ok)
-            return;
-        const tree = yield resp.json();
-        folderTree.innerHTML = '';
-        renderTree(folderTree, tree);
+        try {
+            const resp = yield apiRequest('/folder-tree');
+            const tree = yield resp.json();
+            folderTree.innerHTML = '';
+            renderTree(folderTree, tree);
+        }
+        catch (_a) {
+            showNotification('Не удалось загрузить дерево папок');
+        }
     });
 }

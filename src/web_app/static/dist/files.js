@@ -8,6 +8,8 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 import { openChatModal } from './chat.js';
+import { apiRequest } from './http.js';
+import { showNotification } from './notify.js';
 let list;
 let textPreview;
 let tagLanguage;
@@ -66,18 +68,18 @@ export function setupFiles() {
             if (!payload.metadata[k])
                 delete payload.metadata[k];
         });
-        const resp = yield fetch(`/files/${currentEditId}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-        if (resp.ok) {
+        try {
+            const resp = yield apiRequest(`/files/${currentEditId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
             metadataModal.style.display = 'none';
             currentEditId = null;
             yield refreshFiles();
         }
-        else {
-            alert('Ошибка обновления');
+        catch (_a) {
+            showNotification('Ошибка обновления');
         }
     }));
     list.addEventListener('click', (e) => __awaiter(this, void 0, void 0, function* () {
@@ -92,17 +94,13 @@ export function setupFiles() {
         previewFrame.src = `/preview/${id}`;
         previewModal.style.display = 'flex';
         try {
-            const resp = yield fetch(`/files/${id}/details`);
-            if (resp.ok) {
-                const data = yield resp.json();
-                textPreview.textContent = data.extracted_text || '';
-            }
-            else {
-                textPreview.textContent = '';
-            }
+            const resp = yield apiRequest(`/files/${id}/details`);
+            const data = yield resp.json();
+            textPreview.textContent = data.extracted_text || '';
         }
         catch (_a) {
             textPreview.textContent = '';
+            showNotification('Не удалось получить содержимое файла');
         }
     }));
     const previewClose = previewModal.querySelector('.close');
@@ -146,65 +144,68 @@ export function setupFiles() {
 }
 export function refreshFiles() {
     return __awaiter(this, void 0, void 0, function* () {
-        const resp = yield fetch('/files');
-        if (!resp.ok)
-            return;
-        const files = yield resp.json();
-        list.innerHTML = '';
-        files.forEach((f) => {
-            var _a, _b;
-            const tr = document.createElement('tr');
-            tr.dataset.id = f.id;
-            const pathTd = document.createElement('td');
-            pathTd.textContent = f.path || '';
-            tr.appendChild(pathTd);
-            const categoryTd = document.createElement('td');
-            const category = (_b = (_a = f.metadata) === null || _a === void 0 ? void 0 : _a.category) !== null && _b !== void 0 ? _b : '';
-            categoryTd.textContent = category;
-            tr.appendChild(categoryTd);
-            const tagsTd = document.createElement('td');
-            const lang = tagLanguage.value;
-            const tags = f.metadata ? (lang === 'ru' ? f.metadata.tags_ru : f.metadata.tags_en) : [];
-            const tagsText = Array.isArray(tags) ? tags.join(', ') : '';
-            tagsTd.textContent = tagsText;
-            tr.appendChild(tagsTd);
-            const statusTd = document.createElement('td');
-            statusTd.textContent = f.status;
-            tr.appendChild(statusTd);
-            const actionsTd = document.createElement('td');
-            const langParam = displayLang ? `?lang=${encodeURIComponent(displayLang)}` : '';
-            const link = document.createElement('a');
-            link.href = `/download/${f.id}${langParam}`;
-            link.textContent = 'скачать';
-            link.classList.add('download-link');
-            actionsTd.appendChild(link);
-            const jsonLink = document.createElement('a');
-            jsonLink.href = `/files/${f.id}/details`;
-            jsonLink.textContent = 'json';
-            jsonLink.target = '_blank';
-            actionsTd.appendChild(document.createTextNode(' '));
-            actionsTd.appendChild(jsonLink);
-            const editBtn = document.createElement('button');
-            editBtn.type = 'button';
-            editBtn.textContent = 'Редактировать';
-            editBtn.classList.add('edit-btn');
-            editBtn.addEventListener('click', (ev) => {
-                ev.stopPropagation();
-                openMetadataModal(f);
+        try {
+            const resp = yield apiRequest('/files');
+            const files = yield resp.json();
+            list.innerHTML = '';
+            files.forEach((f) => {
+                var _a, _b;
+                const tr = document.createElement('tr');
+                tr.dataset.id = f.id;
+                const pathTd = document.createElement('td');
+                pathTd.textContent = f.path || '';
+                tr.appendChild(pathTd);
+                const categoryTd = document.createElement('td');
+                const category = (_b = (_a = f.metadata) === null || _a === void 0 ? void 0 : _a.category) !== null && _b !== void 0 ? _b : '';
+                categoryTd.textContent = category;
+                tr.appendChild(categoryTd);
+                const tagsTd = document.createElement('td');
+                const lang = tagLanguage.value;
+                const tags = f.metadata ? (lang === 'ru' ? f.metadata.tags_ru : f.metadata.tags_en) : [];
+                const tagsText = Array.isArray(tags) ? tags.join(', ') : '';
+                tagsTd.textContent = tagsText;
+                tr.appendChild(tagsTd);
+                const statusTd = document.createElement('td');
+                statusTd.textContent = f.status;
+                tr.appendChild(statusTd);
+                const actionsTd = document.createElement('td');
+                const langParam = displayLang ? `?lang=${encodeURIComponent(displayLang)}` : '';
+                const link = document.createElement('a');
+                link.href = `/download/${f.id}${langParam}`;
+                link.textContent = 'скачать';
+                link.classList.add('download-link');
+                actionsTd.appendChild(link);
+                const jsonLink = document.createElement('a');
+                jsonLink.href = `/files/${f.id}/details`;
+                jsonLink.textContent = 'json';
+                jsonLink.target = '_blank';
+                actionsTd.appendChild(document.createTextNode(' '));
+                actionsTd.appendChild(jsonLink);
+                const editBtn = document.createElement('button');
+                editBtn.type = 'button';
+                editBtn.textContent = 'Редактировать';
+                editBtn.classList.add('edit-btn');
+                editBtn.addEventListener('click', (ev) => {
+                    ev.stopPropagation();
+                    openMetadataModal(f);
+                });
+                actionsTd.appendChild(editBtn);
+                const chatBtn = document.createElement('button');
+                chatBtn.type = 'button';
+                chatBtn.textContent = 'Чат';
+                chatBtn.classList.add('chat-btn');
+                chatBtn.addEventListener('click', (ev) => {
+                    ev.stopPropagation();
+                    openChatModal(f);
+                });
+                actionsTd.appendChild(chatBtn);
+                tr.appendChild(actionsTd);
+                list.appendChild(tr);
             });
-            actionsTd.appendChild(editBtn);
-            const chatBtn = document.createElement('button');
-            chatBtn.type = 'button';
-            chatBtn.textContent = 'Чат';
-            chatBtn.classList.add('chat-btn');
-            chatBtn.addEventListener('click', (ev) => {
-                ev.stopPropagation();
-                openChatModal(f);
-            });
-            actionsTd.appendChild(chatBtn);
-            tr.appendChild(actionsTd);
-            list.appendChild(tr);
-        });
+        }
+        catch (_a) {
+            showNotification('Не удалось загрузить список файлов');
+        }
     });
 }
 function openMetadataModal(file) {
