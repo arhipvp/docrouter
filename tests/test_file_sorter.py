@@ -92,6 +92,32 @@ def test_place_file_uses_person_from_metadata(tmp_path):
     ]
 
 
+def test_place_file_uses_general_when_person_empty(tmp_path):
+    src = tmp_path / "input.pdf"
+    src.write_text("data")
+
+    dest_root = tmp_path / "Archive"
+    metadata = sample_metadata()
+    metadata["person"] = "  "  # пустая строка после trim
+    dest, missing, _ = place_file(src, metadata, dest_root, dry_run=True)
+
+    expected = (
+        dest_root
+        / GENERAL_FOLDER_NAME
+        / "Финансы"
+        / "Банки"
+        / "Sparkasse"
+        / "2023-10-12__Kreditvertrag.pdf"
+    )
+    assert dest == expected
+    assert missing == [
+        f"{GENERAL_FOLDER_NAME}",
+        f"{GENERAL_FOLDER_NAME}/Финансы",
+        f"{GENERAL_FOLDER_NAME}/Финансы/Банки",
+        f"{GENERAL_FOLDER_NAME}/Финансы/Банки/Sparkasse",
+    ]
+
+
 def test_place_file_prefers_suggested_name(tmp_path):
     src = tmp_path / "file.pdf"
     src.write_text("data")
