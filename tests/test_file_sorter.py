@@ -7,6 +7,7 @@ import pytest
 
 sys.path.append(str(Path(__file__).resolve().parents[1] / "src"))
 from file_sorter import place_file
+from config import GENERAL_FOLDER_NAME
 
 
 def sample_metadata():
@@ -27,12 +28,46 @@ def test_place_file_path_and_name(tmp_path):
     # dry_run: ничего не создаётся, но пути и missing рассчитываются
     dest, missing, _ = place_file(src, sample_metadata(), dest_root, dry_run=True)
 
-    expected = dest_root / "Финансы" / "Банки" / "Sparkasse" / "2023-10-12__Kreditvertrag.pdf"
+    expected = (
+        dest_root
+        / "Финансы"
+        / "Банки"
+        / GENERAL_FOLDER_NAME
+        / "Sparkasse"
+        / "2023-10-12__Kreditvertrag.pdf"
+    )
     assert dest == expected
     assert missing == [
         "Финансы",
         "Финансы/Банки",
-        "Финансы/Банки/Sparkasse",
+        f"Финансы/Банки/{GENERAL_FOLDER_NAME}",
+        f"Финансы/Банки/{GENERAL_FOLDER_NAME}/Sparkasse",
+    ]
+
+
+def test_place_file_uses_person_folder(tmp_path):
+    src = tmp_path / "input.pdf"
+    src.write_text("data")
+
+    dest_root = tmp_path / "Archive"
+    metadata = sample_metadata()
+    metadata["person"] = "Alice"
+    dest, missing, _ = place_file(src, metadata, dest_root, dry_run=True)
+
+    expected = (
+        dest_root
+        / "Финансы"
+        / "Банки"
+        / "Alice"
+        / "Sparkasse"
+        / "2023-10-12__Kreditvertrag.pdf"
+    )
+    assert dest == expected
+    assert missing == [
+        "Финансы",
+        "Финансы/Банки",
+        "Финансы/Банки/Alice",
+        "Финансы/Банки/Alice/Sparkasse",
     ]
 
 
@@ -122,7 +157,8 @@ def test_place_file_returns_missing_dirs_and_does_not_move_when_needs_new_folder
     assert missing == [
         "Финансы",
         "Финансы/Банки",
-        "Финансы/Банки/Sparkasse",
+        f"Финансы/Банки/{GENERAL_FOLDER_NAME}",
+        f"Финансы/Банки/{GENERAL_FOLDER_NAME}/Sparkasse",
     ]
     # файл не должен быть перемещён
     assert not dest.exists()
