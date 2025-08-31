@@ -11,7 +11,7 @@ import { apiRequest } from './http.js';
 import { showNotification } from './notify.js';
 let folderTree;
 function renderTree(container, tree) {
-    Object.keys(tree).forEach(key => {
+    Object.keys(tree).forEach((key) => {
         const li = document.createElement('li');
         const nameSpan = document.createElement('span');
         nameSpan.textContent = key;
@@ -30,6 +30,8 @@ export function refreshFolderTree() {
         folderTree = document.getElementById('folder-tree');
         try {
             const resp = yield apiRequest('/folder-tree');
+            if (!resp.ok)
+                throw new Error();
             const tree = yield resp.json();
             folderTree.innerHTML = '';
             renderTree(folderTree, tree);

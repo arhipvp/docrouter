@@ -128,7 +128,7 @@ export function setupFiles() {
     currentEditId = null;
   });
 
-  tagLanguage.addEventListener('change', refreshFiles);
+  tagLanguage.addEventListener('change', () => refreshFiles());
   nameOriginalRadio?.addEventListener('change', () => {
     if (nameOriginalRadio.checked) editName.value = nameOriginalRadio.value;
   });
@@ -137,16 +137,16 @@ export function setupFiles() {
   });
 
   refreshBtn?.addEventListener('click', () => {
-    refreshFiles();
+    refreshFiles(true);
     refreshFolderTree();
   });
 
   refreshFiles();
 }
 
-export async function refreshFiles() {
+export async function refreshFiles(force = false) {
   try {
-    const resp = await apiRequest('/files');
+    const resp = await apiRequest(`/files${force ? '?force=1' : ''}`);
     if (!resp.ok) throw new Error();
     const files: FileInfo[] = await resp.json();
 
