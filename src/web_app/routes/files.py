@@ -10,6 +10,7 @@ from fastapi import APIRouter, HTTPException, Body
 from fastapi.responses import FileResponse, PlainTextResponse
 
 from file_utils.embeddings import get_embedding, cosine_similarity
+from services.openrouter import OpenRouterError
 from file_sorter import place_file
 from models import Metadata, FileRecord
 from .. import db as database, server
@@ -105,7 +106,10 @@ async def list_files():
 @router.get("/search/semantic")
 async def semantic_search(q: str):
     """Семантический поиск по сохранённым документам."""
-    query_vec = await get_embedding(q)
+    try:
+        query_vec = await get_embedding(q)
+    except OpenRouterError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
     results: list[dict[str, object]] = []
     for rec in database.list_files():
         emb = rec.embedding

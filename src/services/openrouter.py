@@ -21,6 +21,10 @@ from config import (
 logger = logging.getLogger(__name__)
 
 
+class OpenRouterError(RuntimeError):
+    """Исключение при обращении к OpenRouter."""
+
+
 async def chat(messages: List[Dict[str, str]]) -> Tuple[str, int | None, float | None]:
     """Отправить запрос в OpenRouter и вернуть ответ, количество токенов и стоимость."""
 
@@ -39,13 +43,23 @@ async def chat(messages: List[Dict[str, str]]) -> Tuple[str, int | None, float |
     }
 
     async with httpx.AsyncClient(timeout=60) as client:
-        response = await client.post(api_url, json=payload, headers=headers)
-    response.raise_for_status()
-    try:
-        data = response.json()
-    except ValueError:
-        logger.error("OpenRouter returned non-JSON response: %s", response.text)
-        raise
+        try:
+            response = await client.post(api_url, json=payload, headers=headers)
+            response.raise_for_status()
+            data = response.json()
+        except httpx.HTTPStatusError as exc:
+            logger.error("OpenRouter request failed: %s", exc)
+            raise OpenRouterError(
+                f"OpenRouter request failed: {exc.response.status_code}"
+            ) from exc
+        except httpx.HTTPError as exc:
+            logger.error("HTTP error during chat request: %s", exc)
+            raise OpenRouterError("HTTP error during chat request") from exc
+        except ValueError as exc:
+            logger.error(
+                "OpenRouter returned non-JSON response: %s", response.text
+            )
+            raise OpenRouterError("OpenRouter returned non-JSON response") from exc
 
     reply = data["choices"][0]["message"]["content"].strip()
     usage = data.get("usage", {})
@@ -79,11 +93,13 @@ async def embed(text: str, model: str) -> List[float]:
                 response.raise_for_status()
                 try:
                     data = response.json()
-                except ValueError:
+                except ValueError as exc:
                     logger.error(
                         "OpenRouter returned non-JSON response: %s", response.text
                     )
-                    raise
+                    raise OpenRouterError(
+                        "OpenRouter returned non-JSON response"
+                    ) from exc
                 return data["data"][0]["embedding"]
             except httpx.HTTPStatusError as exc:
                 status = exc.response.status_code
@@ -95,9 +111,16 @@ async def embed(text: str, model: str) -> List[float]:
                     await asyncio.sleep(wait)
                     continue
                 logger.error("OpenRouter embedding failed: %s", exc)
-                raise
+                raise OpenRouterError(
+                    f"OpenRouter request failed: {status}"
+                ) from exc
             except httpx.HTTPError as exc:
                 logger.error("HTTP error during embedding request: %s", exc)
-                raise
+                raise OpenRouterError(
+                    "HTTP error during embedding request"
+                ) from exc
 
-    raise RuntimeError("Failed to fetch embedding from OpenRouter")
+    raise OpenRouterError("Failed to fetch embedding from OpenRouter")
+
+
+__all__ = ["chat", "embed", "OpenRouterError"]

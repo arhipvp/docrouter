@@ -25,6 +25,7 @@ from config import (
     OPENROUTER_SITE_URL,
 )
 
+from services.openrouter import OpenRouterError
 from file_utils.mrz import parse_mrz
 
 
@@ -47,10 +48,6 @@ def get_analyzer(name: str) -> type["MetadataAnalyzer"]:
     """Получить класс анализатора по имени."""
 
     return _ANALYZER_REGISTRY[name]
-
-
-class OpenRouterError(RuntimeError):
-    """Исключение при обращении к OpenRouter."""
 
 
 __all__ = [

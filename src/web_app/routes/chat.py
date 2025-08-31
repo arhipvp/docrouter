@@ -5,6 +5,7 @@ from fastapi import APIRouter, HTTPException, Body
 
 from .. import db as database
 from services import openrouter
+from services.openrouter import OpenRouterError
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -25,6 +26,9 @@ async def chat(file_id: str, message: str = Body(..., embed=True)):
     ]
     try:
         reply, tokens, cost = await openrouter.chat(messages)
+    except OpenRouterError as exc:
+        logger.exception("OpenRouter chat failed")
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
     except Exception as exc:  # pragma: no cover - сеть может быть недоступна
         logger.exception("OpenRouter chat failed")
         raise HTTPException(status_code=500, detail=str(exc)) from exc
