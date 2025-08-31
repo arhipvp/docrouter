@@ -3,7 +3,7 @@ from __future__ import annotations
 """Utility functions for image preprocessing and OCR."""
 
 from pathlib import Path
-from typing import Union
+from typing import Union, Optional
 import logging
 
 import argparse
@@ -111,6 +111,7 @@ def run_ocr(
     alpha: float = 1.5,
     beta: float = 0.0,
     ksize: int = 3,
+    debug_dir: Optional[Path] = None,
 ) -> str:
     """Run the OCR pipeline on the given image and return recognized text.
 
@@ -120,17 +121,32 @@ def run_ocr(
     :param alpha: Contrast control passed to :func:`increase_contrast`.
     :param beta: Brightness control passed to :func:`increase_contrast`.
     :param ksize: Kernel size for :func:`remove_noise`.
+    :param debug_dir: Directory to save intermediate images for debugging.
     :return: Recognized text as a string.
     """
     image = cv2.imread(str(path))
     if image is None:
         raise FileNotFoundError(f"Image not found: {path}")
-    image = resize_to_dpi(image, dpi)
+    if debug_dir:
+        debug_dir.mkdir(parents=True, exist_ok=True)
     image = increase_contrast(image, alpha=alpha, beta=beta)
+    if debug_dir:
+        cv2.imwrite(str(debug_dir / "step1_contrast.png"), image)
     image = remove_noise(image, ksize=ksize)
+    if debug_dir:
+        cv2.imwrite(str(debug_dir / "step2_remove_noise.png"), image)
     image = deskew(image)
-    image = crop_margins(image)
+    if debug_dir:
+        cv2.imwrite(str(debug_dir / "step3_deskew.png"), image)
     image = binarize(image)
+    if debug_dir:
+        cv2.imwrite(str(debug_dir / "step4_binarize.png"), image)
+    image = resize_to_dpi(image, dpi)
+    if debug_dir:
+        cv2.imwrite(str(debug_dir / "step5_resize.png"), image)
+    image = crop_margins(image)
+    if debug_dir:
+        cv2.imwrite(str(debug_dir / "step6_crop.png"), image)
     pil_img = Image.fromarray(image)
     try:
         return pytesseract.image_to_string(pil_img, lang=lang)
@@ -159,6 +175,11 @@ if __name__ == "__main__":  # pragma: no cover - simple CLI
     parser.add_argument(
         "--ksize", type=_parse_odd_int, default=3, help="Median blur kernel size"
     )
+    parser.add_argument(
+        "--debug-dir",
+        type=Path,
+        help="Directory to save intermediate images",
+    )
     params = parser.parse_args()
     result = run_ocr(
         params.path,
@@ -167,5 +188,6 @@ if __name__ == "__main__":  # pragma: no cover - simple CLI
         alpha=params.alpha,
         beta=params.beta,
         ksize=params.ksize,
+        debug_dir=params.debug_dir,
     )
     print(result)
