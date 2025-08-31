@@ -74,7 +74,7 @@ def place_file(
 ) -> Tuple[Path, List[str], bool]:
     """Переместить файл в структуру папок на основе *metadata*.
 
-    Структура: ``<dest_root>/<category>/<subcategory>/<issuer>/<DATE>__<NAME>.<ext>``.
+    Структура: ``<dest_root>/<person>/<category>/<subcategory>/<issuer>/<DATE>__<NAME>.<ext>``.
     Рядом с файлом сохраняется ``.json`` с теми же метаданными.
 
     Возвращает кортеж ``(dest_file, missing, confirmed)``, где:
@@ -88,8 +88,8 @@ def place_file(
         ``confirm_callback``.
 
     :param src_path: путь к исходному файлу.
-    :param metadata: словарь с ключами: ``category``, ``subcategory``, ``issuer``,
-                     ``date`` (YYYY-MM-DD), ``suggested_name``.
+    :param metadata: словарь с ключами: ``person``, ``category``, ``subcategory``,
+                     ``issuer``, ``date`` (YYYY-MM-DD), ``suggested_name``.
     :param dest_root: корень архива.
     :param dry_run: «сухой прогон» без изменений на диске.
     :param needs_new_folder: требуется ли создание новой директории.
@@ -119,6 +119,12 @@ def place_file(
 
     dest_dir = base_dir
     missing: List[str] = []
+
+    person = metadata.get("person") or "Shared"
+    metadata["person"] = person
+    dest_dir /= str(person)
+    if not dest_dir.exists():
+        missing.append(str(dest_dir.relative_to(base_dir)))
 
     for key in ("category", "subcategory", "issuer"):
         value = metadata.get(key)

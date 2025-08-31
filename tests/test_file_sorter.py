@@ -27,12 +27,32 @@ def test_place_file_path_and_name(tmp_path):
     # dry_run: ничего не создаётся, но пути и missing рассчитываются
     dest, missing, _ = place_file(src, sample_metadata(), dest_root, dry_run=True)
 
-    expected = dest_root / "Финансы" / "Банки" / "Sparkasse" / "2023-10-12__Kreditvertrag.pdf"
+    expected = dest_root / "Shared" / "Финансы" / "Банки" / "Sparkasse" / "2023-10-12__Kreditvertrag.pdf"
     assert dest == expected
     assert missing == [
-        "Финансы",
-        "Финансы/Банки",
-        "Финансы/Банки/Sparkasse",
+        "Shared",
+        "Shared/Финансы",
+        "Shared/Финансы/Банки",
+        "Shared/Финансы/Банки/Sparkasse",
+    ]
+
+
+def test_place_file_uses_person_from_metadata(tmp_path):
+    src = tmp_path / "input.pdf"
+    src.write_text("data")
+
+    dest_root = tmp_path / "Archive"
+    metadata = sample_metadata()
+    metadata["person"] = "Alice"
+    dest, missing, _ = place_file(src, metadata, dest_root, dry_run=True)
+
+    expected = dest_root / "Alice" / "Финансы" / "Банки" / "Sparkasse" / "2023-10-12__Kreditvertrag.pdf"
+    assert dest == expected
+    assert missing == [
+        "Alice",
+        "Alice/Финансы",
+        "Alice/Финансы/Банки",
+        "Alice/Финансы/Банки/Sparkasse",
     ]
 
 
@@ -52,6 +72,8 @@ def test_place_file_moves_and_creates_json(tmp_path):
     )
 
     json_path = dest.with_suffix(dest.suffix + ".json")
+    expected = dest_root / "Shared" / "Финансы" / "Банки" / "Sparkasse" / "2023-10-12__Kreditvertrag.pdf"
+    assert dest == expected
     assert dest.exists()
     assert json_path.exists()
     assert missing == []
@@ -119,10 +141,13 @@ def test_place_file_returns_missing_dirs_and_does_not_move_when_needs_new_folder
         needs_new_folder=False,
     )
 
+    expected = dest_root / "Shared" / "Финансы" / "Банки" / "Sparkasse" / "2023-10-12__Kreditvertrag.pdf"
+    assert dest == expected
     assert missing == [
-        "Финансы",
-        "Финансы/Банки",
-        "Финансы/Банки/Sparkasse",
+        "Shared",
+        "Shared/Финансы",
+        "Shared/Финансы/Банки",
+        "Shared/Финансы/Банки/Sparkasse",
     ]
     # файл не должен быть перемещён
     assert not dest.exists()
@@ -158,7 +183,9 @@ def test_place_file_creates_dirs_on_confirmation(tmp_path):
         confirm_callback=lambda _: True,
     )
 
+    expected = dest_root / "Shared" / "Финансы" / "Банки" / "Sparkasse" / "2023-10-12__Kreditvertrag.pdf"
     assert confirmed is True
     assert missing == []
+    assert dest == expected
     assert dest.exists()
     assert dest.parent.exists()
