@@ -37,7 +37,14 @@ def process_directory(input_dir: str | Path, dest_root: str | Path, dry_run: boo
             rel_dir = path.parent.relative_to(input_path)
             dest_base = Path(dest_root) / rel_dir
             dest_base.mkdir(parents=True, exist_ok=True)
-            place_file(path, metadata, dest_base, dry_run=dry_run)
+            place_file(
+                path,
+                metadata,
+                dest_base,
+                dry_run=dry_run,
+                needs_new_folder=True,
+                confirm_callback=lambda _: True,
+            )
             logger.info("Finished processing %s", path)
         except Exception as exc:  # pragma: no cover - depending on runtime errors
             handle_error(path, exc)

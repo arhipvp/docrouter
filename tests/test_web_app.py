@@ -310,6 +310,8 @@ def test_details_endpoint_returns_full_record(tmp_path, monkeypatch):
         expected["date_of_birth"] = data["metadata"]["date_of_birth"]
         expected["expiration_date"] = data["metadata"]["expiration_date"]
         expected["passport_number"] = data["metadata"]["passport_number"]
+        expected["confirmed"] = False
+        expected["created_path"] = None
         details_json_no_emb = details_json.copy()
         details_json_no_emb.pop("embedding", None)
         assert details_json_no_emb == expected

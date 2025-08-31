@@ -30,9 +30,10 @@ def init_db() -> None:
     _conn = sqlite3.connect(_DB_PATH, check_same_thread=False)
     _conn.row_factory = sqlite3.Row
     with _conn:
+        _conn.execute("DROP TABLE IF EXISTS files")
         _conn.execute(
             """
-            CREATE TABLE IF NOT EXISTS files (
+            CREATE TABLE files (
                 id TEXT PRIMARY KEY,
                 filename TEXT NOT NULL,
                 metadata TEXT NOT NULL,
@@ -52,11 +53,12 @@ def init_db() -> None:
                 chat_history TEXT,
                 sources TEXT,
                 embedding TEXT,
-                suggested_path TEXT
+                suggested_path TEXT,
+                created_path TEXT,
+                confirmed INTEGER
             )
             """
         )
-        _conn.execute("DELETE FROM files")
 
 
 def _serialize_record(record: FileRecord) -> Dict[str, Any]:
@@ -81,6 +83,8 @@ def _serialize_record(record: FileRecord) -> Dict[str, Any]:
         "sources": json.dumps(record.sources, ensure_ascii=False) if record.sources is not None else None,
         "embedding": json.dumps(record.embedding, ensure_ascii=False) if record.embedding is not None else None,
         "suggested_path": record.suggested_path,
+        "created_path": record.created_path,
+        "confirmed": 1 if record.confirmed else 0,
     }
 
 
@@ -107,6 +111,8 @@ def _row_to_record(row: sqlite3.Row) -> FileRecord:
         sources=json.loads(row["sources"]) if row["sources"] else None,
         embedding=json.loads(row["embedding"]) if row["embedding"] else None,
         suggested_path=row["suggested_path"],
+        created_path=row["created_path"],
+        confirmed=bool(row["confirmed"]),
     )
 
 
@@ -136,6 +142,8 @@ def add_file(
     translation_lang: str | None = None,
     embedding: list[float] | None = None,
     suggested_path: str | None = None,
+    confirmed: bool = False,
+    created_path: str | None = None,
 ) -> None:
     record = FileRecord(
         id=file_id,
@@ -158,6 +166,8 @@ def add_file(
         sources=sources,
         embedding=embedding,
         suggested_path=suggested_path,
+        created_path=created_path,
+        confirmed=confirmed,
     )
     _upsert(record)
 
@@ -187,6 +197,8 @@ def update_file(
     translation_lang: str | None = None,
     embedding: list[float] | None = None,
     suggested_path: str | None = None,
+    confirmed: bool | None = None,
+    created_path: str | None = None,
 ) -> None:
     record = get_file(file_id)
     if record is None:
@@ -219,6 +231,10 @@ def update_file(
         record.embedding = embedding
     if suggested_path is not None:
         record.suggested_path = suggested_path
+    if confirmed is not None:
+        record.confirmed = confirmed
+    if created_path is not None:
+        record.created_path = created_path
     _upsert(record)
 
 

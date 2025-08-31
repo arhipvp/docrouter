@@ -56,12 +56,12 @@ async def upload_file(
 
         meta_dict = metadata.model_dump()
         # Раскладываем файл по директориям без создания недостающих
-        dest_path, missing = place_file(
+        dest_path, missing, confirmed = place_file(
             str(temp_path),
             meta_dict,
             server.config.output_dir,
             dry_run=dry_run,
-            create_missing=False,
+            needs_new_folder=metadata.needs_new_folder,
         )
         metadata = Metadata(**meta_dict)
 
@@ -83,6 +83,8 @@ async def upload_file(
             missing,
             embedding=embedding,
             suggested_path=str(dest_path),
+            confirmed=confirmed,
+            created_path=str(dest_path) if confirmed else None,
         )
         return UploadResponse(
             id=file_id,
@@ -105,6 +107,8 @@ async def upload_file(
         [],  # missing
         embedding=embedding,
         suggested_path=str(dest_path),
+        confirmed=confirmed,
+        created_path=str(dest_path) if confirmed else None,
     )
 
     return UploadResponse(
@@ -174,12 +178,12 @@ async def upload_images(
         embedding = await get_embedding(text)
 
         meta_dict = metadata.model_dump()
-        dest_path, missing = place_file(
+        dest_path, missing, confirmed = place_file(
             str(pdf_path),
             meta_dict,
             server.config.output_dir,
             dry_run=dry_run,
-            create_missing=False,
+            needs_new_folder=metadata.needs_new_folder,
         )
         metadata = Metadata(**meta_dict)
     except HTTPException:
@@ -203,6 +207,8 @@ async def upload_images(
             sources=sources,
             embedding=embedding,
             suggested_path=str(dest_path),
+            confirmed=confirmed,
+            created_path=str(dest_path) if confirmed else None,
         )
         return UploadResponse(
             id=file_id,
@@ -225,6 +231,8 @@ async def upload_images(
         sources=sources,
         embedding=embedding,
         suggested_path=str(dest_path),
+        confirmed=confirmed,
+        created_path=str(dest_path) if confirmed else None,
     )
 
     return UploadResponse(

@@ -50,6 +50,8 @@ class FileRecord(BaseModel):
     sources: Optional[List[str]] = None
     embedding: Optional[List[float]] = None
     suggested_path: Optional[str] = None
+    created_path: Optional[str] = None
+    confirmed: bool = False
 
 
 class UploadResponse(BaseModel):
