@@ -87,14 +87,47 @@ def extract_text_md(path: Path) -> str:
 
 
 @register_parser(".pdf")
-def extract_text_pdf(path: Path) -> str:
-    """Извлечение текста из PDF с помощью PyMuPDF."""
+def extract_text_pdf(path: Path, language: str = "eng") -> str:
+    """Извлечение текста из PDF с помощью PyMuPDF.
+
+    Если страница не содержит текстового слоя, при наличии ``extract_text_image``
+    страница будет конвертирована в изображение и обработана через OCR.
+
+    :param path: путь к PDF-файлу.
+    :param language: язык OCR для страниц без текстового слоя.
+    :return: извлечённый текст по всем страницам.
+    :raises RuntimeError: если PyMuPDF или OCR-модуль недоступны.
+    """
     if fitz is None:
-        raise RuntimeError("PyMuPDF не установлен")
+        raise RuntimeError("PyMuPDF не установлен, обработка PDF невозможна")
+
     parts: list[str] = []
     with fitz.open(path) as doc:
         for page in doc:
-            parts.append(page.get_text())
+            text = page.get_text()
+            if text.strip():
+                parts.append(text)
+                continue
+
+            if extract_text_image is None:
+                raise RuntimeError(
+                    "OCR недоступен: функция extract_text_image не найдена"
+                )
+
+            pix = page.get_pixmap()
+            tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
+            try:
+                pix.save(tmp.name)
+                tmp_path = Path(tmp.name)
+            finally:
+                tmp.close()
+            try:
+                ocr_text = extract_text_image(tmp_path, language=language)
+            finally:
+                tmp_path.unlink(missing_ok=True)
+            if ocr_text.strip():
+                parts.append(ocr_text)
+
     return "\n".join(parts)
 
 
@@ -191,6 +224,11 @@ def extract_text(file_path: Union[str, Path], language: str = "eng") -> str:
             raise RuntimeError("Модуль OCR недоступен: .image_ocr.extract_text_image не найден")
         text = extract_text_image(path, language=language)
         logger.debug("Extracted %d characters from %s via OCR", len(text), path)
+        return text
+
+    if ext == ".pdf":
+        text = extract_text_pdf(path, language=language)
+        logger.debug("Extracted %d characters from %s", len(text), path)
         return text
 
     # Обычные «текстовые» форматы

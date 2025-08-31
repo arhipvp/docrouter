@@ -92,6 +92,32 @@ class TestExtractText(unittest.TestCase):
             path = _create_file(Path(tmp), ".pdf", "hello pdf")
             self.assertEqual(extract_text(path).strip(), "hello pdf")
 
+    @unittest.skipUnless(
+        has_module("fitz") and shutil.which("tesseract"),
+        "PyMuPDF or tesseract not installed",
+    )
+    def test_pdf_image_ocr(self):
+        with TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            image_path = base / "ocr.png"
+            image = Image.new("RGB", (100, 50), color="white")
+            draw = ImageDraw.Draw(image)
+            draw.text((10, 10), "PDFOCR", fill="black", font=ImageFont.load_default())
+            image.save(image_path)
+
+            import fitz
+
+            doc = fitz.open()
+            page = doc.new_page(width=100, height=50)
+            rect = fitz.Rect(0, 0, 100, 50)
+            page.insert_image(rect, filename=str(image_path))
+            pdf_path = base / "ocr.pdf"
+            doc.save(pdf_path)
+            doc.close()
+
+            text = extract_text(pdf_path)
+            self.assertIn("PDFOCR", text)
+
     @unittest.skipUnless(has_module("docx"), "python-docx not installed")
     def test_docx(self):
         with TemporaryDirectory() as tmp:
