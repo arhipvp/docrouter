@@ -30,8 +30,8 @@
         <div id="image-upload-block">
             <h2>Загрузить набор изображений</h2>
             <div id="image-drop-area">
-                <p>Перетащите JPEG-файлы сюда или выберите их вручную</p>
-                <input id="image-files" type="file" multiple accept="image/jpeg" />
+                <button id="select-images-btn" type="button">Выбрать фото</button>
+                <input id="image-files" type="file" multiple accept="image/jpeg" capture="environment" />
             </div>
             <ul id="selected-images"></ul>
             <button id="upload-images-btn" type="button">Загрузить набор изображений</button>
