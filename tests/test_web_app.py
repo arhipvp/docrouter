@@ -342,7 +342,7 @@ def test_root_returns_form_unprotected():
     with LiveClient(app) as client:
         resp = client.get("/")
         assert resp.status_code == 200
-        assert '<form action="/upload" method="post" enctype="multipart/form-data">' in resp.text
+        assert '<form action="/upload" method="post" enctype="multipart/form-data"' in resp.text
         assert 'name="language"' in resp.text
         assert 'id="upload-progress"' in resp.text
         assert 'id="ai-exchange"' in resp.text

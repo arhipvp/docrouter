@@ -15,25 +15,22 @@
     <div class="app__container">
         <h1>Загрузка документов</h1>
         <p>Выберите файл и отправьте его на обработку.</p>
-        <form action="/upload" method="post" enctype="multipart/form-data">
-            <input type="file" name="file" accept="image/*,.pdf,.doc,.docx,.txt,.csv,.xls,.xlsx,.ppt,.pptx" capture="environment" />
+        <form action="/upload" method="post" enctype="multipart/form-data" id="upload-form">
+            <input id="file-input" type="file" name="file" multiple
+                   accept="image/*,.pdf,.doc,.docx,.txt,.csv,.xls,.xlsx,.ppt,.pptx" capture="environment" />
             <label for="language">Язык документа:</label>
             <select name="language" id="language">
                 <option value="en">English</option>
                 <option value="ru" selected>Русский</option>
                 <option value="de">Deutsch</option>
             </select>
-            <input type="submit" value="Upload" />
+            <input type="submit" id="single-upload-btn" value="Загрузить" />
         </form>
 
         <progress id="upload-progress" max="100" value="0"></progress>
 
-        <div id="image-upload-block">
-            <h2>Загрузить набор изображений</h2>
-            <div id="image-drop-area">
-                <button id="select-images-btn" type="button">Выбрать фото</button>
-                <input id="image-files" type="file" multiple accept="image/jpeg" capture="environment" />
-            </div>
+        <div id="image-upload-block" style="display: none;">
+            <h2>Выбранные изображения</h2>
             <ul id="selected-images"></ul>
             <button id="upload-images-btn" type="button">Загрузить набор изображений</button>
         </div>

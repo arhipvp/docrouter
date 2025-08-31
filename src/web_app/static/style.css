@@ -60,10 +60,6 @@ button:hover, input[type="submit"]:hover { background-color: var(--color-primary
 #preview-modal .modal__content { width: 80%; height: 80%; max-width: 1000px; max-height: 800px; }
 #preview-frame { width: 100%; height: 100%; border: none; }
 
-#image-drop-area { border: 2px dashed var(--color-primary); padding: var(--spacing-md); text-align: center; margin-top: var(--spacing-md); background: #fafafa; cursor: pointer; }
-#image-drop-area.dragover { background: #e0e0e0; }
-#select-images-btn { padding: 1em 2em; font-size: 1em; }
-#image-files { display: none; }
 #selected-images { list-style: none; padding: 0; margin-top: var(--spacing-md); }
 #selected-images li { margin: var(--spacing-xs) 0; }
 
@@ -100,13 +96,6 @@ button:hover, input[type="submit"]:hover { background-color: var(--color-primary
 }
 
 /* from codex/add-camera-capture-to-image-input */
-@media (pointer: coarse) {
-  #image-drop-area {
-    border: none;
-    padding: 0;
-    background: none;
-  }
-}
 
 /* from main */
 @media (max-width: 600px) {

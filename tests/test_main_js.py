@@ -95,7 +95,7 @@ def test_main_js_rotate_crop(tmp_path):
           document.dispatchEvent({ type: 'DOMContentLoaded' });
 
           const file = new File(['dummy'], 'test.jpg', { type: 'image/jpeg' });
-          const input = getEl('image-files');
+          const input = getEl('file-input');
           input.files = [file];
           input.dispatchEvent({ type: 'change', target: { files: [file] } });
 
