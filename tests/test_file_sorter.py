@@ -228,6 +228,32 @@ def test_place_file_sanitizes_invalid_chars(tmp_path):
     assert dest.name == "2023-10-12__inva_lid_na_me_.pdf"
 
 
+def test_place_file_sanitizes_dirnames(tmp_path):
+    src = tmp_path / "report.pdf"
+    src.write_text("content")
+
+    dest_root = tmp_path / "Archive"
+    metadata = sample_metadata()
+    metadata["person"] = "../evil"
+    metadata["category"] = "../cat"
+    metadata["subcategory"] = "../sub"
+    metadata["issuer"] = "../iss"
+
+    dest, _, _ = place_file(src, metadata, dest_root, dry_run=True)
+    assert dest == (
+        dest_root
+        / "evil"
+        / "cat"
+        / "sub"
+        / "iss"
+        / "2023-10-12__Kreditvertrag.pdf"
+    )
+    assert metadata["person"] == "evil"
+    assert metadata["category"] == "cat"
+    assert metadata["subcategory"] == "sub"
+    assert metadata["issuer"] == "iss"
+
+
 def test_place_file_removes_date_from_suggested_name(tmp_path):
     src = tmp_path / "report.pdf"
     src.write_text("content")
