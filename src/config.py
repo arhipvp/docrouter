@@ -14,6 +14,7 @@ class Config:
     openrouter_api_key: Optional[str] = None
     openrouter_base_url: Optional[str] = None
     openrouter_model: Optional[str] = None
+    openrouter_embed_model: Optional[str] = None
     openrouter_site_url: Optional[str] = None
     openrouter_site_name: Optional[str] = None
     db_url: Optional[str] = None
@@ -42,6 +43,7 @@ def load_config() -> Config:
         openrouter_api_key=_get_first_env("OPENROUTER_API_KEY", "openrouter_api_key"),
         openrouter_base_url=_get_first_env("OPENROUTER_BASE_URL", "openrouter_base_url"),
         openrouter_model=_get_first_env("OPENROUTER_MODEL", "openrouter_model"),
+        openrouter_embed_model=_get_first_env("OPENROUTER_EMBED_MODEL", "openrouter_embed_model"),
         openrouter_site_url=_get_first_env("OPENROUTER_SITE_URL", "openrouter_site_url"),
         openrouter_site_name=_get_first_env("OPENROUTER_SITE_NAME", "openrouter_site_name"),
         db_url=_get_first_env("DB_URL", "db_url"),
@@ -55,6 +57,7 @@ def load_config() -> Config:
             openrouter_api_key: Optional[str] = Field(default=None, env=["openrouter_api_key", "OPENROUTER_API_KEY"])
             openrouter_base_url: Optional[str] = Field(default=None, env=["openrouter_base_url", "OPENROUTER_BASE_URL"])
             openrouter_model: Optional[str] = Field(default=None, env=["openrouter_model", "OPENROUTER_MODEL"])
+            openrouter_embed_model: Optional[str] = Field(default=None, env=["openrouter_embed_model", "OPENROUTER_EMBED_MODEL"])
             openrouter_site_url: Optional[str] = Field(default=None, env=["openrouter_site_url", "OPENROUTER_SITE_URL"])
             openrouter_site_name: Optional[str] = Field(default=None, env=["openrouter_site_name", "OPENROUTER_SITE_NAME"])
             db_url: Optional[str] = Field(default=None, env=["db_url", "DB_URL"])
@@ -75,6 +78,7 @@ def load_config() -> Config:
             openrouter_api_key=s.openrouter_api_key or base.openrouter_api_key,
             openrouter_base_url=s.openrouter_base_url or base.openrouter_base_url,
             openrouter_model=s.openrouter_model or base.openrouter_model,
+            openrouter_embed_model=s.openrouter_embed_model or base.openrouter_embed_model,
             openrouter_site_url=s.openrouter_site_url or base.openrouter_site_url,
             openrouter_site_name=s.openrouter_site_name or base.openrouter_site_name,
             db_url=s.db_url or base.db_url,
@@ -87,6 +91,7 @@ def load_config() -> Config:
         cfg.openrouter_api_key = _get_first_env("OPENROUTER_API_KEY", default=cfg.openrouter_api_key)
         cfg.openrouter_base_url = _get_first_env("OPENROUTER_BASE_URL", default=cfg.openrouter_base_url)
         cfg.openrouter_model = _get_first_env("OPENROUTER_MODEL", default=cfg.openrouter_model)
+        cfg.openrouter_embed_model = _get_first_env("OPENROUTER_EMBED_MODEL", default=cfg.openrouter_embed_model)
         cfg.openrouter_site_url = _get_first_env("OPENROUTER_SITE_URL", default=cfg.openrouter_site_url)
         cfg.openrouter_site_name = _get_first_env("OPENROUTER_SITE_NAME", default=cfg.openrouter_site_name)
         cfg.db_url = _get_first_env("DB_URL", default=cfg.db_url)
@@ -111,6 +116,7 @@ OUTPUT_DIR = config.output_dir
 OPENROUTER_API_KEY = config.openrouter_api_key
 OPENROUTER_BASE_URL = config.openrouter_base_url
 OPENROUTER_MODEL = config.openrouter_model
+OPENROUTER_EMBED_MODEL = config.openrouter_embed_model
 OPENROUTER_SITE_URL = config.openrouter_site_url
 OPENROUTER_SITE_NAME = config.openrouter_site_name
 DB_URL = config.db_url
@@ -125,6 +131,7 @@ __all__ = [
     "OPENROUTER_API_KEY",
     "OPENROUTER_BASE_URL",
     "OPENROUTER_MODEL",
+    "OPENROUTER_EMBED_MODEL",
     "OPENROUTER_SITE_URL",
     "OPENROUTER_SITE_NAME",
     "DB_URL",
