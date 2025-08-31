@@ -6,6 +6,8 @@ pydantic
 python-dotenv
 pillow
 pytesseract
+numpy
+opencv-python
 python-docx
 pymupdf
 openpyxl
