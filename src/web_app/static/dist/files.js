@@ -27,6 +27,7 @@ let nameOriginalLabel;
 let nameLatinLabel;
 let currentEditId = null;
 let displayLang = '';
+let lastFocused = null;
 export function setupFiles() {
     list = document.getElementById('files');
     textPreview = document.getElementById('text-preview');
@@ -72,7 +73,7 @@ export function setupFiles() {
             body: JSON.stringify(payload)
         });
         if (resp.ok) {
-            metadataModal.style.display = 'none';
+            closeModal(metadataModal);
             currentEditId = null;
             yield refreshFiles();
         }
@@ -90,7 +91,7 @@ export function setupFiles() {
         if (!id)
             return;
         previewFrame.src = `/preview/${id}`;
-        previewModal.style.display = 'flex';
+        openModal(previewModal);
         try {
             const resp = yield fetch(`/files/${id}/details`);
             if (resp.ok) {
@@ -107,31 +108,19 @@ export function setupFiles() {
     }));
     const previewClose = previewModal.querySelector('.close');
     previewClose.addEventListener('click', () => {
-        previewModal.style.display = 'none';
+        closeModal(previewModal);
         previewFrame.src = '';
     });
     previewModal.addEventListener('click', (e) => {
         if (e.target === previewModal) {
-            previewModal.style.display = 'none';
+            closeModal(previewModal);
             previewFrame.src = '';
         }
     });
     const metadataClose = metadataModal.querySelector('.close');
     metadataClose.addEventListener('click', () => {
-        metadataModal.style.display = 'none';
+        closeModal(metadataModal);
         currentEditId = null;
-    });
-    document.addEventListener('keydown', (e) => {
-        if (e.key !== 'Escape')
-            return;
-        if (previewModal.style.display === 'flex') {
-            previewModal.style.display = 'none';
-            previewFrame.src = '';
-        }
-        if (metadataModal.style.display === 'flex') {
-            metadataModal.style.display = 'none';
-            currentEditId = null;
-        }
     });
     tagLanguage.addEventListener('change', refreshFiles);
     nameOriginalRadio === null || nameOriginalRadio === void 0 ? void 0 : nameOriginalRadio.addEventListener('change', () => {
@@ -229,5 +218,50 @@ function openMetadataModal(file) {
         nameOriginalLabel.textContent = orig;
     if (nameLatinLabel)
         nameLatinLabel.textContent = latin;
-    metadataModal.style.display = 'flex';
+    openModal(metadataModal);
+}
+function openModal(modal) {
+    lastFocused = document.activeElement;
+    modal.style.display = 'flex';
+    const focusable = modal.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+    const first = (focusable[0] || modal);
+    if (typeof first.focus === 'function') {
+        first.focus();
+    }
+    const handleKeydown = (e) => {
+        if (e.key === 'Tab') {
+            const items = modal.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+            if (!items.length)
+                return;
+            const firstEl = items[0];
+            const lastEl = items[items.length - 1];
+            if (e.shiftKey && document.activeElement === firstEl) {
+                e.preventDefault();
+                lastEl.focus();
+            }
+            else if (!e.shiftKey && document.activeElement === lastEl) {
+                e.preventDefault();
+                firstEl.focus();
+            }
+        }
+        else if (e.key === 'Escape') {
+            closeModal(modal);
+            if (modal === previewModal)
+                previewFrame.src = '';
+            if (modal === metadataModal)
+                currentEditId = null;
+        }
+    };
+    modal.addEventListener('keydown', handleKeydown);
+    modal._handleKeydown = handleKeydown;
+}
+function closeModal(modal) {
+    modal.style.display = 'none';
+    const handler = modal._handleKeydown;
+    if (handler && typeof modal.removeEventListener === 'function') {
+        modal.removeEventListener('keydown', handler);
+    }
+    modal._handleKeydown = null;
+    lastFocused === null || lastFocused === void 0 ? void 0 : lastFocused.focus();
+    lastFocused = null;
 }

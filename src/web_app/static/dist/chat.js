@@ -12,6 +12,7 @@ let chatHistory;
 let chatForm;
 let chatInput;
 let currentChatId = null;
+let lastFocused = null;
 export function setupChat() {
     chatModal = document.getElementById('chat-modal');
     chatHistory = document.getElementById('chat-history');
@@ -57,10 +58,51 @@ export function openChatModal(file) {
         catch (_a) {
             renderChat([]);
         }
-        chatModal.style.display = 'flex';
+        openModal(chatModal);
     });
 }
 export function closeChat() {
-    chatModal.style.display = 'none';
+    closeModal(chatModal);
     currentChatId = null;
+}
+function openModal(modal) {
+    lastFocused = document.activeElement;
+    modal.style.display = 'flex';
+    const focusable = modal.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+    const first = (focusable[0] || modal);
+    if (typeof first.focus === 'function') {
+        first.focus();
+    }
+    const handleKeydown = (e) => {
+        if (e.key === 'Tab') {
+            const items = modal.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+            if (!items.length)
+                return;
+            const firstEl = items[0];
+            const lastEl = items[items.length - 1];
+            if (e.shiftKey && document.activeElement === firstEl) {
+                e.preventDefault();
+                lastEl.focus();
+            }
+            else if (!e.shiftKey && document.activeElement === lastEl) {
+                e.preventDefault();
+                firstEl.focus();
+            }
+        }
+        else if (e.key === 'Escape') {
+            closeChat();
+        }
+    };
+    modal.addEventListener('keydown', handleKeydown);
+    modal._handleKeydown = handleKeydown;
+}
+function closeModal(modal) {
+    modal.style.display = 'none';
+    const handler = modal._handleKeydown;
+    if (handler && typeof modal.removeEventListener === 'function') {
+        modal.removeEventListener('keydown', handler);
+    }
+    modal._handleKeydown = null;
+    lastFocused === null || lastFocused === void 0 ? void 0 : lastFocused.focus();
+    lastFocused = null;
 }
