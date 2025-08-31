@@ -13,3 +13,4 @@ xlrd
 python-multipart
 pytest
 unidecode
+python-magic

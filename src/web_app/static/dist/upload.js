@@ -73,7 +73,14 @@ export function setupUpload() {
         }));
     });
     form.addEventListener('submit', (e) => {
+        var _a;
         e.preventDefault();
+        const fileInput = form.querySelector('input[type="file"]');
+        const file = (_a = fileInput === null || fileInput === void 0 ? void 0 : fileInput.files) === null || _a === void 0 ? void 0 : _a[0];
+        if (!file || !file.name) {
+            alert('Файл должен иметь имя');
+            return;
+        }
         const data = new FormData(form);
         progress.value = 0;
         const xhr = new XMLHttpRequest();
