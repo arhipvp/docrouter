@@ -1,6 +1,7 @@
 import pytest
 
 np = pytest.importorskip("numpy")
+pytest.importorskip("cv2")
 
 from ocr_pipeline import remove_noise, resize_to_dpi, run_ocr
 

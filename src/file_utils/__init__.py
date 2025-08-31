@@ -8,7 +8,6 @@ import mimetypes
 import tempfile
 from PIL import Image, ImageOps
 import httpx
-from fastapi import HTTPException
 
 from config import (
     OPENROUTER_API_KEY,
@@ -53,6 +52,10 @@ except Exception:  # pragma: no cover - optional module
 from .mrz import parse_mrz
 
 logger = logging.getLogger(__name__)
+
+
+class UnsupportedFileType(ValueError):
+    """Выбрасывается, когда тип файла не поддерживается или не определён."""
 
 
 _PARSER_REGISTRY: Dict[str, Callable[[Path], str]] = {}
@@ -158,7 +161,7 @@ def extract_text(file_path: Union[str, Path], language: str = "eng") -> str:
     :param file_path: путь к файлу.
     :param language: язык OCR (ISO-коды tesseract, напр. 'eng', 'rus', 'deu').
     :return: извлечённый текст.
-    :raises ValueError: если расширение не поддерживается.
+    :raises UnsupportedFileType: если расширение не поддерживается или не определено.
     :raises RuntimeError: если требуемая зависимость для формата не установлена.
     """
     path = Path(file_path)
@@ -179,7 +182,7 @@ def extract_text(file_path: Union[str, Path], language: str = "eng") -> str:
             logger.debug("Guessed extension %s for %s", ext, path)
         if not ext:
             logger.error("Cannot determine file type for %s", path)
-            raise HTTPException(status_code=400, detail="Не удалось определить тип файла")
+            raise UnsupportedFileType("Не удалось определить тип файла")
 
     # Ветвь для изображений — нужен отдельный параметр language
     if ext in {".jpg", ".jpeg", ".png", ".tiff"}:
@@ -194,9 +197,7 @@ def extract_text(file_path: Union[str, Path], language: str = "eng") -> str:
     parser = _PARSER_REGISTRY.get(ext)
     if parser is None:
         logger.error("Unsupported/unknown file extension: %s", ext)
-        if guessed:
-            raise HTTPException(status_code=400, detail=f"Неизвестный тип файла: {ext}")
-        raise ValueError(f"Unsupported/unknown file extension: {ext}")
+        raise UnsupportedFileType(f"Unsupported/unknown file extension: {ext}")
     text = parser(path)
     logger.debug("Extracted %d characters from %s", len(text), path)
     return text
@@ -242,6 +243,7 @@ def merge_images_to_pdf(paths: list[Path]) -> Path:
 
 
 __all__ = [
+    "UnsupportedFileType",
     "extract_text",
     "register_parser",
     "extract_text_txt",
