@@ -113,6 +113,7 @@ class OpenRouterAnalyzer(MetadataAnalyzer):
             "model": self.model,
             "messages": [{"role": "user", "content": prompt}],
             "temperature": 0.1,
+            "response_format": {"type": "json_object"},
         }
         headers = {
             "Authorization": f"Bearer {self.api_key}",
@@ -127,9 +128,15 @@ class OpenRouterAnalyzer(MetadataAnalyzer):
         except httpx.HTTPError as exc:
             raise OpenRouterError("OpenRouter request failed") from exc
         content = response.json()["choices"][0]["message"]["content"]
+        if not content.strip():
+            logger.error("Empty content from OpenRouter: %s", response.text)
+            raise OpenRouterError("Empty response from OpenRouter")
+        if content.strip().startswith("```"):
+            content = "\n".join(content.strip().split("\n")[1:-1])
         try:
             metadata = json.loads(content)
         except json.JSONDecodeError as exc:
+            logger.error("JSON decode error from OpenRouter: %s", response.text)
             raise OpenRouterError("Invalid JSON from OpenRouter") from exc
         return {"prompt": prompt, "raw_response": content, "metadata": metadata}
 
