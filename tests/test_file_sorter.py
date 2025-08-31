@@ -1,5 +1,6 @@
 import json
 import sys
+import json
 from pathlib import Path
 
 import pytest
@@ -24,7 +25,7 @@ def test_place_file_path_and_name(tmp_path):
 
     dest_root = tmp_path / "Archive"
     # dry_run: ничего не создаётся, но пути и missing рассчитываются
-    dest, missing = place_file(src, sample_metadata(), dest_root, dry_run=True)
+    dest, missing, _ = place_file(src, sample_metadata(), dest_root, dry_run=True)
 
     expected = dest_root / "Финансы" / "Банки" / "Sparkasse" / "2023-10-12__Kreditvertrag.pdf"
     assert dest == expected
@@ -41,12 +42,20 @@ def test_place_file_moves_and_creates_json(tmp_path):
 
     dest_root = tmp_path / "Archive"
     # По умолчанию create_missing=True — каталоги будут созданы, файл перемещён
-    dest, missing = place_file(src, sample_metadata(), dest_root, dry_run=False)
+    dest, missing, confirmed = place_file(
+        src,
+        sample_metadata(),
+        dest_root,
+        dry_run=False,
+        needs_new_folder=True,
+        confirm_callback=lambda _: True,
+    )
 
     json_path = dest.with_suffix(dest.suffix + ".json")
     assert dest.exists()
     assert json_path.exists()
     assert missing == []
+    assert confirmed is True
 
     with open(json_path, "r", encoding="utf-8") as f:
         data = json.load(f)
@@ -61,8 +70,22 @@ def test_place_file_renames_on_name_conflict(tmp_path):
 
     dest_root = tmp_path / "Archive"
 
-    dest1, _ = place_file(src1, sample_metadata(), dest_root, dry_run=False)
-    dest2, _ = place_file(src2, sample_metadata(), dest_root, dry_run=False)
+    dest1, _, _ = place_file(
+        src1,
+        sample_metadata(),
+        dest_root,
+        dry_run=False,
+        needs_new_folder=True,
+        confirm_callback=lambda _: True,
+    )
+    dest2, _, _ = place_file(
+        src2,
+        sample_metadata(),
+        dest_root,
+        dry_run=False,
+        needs_new_folder=True,
+        confirm_callback=lambda _: True,
+    )
 
     assert dest1.name == "2023-10-12__Kreditvertrag.pdf"
     assert dest2.name == "2023-10-12__Kreditvertrag_1.pdf"
@@ -78,18 +101,22 @@ def test_place_file_sanitizes_invalid_chars(tmp_path):
     metadata = sample_metadata()
     metadata["suggested_name"] = "inva:lid/na*me?"
 
-    dest, _ = place_file(src, metadata, dest_root, dry_run=True)
+    dest, _, _ = place_file(src, metadata, dest_root, dry_run=True)
 
     assert dest.name == "2023-10-12__inva_lid_na_me_.pdf"
 
 
-def test_place_file_returns_missing_dirs_and_does_not_move_when_create_missing_false(tmp_path):
+def test_place_file_returns_missing_dirs_and_does_not_move_when_needs_new_folder_false(tmp_path):
     src = tmp_path / "document.pdf"
     src.write_text("content")
 
     dest_root = tmp_path / "Archive"
-    dest, missing = place_file(
-        src, sample_metadata(), dest_root, dry_run=False, create_missing=False
+    dest, missing, confirmed = place_file(
+        src,
+        sample_metadata(),
+        dest_root,
+        dry_run=False,
+        needs_new_folder=False,
     )
 
     assert missing == [
@@ -100,6 +127,7 @@ def test_place_file_returns_missing_dirs_and_does_not_move_when_create_missing_f
     # файл не должен быть перемещён
     assert not dest.exists()
     assert src.exists()
+    assert confirmed is False
 
 
 def test_place_file_generates_transliteration(tmp_path):
@@ -114,3 +142,23 @@ def test_place_file_generates_transliteration(tmp_path):
     place_file(src, metadata, dest_root, dry_run=True)
 
     assert metadata["suggested_name_translit"] == "test"
+
+
+def test_place_file_creates_dirs_on_confirmation(tmp_path):
+    src = tmp_path / "doc.pdf"
+    src.write_text("content")
+
+    dest_root = tmp_path / "Archive"
+    dest, missing, confirmed = place_file(
+        src,
+        sample_metadata(),
+        dest_root,
+        dry_run=False,
+        needs_new_folder=True,
+        confirm_callback=lambda _: True,
+    )
+
+    assert confirmed is True
+    assert missing == []
+    assert dest.exists()
+    assert dest.parent.exists()

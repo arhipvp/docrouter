@@ -137,17 +137,19 @@ async def update_file(file_id: str, data: dict = Body(...)):
     if not old_path.exists():
         raise HTTPException(status_code=404, detail="File not found on disk")
     dest_path = old_path
+    confirmed = False
 
     if metadata_updates and not path_param:
         old_json = old_path.with_suffix(old_path.suffix + ".json")
         if old_json.exists():
             old_json.unlink()
-        dest_path, _ = place_file(
+        dest_path, _, confirmed = place_file(
             old_path,
             new_metadata_dict,
             server.config.output_dir,
             dry_run=False,
-            create_missing=True,
+            needs_new_folder=True,
+            confirm_callback=lambda _: True,
         )
         new_metadata = Metadata(**new_metadata_dict)
     elif path_param:
@@ -170,6 +172,8 @@ async def update_file(file_id: str, data: dict = Body(...)):
         prompt=prompt,
         raw_response=raw_response,
         missing=missing,
+        confirmed=confirmed if metadata_updates and not path_param else None,
+        created_path=str(dest_path) if (metadata_updates and confirmed and not path_param) else None,
     )
     return database.get_file(file_id)
 
@@ -204,12 +208,13 @@ async def finalize_file(
         temp_path = str(UPLOAD_DIR / f"{file_id}_{record.filename}")
 
     meta_dict = record.metadata.model_dump()
-    dest_path, still_missing = place_file(
+    dest_path, still_missing, confirmed = place_file(
         str(temp_path),
         meta_dict,
         server.config.output_dir,
         dry_run=False,
-        create_missing=True,
+        needs_new_folder=True,
+        confirm_callback=lambda _: True,
     )
     metadata = Metadata(**meta_dict)
 
@@ -222,5 +227,7 @@ async def finalize_file(
         record.raw_response,
         still_missing,
         suggested_path=str(dest_path),
+        confirmed=confirmed,
+        created_path=str(dest_path) if confirmed else None,
     )
     return database.get_file(file_id)

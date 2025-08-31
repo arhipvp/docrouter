@@ -5,7 +5,7 @@ import logging
 import re
 import shutil
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Tuple, Callable
 
 try:
     from unidecode import unidecode
@@ -69,29 +69,32 @@ def place_file(
     metadata: Dict[str, Any],
     dest_root: str | Path,
     dry_run: bool = False,
-    create_missing: bool = True,
-) -> Tuple[Path, List[str]]:
+    needs_new_folder: bool = False,
+    confirm_callback: Callable[[List[str]], bool] | None = None,
+) -> Tuple[Path, List[str], bool]:
     """Переместить файл в структуру папок на основе *metadata*.
 
     Структура: ``<dest_root>/<category>/<subcategory>/<issuer>/<DATE>__<NAME>.<ext>``.
     Рядом с файлом сохраняется ``.json`` с теми же метаданными.
 
-    Возвращает кортеж ``(dest_file, missing)``, где:
+    Возвращает кортеж ``(dest_file, missing, confirmed)``, где:
       - ``dest_file`` — предполагаемый/фактический путь к файлу,
-      - ``missing`` — список отсутствующих каталогов (пути относительно ``dest_root``).
+      - ``missing`` — список отсутствующих каталогов (пути относительно ``dest_root``),
+      - ``confirmed`` — было ли создано новое дерево каталогов.
 
     Поведение:
       - При ``dry_run=True`` ничего не создаётся и не перемещается — только расчёт путей.
-      - Если имеются отсутствующие каталоги и ``create_missing=False``, перенос не выполняется.
-      - Если каталоги отсутствуют и ``create_missing=True``, они создаются перед переносом.
+      - Каталоги создаются лишь при ``needs_new_folder=True`` и положительном ответе
+        ``confirm_callback``.
 
     :param src_path: путь к исходному файлу.
     :param metadata: словарь с ключами: ``category``, ``subcategory``, ``issuer``,
                      ``date`` (YYYY-MM-DD), ``suggested_name``.
     :param dest_root: корень архива.
     :param dry_run: «сухой прогон» без изменений на диске.
-    :param create_missing: создавать недостающие каталоги.
-    :return: (путь к файлу назначения, список отсутствующих каталогов).
+    :param needs_new_folder: требуется ли создание новой директории.
+    :param confirm_callback: функция подтверждения создания каталогов.
+    :return: (путь к файлу назначения, список отсутствующих каталогов, подтверждение).
     """
     src = Path(src_path)
     base_dir = Path(dest_root)
@@ -132,20 +135,27 @@ def place_file(
     metadata["new_name_translit"] = translit_name
     json_file = dest_file.with_suffix(dest_file.suffix + ".json")
 
+    confirmed = False
+
     # Сухой прогон — только расчёт
     if dry_run:
         logger.info("Would move %s -> %s", src, dest_file)
         logger.info("Would write metadata JSON to %s", json_file)
-        return dest_file, missing
+        return dest_file, missing, confirmed
 
-    # Если нельзя создавать каталоги и они отсутствуют — выходим
-    if missing and not create_missing:
-        logger.debug("Missing directories (no create): %s", missing)
-        return dest_file, missing
+    if confirm_callback is None:
+        confirm_callback = lambda *_: False  # type: ignore[assignment]
 
-    # Создаём недостающие каталоги при необходимости
-    if missing and create_missing:
+    # Создаём недостающие каталоги только при подтверждении
+    if missing and needs_new_folder and confirm_callback(missing):
         dest_dir.mkdir(parents=True, exist_ok=True)
+        confirmed = True
+        missing = []
+
+    # Если каталоги всё ещё отсутствуют — выходим
+    if missing:
+        logger.debug("Missing directories (no create): %s", missing)
+        return dest_file, missing, confirmed
 
     # Проверяем ещё раз перед переносом на случай гонок
     dest_file, translit_name = _unique_path()
@@ -161,4 +171,4 @@ def place_file(
         json.dump(metadata, f, ensure_ascii=False, indent=2)
     logger.debug("Wrote metadata to %s", json_file)
 
-    return dest_file, []
+    return dest_file, missing, confirmed
