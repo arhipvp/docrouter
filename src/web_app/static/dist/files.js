@@ -10,6 +10,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 import { openChatModal } from './chat.js';
 import { apiRequest } from './http.js';
 import { showNotification } from './notify.js';
+import { refreshFolderTree } from './folders.js';
 let list;
 let textPreview;
 let tagLanguage;
@@ -139,6 +140,7 @@ export function setupFiles() {
     });
     refreshBtn === null || refreshBtn === void 0 ? void 0 : refreshBtn.addEventListener('click', () => {
         refreshFiles();
+        refreshFolderTree();
     });
     refreshFiles();
 }

@@ -1,6 +1,7 @@
 import { openChatModal } from './chat.js';
 import { apiRequest } from './http.js';
 import { showNotification } from './notify.js';
+import { refreshFolderTree } from './folders.js';
 import type { FileInfo, FileMetadata } from './types.js';
 
 let list: HTMLElement;
@@ -137,6 +138,7 @@ export function setupFiles() {
 
   refreshBtn?.addEventListener('click', () => {
     refreshFiles();
+    refreshFolderTree();
   });
 
   refreshFiles();
