@@ -3,7 +3,7 @@ from __future__ import annotations
 """Utility functions for image preprocessing and OCR."""
 
 from pathlib import Path
-from typing import Union
+from typing import Union, Optional
 import logging
 
 import argparse
@@ -113,7 +113,7 @@ def run_ocr(
     alpha: float = 1.5,
     beta: float = 0.0,
     ksize: int = 3,
-    debug_dir: Path | None = None,
+    debug_dir: Optional[Path] = None,
 ) -> str:
     """Run the OCR pipeline on the given image and return recognized text.
 
@@ -136,7 +136,7 @@ def run_ocr(
 
     image = cv2.imread(str(path))
     if image is None:
-        # Файл существует, но OpenCV не смог прочитать
+        # File exists but OpenCV couldn't decode it
         raise ValueError(f"Unable to load image: {path}")
 
     def _save(stage: str, img: np.ndarray) -> None:
