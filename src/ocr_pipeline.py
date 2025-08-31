@@ -80,6 +80,8 @@ def resize_to_dpi(image: np.ndarray, dpi: int = 300) -> np.ndarray:
     :param dpi: Target DPI value.
     :return: Resized image.
     """
+    if dpi <= 0:
+        raise ValueError("dpi must be > 0")
     pil_img = Image.fromarray(image)
     orig_dpi = pil_img.info.get("dpi", (72, 72))[0] or 72
     scale = dpi / orig_dpi
@@ -121,32 +123,48 @@ def run_ocr(
     :param alpha: Contrast control passed to :func:`increase_contrast`.
     :param beta: Brightness control passed to :func:`increase_contrast`.
     :param ksize: Kernel size for :func:`remove_noise`.
-    :param debug_dir: Directory to save intermediate images for debugging.
+    :param debug_dir: Optional directory to store intermediate images for debugging.
     :return: Recognized text as a string.
+    :raises FileNotFoundError: If the image file does not exist.
+    :raises ValueError: If the file has an unsupported extension or cannot be loaded.
     """
+    path = Path(path)
+    if not path.exists():
+        raise FileNotFoundError(f"Image not found: {path}")
+    if path.suffix.lower() not in {".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp", ".gif"}:
+        raise ValueError(f"Unsupported image extension: {path.suffix}")
+
     image = cv2.imread(str(path))
     if image is None:
-        raise FileNotFoundError(f"Image not found: {path}")
-    if debug_dir:
+        # File exists but OpenCV couldn't decode it
+        raise ValueError(f"Unable to load image: {path}")
+
+    def _save(stage: str, img: np.ndarray) -> None:
+        if debug_dir is None:
+            return
         debug_dir.mkdir(parents=True, exist_ok=True)
-    image = increase_contrast(image, alpha=alpha, beta=beta)
-    if debug_dir:
-        cv2.imwrite(str(debug_dir / "step1_contrast.png"), image)
-    image = remove_noise(image, ksize=ksize)
-    if debug_dir:
-        cv2.imwrite(str(debug_dir / "step2_remove_noise.png"), image)
-    image = deskew(image)
-    if debug_dir:
-        cv2.imwrite(str(debug_dir / "step3_deskew.png"), image)
-    image = binarize(image)
-    if debug_dir:
-        cv2.imwrite(str(debug_dir / "step4_binarize.png"), image)
+        cv2.imwrite(str(debug_dir / f"{stage}.png"), img)
+
+    _save("original", image)
+
     image = resize_to_dpi(image, dpi)
-    if debug_dir:
-        cv2.imwrite(str(debug_dir / "step5_resize.png"), image)
+    _save("resized", image)
+
+    image = increase_contrast(image, alpha=alpha, beta=beta)
+    _save("contrast", image)
+
+    image = remove_noise(image, ksize=ksize)
+    _save("denoised", image)
+
+    image = deskew(image)
+    _save("deskewed", image)
+
     image = crop_margins(image)
-    if debug_dir:
-        cv2.imwrite(str(debug_dir / "step6_crop.png"), image)
+    _save("cropped", image)
+
+    image = binarize(image)
+    _save("binarized", image)
+
     pil_img = Image.fromarray(image)
     try:
         return pytesseract.image_to_string(pil_img, lang=lang)
@@ -167,22 +185,18 @@ def _parse_odd_int(value: str) -> int:
 
 if __name__ == "__main__":  # pragma: no cover - simple CLI
     parser = argparse.ArgumentParser(description="Run OCR pipeline on an image")
-    parser.add_argument("path", help="Path to image file")
+    parser.add_argument("--input", required=True, help="Path to image file")
     parser.add_argument("--lang", default="rus", help="Tesseract language code")
     parser.add_argument("--dpi", type=int, default=300, help="Target DPI")
     parser.add_argument("--alpha", type=float, default=1.5, help="Contrast control")
     parser.add_argument("--beta", type=float, default=0.0, help="Brightness control")
-    parser.add_argument(
-        "--ksize", type=_parse_odd_int, default=3, help="Median blur kernel size"
-    )
-    parser.add_argument(
-        "--debug-dir",
-        type=Path,
-        help="Directory to save intermediate images",
-    )
+    parser.add_argument("--ksize", type=_parse_odd_int, default=3, help="Median blur kernel size")
+    parser.add_argument("--debug-dir", type=Path, default=None, help="Directory to save debug images")
+    parser.add_argument("--output", type=Path, default=None, help="File to store recognized text")
     params = parser.parse_args()
+
     result = run_ocr(
-        params.path,
+        params.input,
         lang=params.lang,
         dpi=params.dpi,
         alpha=params.alpha,
@@ -190,4 +204,7 @@ if __name__ == "__main__":  # pragma: no cover - simple CLI
         ksize=params.ksize,
         debug_dir=params.debug_dir,
     )
-    print(result)
+    if params.output:
+        params.output.write_text(result, encoding="utf-8")
+    else:
+        print(result)

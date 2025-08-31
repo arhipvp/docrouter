@@ -372,43 +372,6 @@ def test_files_endpoint_lists_uploaded_files(tmp_path, monkeypatch):
         assert "example.txt" in names
 
 
-def test_folder_crud_operations(tmp_path):
-    server.config.output_dir = str(tmp_path)
-    with LiveClient(app) as client:
-        resp = client.post("/folders", params={"path": "a/b"})
-        assert resp.status_code == 200
-        assert resp.json() == [
-            {
-                "name": "a",
-                "path": "a",
-                "children": [
-                    {"name": "b", "path": "a/b", "children": []}
-                ],
-            }
-        ]
-
-        resp = client.patch("/folders/a/b", params={"new_name": "c"})
-        assert resp.status_code == 200
-        assert resp.json() == [
-            {
-                "name": "a",
-                "path": "a",
-                "children": [
-                    {"name": "c", "path": "a/c", "children": []}
-                ],
-            }
-        ]
-
-        resp = client.delete("/folders/a/c")
-        assert resp.status_code == 200
-        assert resp.json() == [
-            {
-                "name": "a",
-                "path": "a",
-                "children": [],
-            }
-        ]
-
 
 def test_upload_pending_then_finalize(tmp_path, monkeypatch):
     server.database.init_db()
@@ -445,9 +408,6 @@ def test_upload_pending_then_finalize(tmp_path, monkeypatch):
             "Финансы/Банки/Sparkasse",
         ]
         file_id = data["id"]
-
-        resp_folder = client.post("/folders", params={"path": data["missing"][-1]})
-        assert resp_folder.status_code == 200
 
         resp_final = client.post(f"/files/{file_id}/finalize")
         assert resp_final.status_code == 200

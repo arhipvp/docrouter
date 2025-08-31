@@ -179,15 +179,11 @@ async def update_file(file_id: str, data: dict = Body(...)):
 
 
 @router.post("/files/{file_id}/finalize", response_model=FileRecord)
-async def finalize_file(
-    file_id: str,
-    missing: list[str] | None = Body(default=None),
-):
-    """
-    Завершить обработку «отложенного» файла:
-    - при наличии `missing` — создать указанные каталоги внутри output_dir;
-    - перенести файл в целевую структуру (create_missing=True);
-    - обновить запись в БД.
+async def finalize_file(file_id: str):
+    """Завершить обработку «отложенного» файла.
+
+    Перенести файл в целевую структуру (создавая недостающие каталоги) и
+    обновить запись в БД.
     """
     record = database.get_file(file_id)
     if not record:
@@ -195,12 +191,6 @@ async def finalize_file(
     if record.status != "pending":
         # Возвращаем текущую запись, ничего не делаем
         return record
-
-    # Если фронт подсказал недостающие, создадим их тут (без дергания собственного эндпоинта)
-    if missing:
-        for rel in missing:
-            target = _resolve_in_output(rel)
-            target.mkdir(parents=True, exist_ok=True)
 
     # Путь к временно загруженному файлу
     temp_path = record.path
