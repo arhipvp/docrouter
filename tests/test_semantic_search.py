@@ -1,5 +1,6 @@
 import os
 import sys
+import asyncio
 from pathlib import Path
 
 import pytest
@@ -13,12 +14,18 @@ from fastapi.testclient import TestClient  # noqa: E402
 from models import Metadata  # noqa: E402
 
 
-def test_semantic_search_returns_similar_document(tmp_path):
+def test_semantic_search_returns_similar_document(tmp_path, monkeypatch):
     server.database.init_db()
     server.config.output_dir = str(tmp_path)
 
+    async def fake_embed(text: str, model: str):
+        return [float(len(text) + i) for i in range(8)]
+
+    monkeypatch.setattr("file_utils.embeddings.openrouter.embed", fake_embed)
+
     text = "hello world"
-    emb = get_embedding(text)
+    emb = asyncio.run(get_embedding(text))
+    assert len(emb) == 8
     server.database.add_file(
         "1",
         "file1.txt",
