@@ -105,7 +105,7 @@ export function setupFiles() {
             textPreview.textContent = '';
         }
     }));
-    const previewClose = previewModal.querySelector('.close');
+    const previewClose = previewModal.querySelector('.modal__close');
     previewClose.addEventListener('click', () => {
         previewModal.style.display = 'none';
         previewFrame.src = '';
@@ -116,7 +116,7 @@ export function setupFiles() {
             previewFrame.src = '';
         }
     });
-    const metadataClose = metadataModal.querySelector('.close');
+    const metadataClose = metadataModal.querySelector('.modal__close');
     metadataClose.addEventListener('click', () => {
         metadataModal.style.display = 'none';
         currentEditId = null;
