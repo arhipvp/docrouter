@@ -204,8 +204,13 @@ async def get_file_details(file_id: str, lang: str | None = None):
 
 
 @router.get("/files", response_model=list[FileRecord])
-async def list_files():
-    if _should_rescan():
+async def list_files(force: bool = False):
+    global _last_scan_time, _last_upload_mtime
+    if force:
+        _scan_output_dir()
+        _last_scan_time = time.time()
+        _last_upload_mtime = _latest_upload_mtime()
+    elif _should_rescan():
         _scan_output_dir()
     return database.list_files()
 

@@ -33,9 +33,9 @@ export function setupChat() {
             const resp = yield apiRequest(`/chat/${currentChatId}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ message: msg })
+                body: JSON.stringify({ message: msg }),
             });
-            const data = yield resp.json();
+            const data = (yield resp.json());
             renderChat(data.chat_history);
             chatInput.value = '';
         }
@@ -57,8 +57,8 @@ export function openChatModal(file) {
         currentChatId = file.id;
         try {
             const resp = yield apiRequest(`/files/${file.id}/details`);
-            const data = yield resp.json();
-            renderChat(data.chat_history || []);
+            const data = (yield resp.json());
+            renderChat((data === null || data === void 0 ? void 0 : data.chat_history) || []);
         }
         catch (_a) {
             renderChat([]);
@@ -76,9 +76,8 @@ function openModal(modal) {
     modal.style.display = 'flex';
     const focusable = modal.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
     const first = (focusable[0] || modal);
-    if (typeof first.focus === 'function') {
+    if (typeof first.focus === 'function')
         first.focus();
-    }
     const handleKeydown = (e) => {
         if (e.key === 'Tab') {
             const items = modal.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');

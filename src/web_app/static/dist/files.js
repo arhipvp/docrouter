@@ -129,7 +129,7 @@ export function setupFiles() {
         closeModal(metadataModal);
         currentEditId = null;
     });
-    tagLanguage.addEventListener('change', refreshFiles);
+    tagLanguage.addEventListener('change', () => refreshFiles());
     nameOriginalRadio === null || nameOriginalRadio === void 0 ? void 0 : nameOriginalRadio.addEventListener('change', () => {
         if (nameOriginalRadio.checked)
             editName.value = nameOriginalRadio.value;
@@ -139,15 +139,15 @@ export function setupFiles() {
             editName.value = nameLatinRadio.value;
     });
     refreshBtn === null || refreshBtn === void 0 ? void 0 : refreshBtn.addEventListener('click', () => {
-        refreshFiles();
+        refreshFiles(true);
         refreshFolderTree();
     });
     refreshFiles();
 }
 export function refreshFiles() {
-    return __awaiter(this, void 0, void 0, function* () {
+    return __awaiter(this, arguments, void 0, function* (force = false) {
         try {
-            const resp = yield apiRequest('/files');
+            const resp = yield apiRequest(`/files${force ? '?force=1' : ''}`);
             if (!resp.ok)
                 throw new Error();
             const files = yield resp.json();
