@@ -104,6 +104,9 @@ class OpenRouterAnalyzer(MetadataAnalyzer):
             "Если ни одна папка не подходит, предложи новую category/subcategory.\n"
             "Return a JSON object with the fields: category, subcategory, needs_new_folder (boolean), issuer, person, doc_type,\n"
             "date, amount, tags (list of strings), tags_ru (list of strings), tags_en (list of strings), suggested_filename, description.\n"
+
+            "Suggested_filename must not start or end with a date (YYYY-MM-DD); provide the date only in the 'date' field.\n"
+
             f"Document text:\n{text}"
         )
 
