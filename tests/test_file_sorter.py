@@ -183,6 +183,20 @@ def test_place_file_sanitizes_invalid_chars(tmp_path):
     assert dest.name == "2023-10-12__inva_lid_na_me_.pdf"
 
 
+def test_place_file_removes_date_from_suggested_name(tmp_path):
+    src = tmp_path / "report.pdf"
+    src.write_text("content")
+
+    dest_root = tmp_path / "Archive"
+    metadata = sample_metadata()
+    metadata["suggested_name"] = "2023-10-12 Kreditvertrag"
+
+    dest, _, _ = place_file(src, metadata, dest_root, dry_run=True)
+
+    assert dest.name == "2023-10-12__Kreditvertrag.pdf"
+    assert dest.name.count("2023-10-12") == 1
+
+
 def test_place_file_returns_missing_dirs_and_does_not_move_when_needs_new_folder_false(tmp_path):
     src = tmp_path / "document.pdf"
     src.write_text("content")
