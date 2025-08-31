@@ -149,7 +149,7 @@ def test_multilanguage_tags_parsing(monkeypatch):
         "Подкатегория",
         "Тип",
         "Организация",
-        "Иван Иванов",
+        "Иванов Иван",
     }
     assert expected.issubset(set(meta.tags))
 
@@ -161,7 +161,7 @@ def test_generate_metadata_parses_mrz():
     )
     result = asyncio.run(generate_metadata(text, analyzer=DummyAnalyzer()))
     meta = result["metadata"]
-    assert meta.person == "ANNA MARIA ERIKSSON"
+    assert meta.person == "Anna Maria Eriksson"
     assert meta.date_of_birth == "1974-08-12"
     assert meta.expiration_date == "2012-04-15"
     assert meta.passport_number == "L898902C3"

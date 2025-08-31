@@ -31,6 +31,7 @@ from config import (
 
 from services.openrouter import OpenRouterError
 from file_utils.mrz import parse_mrz
+from utils.names import normalize_person_name
 
 
 MILITARY_DATE_PATTERN = re.compile(
@@ -298,6 +299,9 @@ async def generate_metadata(
         parsed_person = _parse_person_from_text(text)
         if parsed_person:
             defaults["person"] = parsed_person
+
+    if defaults.get("person"):
+        defaults["person"] = normalize_person_name(defaults["person"])
 
     # Единый список тегов без дублей
     tag_values = []
