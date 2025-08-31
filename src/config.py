@@ -11,6 +11,7 @@ class Config:
     log_level: str = "INFO"
     tesseract_lang: str = "eng"
     output_dir: str = "Archive"
+    general_folder_name: str = "Shared"
     openrouter_api_key: Optional[str] = None
     openrouter_base_url: Optional[str] = None
     openrouter_model: Optional[str] = None
@@ -39,6 +40,7 @@ def load_config() -> Config:
         log_level=_get_first_env("LOG_LEVEL", "log_level", default="INFO") or "INFO",
         tesseract_lang=_get_first_env("TESSERACT_LANG", "tesseract_lang", default="eng") or "eng",
         output_dir=_get_first_env("OUTPUT_DIR", "output_dir", default="Archive") or "Archive",
+        general_folder_name=_get_first_env("GENERAL_FOLDER_NAME", "general_folder_name", default="Shared") or "Shared",
         openrouter_api_key=_get_first_env("OPENROUTER_API_KEY", "openrouter_api_key"),
         openrouter_base_url=_get_first_env("OPENROUTER_BASE_URL", "openrouter_base_url"),
         openrouter_model=_get_first_env("OPENROUTER_MODEL", "openrouter_model"),
@@ -61,6 +63,7 @@ def load_config() -> Config:
             log_level: str = Field(default="INFO", env=["log_level", "LOG_LEVEL"])
             tesseract_lang: str = Field(default="eng", env=["tesseract_lang", "TESSERACT_LANG"])
             output_dir: str = Field(default="Archive", env=["output_dir", "OUTPUT_DIR"])
+            general_folder_name: str = Field(default="Shared", env=["general_folder_name", "GENERAL_FOLDER_NAME"])
 
             class Config:  # pydantic v1 совместимость
                 env_file = ".env"
@@ -78,6 +81,7 @@ def load_config() -> Config:
             openrouter_site_url=s.openrouter_site_url or base.openrouter_site_url,
             openrouter_site_name=s.openrouter_site_name or base.openrouter_site_name,
             db_url=s.db_url or base.db_url,
+            general_folder_name=s.general_folder_name or base.general_folder_name,
         )
 
         # Финальный приоритет: UPPER_CASE переменные окружения (если заданы)
@@ -90,6 +94,7 @@ def load_config() -> Config:
         cfg.openrouter_site_url = _get_first_env("OPENROUTER_SITE_URL", default=cfg.openrouter_site_url)
         cfg.openrouter_site_name = _get_first_env("OPENROUTER_SITE_NAME", default=cfg.openrouter_site_name)
         cfg.db_url = _get_first_env("DB_URL", default=cfg.db_url)
+        cfg.general_folder_name = _get_first_env("GENERAL_FOLDER_NAME", default=cfg.general_folder_name) or cfg.general_folder_name
 
     except Exception:
         # pydantic недоступен — используем только окружение
@@ -98,6 +103,7 @@ def load_config() -> Config:
     # Нормализация
     cfg.log_level = (cfg.log_level or "INFO").upper().strip()
     cfg.output_dir = (cfg.output_dir or "Archive").strip()
+    cfg.general_folder_name = (cfg.general_folder_name or "Shared").strip()
 
     return cfg
 
@@ -108,6 +114,7 @@ config: Config = load_config()
 LOG_LEVEL = config.log_level            # совместимо с старым кодом
 TESSERACT_LANG = config.tesseract_lang
 OUTPUT_DIR = config.output_dir
+GENERAL_FOLDER_NAME = config.general_folder_name
 OPENROUTER_API_KEY = config.openrouter_api_key
 OPENROUTER_BASE_URL = config.openrouter_base_url
 OPENROUTER_MODEL = config.openrouter_model
@@ -122,6 +129,7 @@ __all__ = [
     "LOG_LEVEL",
     "TESSERACT_LANG",
     "OUTPUT_DIR",
+    "GENERAL_FOLDER_NAME",
     "OPENROUTER_API_KEY",
     "OPENROUTER_BASE_URL",
     "OPENROUTER_MODEL",

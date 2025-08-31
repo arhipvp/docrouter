@@ -19,6 +19,7 @@ os.environ["DB_URL"] = ":memory:"             # in-memory БД для тесто
 # Импортируем сервер
 from web_app import server  # noqa: E402
 from models import Metadata  # noqa: E402
+from config import GENERAL_FOLDER_NAME  # noqa: E402
 
 app = server.app
 
@@ -100,6 +101,7 @@ def test_upload_retrieve_and_download(tmp_path, monkeypatch):
     monkeypatch.setattr(server, "extract_text", _mock_extract_text)
     monkeypatch.setattr(server.metadata_generation, "generate_metadata", _mock_generate_metadata)
     server.config.output_dir = str(tmp_path)
+    (tmp_path / "John Doe").mkdir()
 
     with LiveClient(app) as client:
         # Загрузка
@@ -187,6 +189,7 @@ def test_upload_images_returns_sources(tmp_path, monkeypatch):
     monkeypatch.setattr(server, "extract_text", _mock_extract_text)
     monkeypatch.setattr(server.metadata_generation, "generate_metadata", _mock_generate_metadata)
     server.config.output_dir = str(tmp_path)
+    (tmp_path / "John Doe").mkdir()
 
     with LiveClient(app) as client:
         files = [
@@ -231,6 +234,7 @@ def test_upload_images_download_and_metadata(tmp_path, monkeypatch):
     monkeypatch.setattr(server, "extract_text", _mock_extract_text)
     monkeypatch.setattr(server.metadata_generation, "generate_metadata", _mock_generate_metadata)
     server.config.output_dir = str(tmp_path)
+    (tmp_path / "John Doe").mkdir()
 
     img1 = io.BytesIO()
     Image.new("RGB", (1, 1), color="red").save(img1, format="JPEG")
@@ -277,6 +281,7 @@ def test_details_endpoint_returns_full_record(tmp_path, monkeypatch):
     monkeypatch.setattr(server, "extract_text", _mock_extract_text)
     monkeypatch.setattr(server.metadata_generation, "generate_metadata", _mock_generate_metadata)
     server.config.output_dir = str(tmp_path)
+    (tmp_path / "John Doe").mkdir()
 
     with LiveClient(app) as client:
         resp = client.post(
@@ -396,7 +401,8 @@ def test_upload_pending_then_finalize(tmp_path, monkeypatch):
         assert data["missing"] == [
             "Финансы",
             "Финансы/Банки",
-            "Финансы/Банки/Sparkasse",
+            f"Финансы/Банки/{GENERAL_FOLDER_NAME}",
+            f"Финансы/Банки/{GENERAL_FOLDER_NAME}/Sparkasse",
         ]
         file_id = data["id"]
 

@@ -7,6 +7,7 @@ sys.path.append(str(Path(__file__).resolve().parents[1] / "src"))
 from docrouter import process_directory
 import metadata_generation
 from models import Metadata
+from config import GENERAL_FOLDER_NAME
 
 
 def test_process_directory_preserves_subdirs(tmp_path, monkeypatch):
@@ -23,6 +24,6 @@ def test_process_directory_preserves_subdirs(tmp_path, monkeypatch):
     dest_root = tmp_path / "Archive"
     asyncio.run(process_directory(tmp_path / "input", dest_root))
 
-    expected = dest_root / "sub1" / "sub2" / "Shared" / "2024-01-01__data.txt"
+    expected = dest_root / "sub1" / "sub2" / GENERAL_FOLDER_NAME / "2024-01-01__data.txt"
     assert expected.exists()
     assert not file_path.exists()
