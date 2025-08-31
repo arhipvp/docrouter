@@ -8,6 +8,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 import { openChatModal } from './chat.js';
+import { showError } from './notifications.js';
 let list;
 let textPreview;
 let tagLanguage;
@@ -77,7 +78,7 @@ export function setupFiles() {
             yield refreshFiles();
         }
         else {
-            alert('Ошибка обновления');
+            showError('Ошибка обновления');
         }
     }));
     list.addEventListener('click', (e) => __awaiter(this, void 0, void 0, function* () {

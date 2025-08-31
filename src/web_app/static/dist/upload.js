@@ -9,6 +9,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 import { refreshFiles } from './files.js';
 import { refreshFolderTree } from './folders.js';
+import { showError } from './notifications.js';
 let form;
 let progress;
 let sent;
@@ -80,7 +81,7 @@ export function setupUpload() {
         const fileInput = form.querySelector('input[type="file"]');
         const file = (_a = fileInput === null || fileInput === void 0 ? void 0 : fileInput.files) === null || _a === void 0 ? void 0 : _a[0];
         if (!file || !file.name) {
-            alert('Файл должен иметь имя');
+            showError('Файл должен иметь имя');
             return;
         }
         const data = new FormData(form);
@@ -124,7 +125,7 @@ export function setupUpload() {
                             refreshFolderTree();
                         }
                         catch (_a) {
-                            alert('Ошибка обработки');
+                            showError('Ошибка обработки');
                         }
                     });
                 }
@@ -138,7 +139,7 @@ export function setupUpload() {
                 }
             }
             else {
-                alert('Ошибка загрузки');
+                showError('Ошибка загрузки');
             }
         };
         xhr.send(data);
@@ -247,7 +248,7 @@ function uploadEditedImages() {
             refreshFolderTree();
         }
         else {
-            alert('Ошибка загрузки');
+            showError('Ошибка загрузки');
         }
     });
 }

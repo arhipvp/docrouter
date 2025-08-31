@@ -1,5 +1,6 @@
 import { refreshFiles } from './files.js';
 import { refreshFolderTree } from './folders.js';
+import { showError } from './notifications.js';
 
 let form: HTMLFormElement;
 let progress: HTMLProgressElement;
@@ -72,7 +73,7 @@ export function setupUpload() {
     const fileInput = form.querySelector('input[type="file"]') as HTMLInputElement;
     const file = fileInput?.files?.[0];
     if (!file || !file.name) {
-      alert('Файл должен иметь имя');
+      showError('Файл должен иметь имя');
       return;
     }
     const data = new FormData(form);
@@ -114,7 +115,7 @@ export function setupUpload() {
               refreshFiles();
               refreshFolderTree();
             } catch {
-              alert('Ошибка обработки');
+              showError('Ошибка обработки');
             }
           };
         } else {
@@ -126,7 +127,7 @@ export function setupUpload() {
           refreshFolderTree();
         }
       } else {
-        alert('Ошибка загрузки');
+        showError('Ошибка загрузки');
       }
     };
     xhr.send(data);
@@ -239,6 +240,6 @@ async function uploadEditedImages() {
     refreshFiles();
     refreshFolderTree();
   } else {
-    alert('Ошибка загрузки');
+    showError('Ошибка загрузки');
   }
 }
