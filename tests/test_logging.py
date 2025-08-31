@@ -1,6 +1,7 @@
 import logging
 import sys
 from pathlib import Path
+import asyncio
 
 import pytest
 
@@ -35,7 +36,7 @@ def test_process_directory_logs(tmp_path, monkeypatch, caplog):
     dest_root = tmp_path / "Archive"
 
     with caplog.at_level(logging.INFO):
-        process_directory(input_dir, dest_root)
+        asyncio.run(process_directory(input_dir, dest_root))
 
     assert f"Processing directory {input_dir}" in caplog.text
     assert f"Processing file {file_path}" in caplog.text

@@ -1,5 +1,6 @@
 import sys
 from pathlib import Path
+import asyncio
 
 sys.path.append(str(Path(__file__).resolve().parents[1] / "src"))
 
@@ -20,7 +21,7 @@ def test_process_directory_preserves_subdirs(tmp_path, monkeypatch):
     monkeypatch.setattr(metadata_generation, "generate_metadata", fake_generate)
 
     dest_root = tmp_path / "Archive"
-    process_directory(tmp_path / "input", dest_root)
+    asyncio.run(process_directory(tmp_path / "input", dest_root))
 
     expected = dest_root / "sub1" / "sub2" / "2024-01-01__data.txt"
     assert expected.exists()
