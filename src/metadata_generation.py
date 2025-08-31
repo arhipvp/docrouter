@@ -103,7 +103,7 @@ class OpenRouterAnalyzer(MetadataAnalyzer):
             f"{tree_json}\n"
             "Если ни одна папка не подходит, предложи новую category/subcategory.\n"
             "Return a JSON object with the fields: category, subcategory, needs_new_folder (boolean), issuer, person, doc_type,\n"
-            "date, amount, tags_ru (list of strings), tags_en (list of strings), suggested_filename, description.\n"
+            "date, amount, tags (list of strings), tags_ru (list of strings), tags_en (list of strings), suggested_filename, description.\n"
             f"Document text:\n{text}"
         )
 
@@ -206,6 +206,15 @@ async def generate_metadata(
         for key in ("date_of_birth", "expiration_date", "passport_number"):
             if mrz_info.get(key):
                 defaults[key] = mrz_info[key]
+
+    tag_values = []
+    for key in ("tags", "tags_ru", "tags_en"):
+        tag_values.extend(defaults.get(key) or [])
+    for key in ("category", "subcategory", "doc_type", "issuer", "person"):
+        value = defaults.get(key)
+        if value:
+            tag_values.append(value)
+    defaults["tags"] = list(dict.fromkeys(tag for tag in tag_values if tag))
     metadata_model = Metadata(**defaults)
     return {
         "prompt": result.get("prompt"),
