@@ -17,6 +17,7 @@ from typing import Any, Dict, Optional, Callable
 import httpx
 
 from models import Metadata
+from prompt_templates import build_metadata_prompt
 
 from config import (
     OPENROUTER_API_KEY,
@@ -66,7 +67,10 @@ class MetadataAnalyzer(ABC):
 
     @abstractmethod
     async def analyze(
-        self, text: str, folder_tree: Optional[Dict[str, Any]] = None
+        self,
+        text: str,
+        folder_tree: Optional[Dict[str, Any]] = None,
+        file_info: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """Analyze *text* and return a dict with keys ``prompt``, ``raw_response`` and ``metadata``."""
 
@@ -94,17 +98,13 @@ class OpenRouterAnalyzer(MetadataAnalyzer):
         self.site_name = site_name or OPENROUTER_SITE_NAME or "DocRouter Metadata Generator"
 
     async def analyze(
-        self, text: str, folder_tree: Optional[Dict[str, Any]] = None
+        self,
+        text: str,
+        folder_tree: Optional[Dict[str, Any]] = None,
+        file_info: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
-        tree_json = json.dumps(folder_tree or {}, ensure_ascii=False)
-        prompt = (
-            "You are an assistant that extracts structured metadata from documents.\n"
-            "Existing folder tree (JSON):\n"
-            f"{tree_json}\n"
-            "Если ни одна папка не подходит, предложи новую category/subcategory.\n"
-            "Return a JSON object with the fields: category, subcategory, needs_new_folder (boolean), issuer, person, doc_type,\n"
-            "date, amount, tags_ru (list of strings), tags_en (list of strings), suggested_filename, description.\n"
-            f"Document text:\n{text}"
+        prompt = build_metadata_prompt(
+            text, folder_tree=folder_tree, file_info=file_info
         )
 
         payload = {
@@ -159,6 +159,7 @@ async def generate_metadata(
     analyzer: Optional[MetadataAnalyzer] = None,
     *,
     folder_tree: Optional[Dict[str, Any]] = None,
+    file_info: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """Generate metadata for *text* using the provided *analyzer*.
 
@@ -167,13 +168,15 @@ async def generate_metadata(
 
     The returned dictionary always contains the following fields:
     ``category``, ``subcategory``, ``issuer``, ``person``, ``doc_type``,
-    ``date``, ``amount``, ``tags``, ``tags_ru``, ``tags_en``,
-    ``suggested_filename``, ``description``, ``needs_new_folder``.
+    ``date``, ``amount``, ``counterparty``, ``document_number``, ``due_date``, ``currency``, ``tags``, ``tags_ru``,
+    ``tags_en``, ``suggested_filename``, ``description``, ``needs_new_folder``.
     """
 
     if analyzer is None:
         analyzer = OpenRouterAnalyzer()
-    result = await analyzer.analyze(text, folder_tree=folder_tree)
+    result = await analyzer.analyze(
+        text, folder_tree=folder_tree, file_info=file_info
+    )
     metadata = result.get("metadata", {})
     defaults = {
         "category": None,
@@ -186,6 +189,10 @@ async def generate_metadata(
         "expiration_date": None,
         "passport_number": None,
         "amount": None,
+        "counterparty": None,
+        "document_number": None,
+        "due_date": None,
+        "currency": None,
         "tags": [],
         "tags_ru": [],
         "tags_en": [],

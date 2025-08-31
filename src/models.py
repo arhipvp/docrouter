@@ -16,6 +16,10 @@ class Metadata(BaseModel):
     expiration_date: Optional[str] = None
     passport_number: Optional[str] = None
     amount: Optional[str] = None
+    counterparty: Optional[str] = None
+    document_number: Optional[str] = None
+    due_date: Optional[str] = None
+    currency: Optional[str] = None
     tags: List[str] = Field(default_factory=list)
     tags_ru: List[str] = Field(default_factory=list)
     tags_en: List[str] = Field(default_factory=list)
