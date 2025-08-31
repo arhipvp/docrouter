@@ -20,17 +20,17 @@ export function setupUpload() {
  * @param {HTMLElement} modal
  * @param {{ onEscape?: () => void }} [options]
  */
-export function openModal(modal, options = {}) {
+export function openModal(modal: HTMLElement, options: { onEscape?: () => void } = {}) {
   const { onEscape } = options;
 
   // запомним, кто был в фокусе
-  modal.__lastFocused = document.activeElement || null;
+  (modal as any).__lastFocused = document.activeElement || null;
 
   // показать модалку
   modal.style.display = 'flex';
 
   // сфокусироваться на первом фокусируемом элементе
-  const focusable = modal.querySelectorAll(
+  const focusable = modal.querySelectorAll<HTMLElement>(
     'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
   );
   const first = focusable[0] || modal;
@@ -39,7 +39,7 @@ export function openModal(modal, options = {}) {
   // обработчик клавиш: Tab — цикл фокуса, Esc — закрытие
   const handleKeydown = (e) => {
     if (e.key === 'Tab') {
-      const items = modal.querySelectorAll(
+      const items = modal.querySelectorAll<HTMLElement>(
         'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
       );
       if (!items.length) return;
@@ -60,7 +60,7 @@ export function openModal(modal, options = {}) {
   };
 
   modal.addEventListener('keydown', handleKeydown);
-  modal.__handleKeydown = handleKeydown;
+  (modal as any).__handleKeydown = handleKeydown;
 }
 
 /**
@@ -70,13 +70,13 @@ export function openModal(modal, options = {}) {
 export function closeModal(modal) {
   modal.style.display = 'none';
 
-  const handler = modal.__handleKeydown;
+  const handler = (modal as any).__handleKeydown;
   if (handler && typeof modal.removeEventListener === 'function') {
     modal.removeEventListener('keydown', handler);
   }
-  modal.__handleKeydown = null;
+  (modal as any).__handleKeydown = null;
 
-  const last = modal.__lastFocused;
+  const last = (modal as any).__lastFocused as HTMLElement | null;
   if (last && typeof last.focus === 'function') last.focus();
   modal.__lastFocused = null;
 }

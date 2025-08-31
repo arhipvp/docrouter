@@ -10,13 +10,13 @@
     <!-- Подключаем собранный модуль -->
     <script type="module" src="/static/dist/main.js"></script>
 </head>
-<body>
+<body class="app">
     <div id="notifications"></div>
-    <div class="container">
+    <div class="app__container">
         <h1>Загрузка документов</h1>
         <p>Выберите файл и отправьте его на обработку.</p>
         <form action="/upload" method="post" enctype="multipart/form-data">
-            <input type="file" name="file" />
+            <input type="file" name="file" accept="image/*,.pdf,.doc,.docx,.txt,.csv,.xls,.xlsx,.ppt,.pptx" capture="environment" />
             <label for="language">Язык документа:</label>
             <select name="language" id="language">
                 <option value="en">English</option>
@@ -82,10 +82,10 @@
     </div>
 
     <div id="edit-modal" class="modal" role="dialog" aria-modal="true">
-        <div class="modal-content">
-            <span class="close" data-close="edit-modal" aria-label="Закрыть">&times;</span>
+        <div class="modal__content">
+            <span class="modal__close" data-close="edit-modal" aria-label="Закрыть">&times;</span>
             <canvas id="edit-canvas"></canvas>
-            <div class="modal-buttons">
+            <div class="modal__buttons">
                 <button id="rotate-left-btn" type="button">Повернуть влево</button>
                 <button id="rotate-right-btn" type="button">Повернуть вправо</button>
                 <button id="save-btn" type="button">Сохранить</button>
@@ -94,8 +94,8 @@
     </div>
 
     <div id="metadata-modal" class="modal" role="dialog" aria-modal="true">
-        <div class="modal-content">
-            <span class="close" data-close="metadata-modal" aria-label="Закрыть">&times;</span>
+        <div class="modal__content">
+            <span class="modal__close" data-close="metadata-modal" aria-label="Закрыть">&times;</span>
             <h3>Редактировать метаданные</h3>
             <form id="edit-form">
                 <label>Категория: <input type="text" id="edit-category" /></label>
@@ -113,7 +113,7 @@
     </div>
 
     <div id="missing-modal" class="modal" role="dialog" aria-modal="true">
-        <div class="modal-content">
+        <div class="modal__content">
             <h3>Создать недостающие папки?</h3>
             <p id="suggested-path"></p>
             <ul id="missing-list"></ul>
@@ -122,8 +122,8 @@
     </div>
 
     <div id="rename-modal" class="modal" role="dialog" aria-modal="true">
-        <div class="modal-content">
-            <span class="close" data-close="rename-modal" aria-label="Закрыть">&times;</span>
+        <div class="modal__content">
+            <span class="modal__close" data-close="rename-modal" aria-label="Закрыть">&times;</span>
             <h3>Переименовать папку</h3>
             <input type="text" id="rename-input" />
             <button id="rename-confirm">Сохранить</button>
@@ -131,23 +131,23 @@
     </div>
 
     <div id="delete-modal" class="modal" role="dialog" aria-modal="true">
-        <div class="modal-content">
-            <span class="close" data-close="delete-modal" aria-label="Закрыть">&times;</span>
+        <div class="modal__content">
+            <span class="modal__close" data-close="delete-modal" aria-label="Закрыть">&times;</span>
             <p>Удалить папку <span id="delete-target"></span>?</p>
             <button id="delete-confirm">Удалить</button>
         </div>
     </div>
 
     <div id="preview-modal" class="modal" role="dialog" aria-modal="true">
-        <div class="modal-content">
-            <span class="close" data-close="preview-modal" aria-label="Закрыть">&times;</span>
+        <div class="modal__content">
+            <span class="modal__close" data-close="preview-modal" aria-label="Закрыть">&times;</span>
             <iframe id="preview-frame"></iframe>
         </div>
     </div>
 
     <div id="chat-modal" class="modal" role="dialog" aria-modal="true">
-        <div class="modal-content">
-            <span class="close" data-close="chat-modal" aria-label="Закрыть">&times;</span>
+        <div class="modal__content">
+            <span class="modal__close" data-close="chat-modal" aria-label="Закрыть">&times;</span>
             <div id="chat-history"></div>
             <form id="chat-form">
                 <input type="text" id="chat-input" placeholder="Сообщение" />
