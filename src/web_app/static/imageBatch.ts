@@ -6,64 +6,42 @@ import { sent, received } from './uploadForm.js';
 export let currentImageIndex = -1;
 export let imageFiles: Array<{ blob: Blob; name: string }> = [];
 
-let imageInput: HTMLInputElement;
-let imageDropArea: HTMLElement;
-let selectImagesBtn: HTMLElement;
+let fileInput: HTMLInputElement;
 let imageList: HTMLElement;
 let uploadImagesBtn: HTMLElement;
+let imageBlock: HTMLElement;
+let singleUploadBtn: HTMLElement;
 
 export function setupImageBatch() {
-  imageInput = document.getElementById('image-files') as HTMLInputElement;
-  imageDropArea = document.getElementById('image-drop-area')!;
-  selectImagesBtn = document.getElementById('select-images-btn')!;
+  fileInput = document.getElementById('file-input') as HTMLInputElement;
   imageList = document.getElementById('selected-images')!;
   uploadImagesBtn = document.getElementById('upload-images-btn')!;
+  imageBlock = document.getElementById('image-upload-block')!;
+  singleUploadBtn = document.getElementById('single-upload-btn') as HTMLInputElement;
 
-  imageInput.addEventListener('change', (e) => {
-    const files = Array.from((e.target as HTMLInputElement).files || []).filter(f => f.type === 'image/jpeg');
-    if (files.length) {
+  fileInput.addEventListener('change', () => {
+    const files = Array.from(fileInput.files || []);
+    const allJPEG = files.length > 0 && files.every(f => f.type === 'image/jpeg');
+    if (allJPEG) {
       imageFiles = files.map(f => ({ blob: f, name: f.name }));
       currentImageIndex = 0;
       renderImageList();
+      imageBlock.style.display = 'block';
+      singleUploadBtn.style.display = 'none';
       openImageEditModal(imageFiles[0]);
+    } else {
+      imageFiles = [];
+      currentImageIndex = -1;
+      renderImageList();
+      imageBlock.style.display = 'none';
+      singleUploadBtn.style.display = '';
+      if (files.length > 1) {
+        alert('Можно выбрать несколько файлов только в формате JPEG');
+        fileInput.value = '';
+      }
     }
   });
 
-  const isTouchDevice = typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches;
-
-  selectImagesBtn.addEventListener('click', () => imageInput.click());
-  selectImagesBtn.addEventListener('touchstart', (e) => {
-    e.preventDefault();
-    imageInput.click();
-  });
-
-  if (!isTouchDevice) {
-    ['dragenter', 'dragover'].forEach(evt => {
-      imageDropArea.addEventListener(evt, (e) => {
-        e.preventDefault();
-        imageDropArea.classList.add('dragover');
-      });
-    });
-
-    ['dragleave', 'drop'].forEach(evt => {
-      imageDropArea.addEventListener(evt, (e) => {
-        e.preventDefault();
-        imageDropArea.classList.remove('dragover');
-      });
-    });
-
-    imageDropArea.addEventListener('drop', (e: DragEvent) => {
-      e.preventDefault();
-      const files = Array.from(e.dataTransfer?.files || []).filter((f: File) => f.type === 'image/jpeg');
-      if (files.length) {
-        imageFiles = files.map(f => ({ blob: f, name: f.name }));
-        currentImageIndex = 0;
-        renderImageList();
-        openImageEditModal(imageFiles[0]);
-      }
-    });
-  }
-  imageDropArea.addEventListener('click', () => imageInput.click());
   uploadImagesBtn.addEventListener('click', () => uploadEditedImages());
 }
 
@@ -91,7 +69,9 @@ export async function uploadEditedImages() {
     received.textContent = result.raw_response || '';
     imageFiles = [];
     currentImageIndex = -1;
-    imageInput.value = '';
+    fileInput.value = '';
+    imageBlock.style.display = 'none';
+    singleUploadBtn.style.display = '';
     renderImageList();
     refreshFiles();
     refreshFolderTree();
