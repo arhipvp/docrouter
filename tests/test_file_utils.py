@@ -135,6 +135,22 @@ class TestMergeImagesToPdf(unittest.TestCase):
                 self.assertEqual(doc.page_count, 2)
             pdf.unlink()
 
+    @unittest.skipUnless(shutil.which("tesseract") and has_module("fitz"), "tesseract or PyMuPDF not installed")
+    def test_merge_images_to_pdf_and_ocr(self):
+        with TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            img = base / "ocr.png"
+            image = Image.new("RGB", (200, 60), color="white")
+            draw = ImageDraw.Draw(image)
+            draw.text((10, 10), "Hello OCR", fill="black", font=ImageFont.load_default())
+            image.save(img)
+            pdf = merge_images_to_pdf([img])
+            try:
+                text = extract_text(pdf, language="eng")
+                self.assertIn("Hello OCR", text)
+            finally:
+                pdf.unlink()
+
 
 if __name__ == "__main__":
     unittest.main()
