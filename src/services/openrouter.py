@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 from typing import Any, Dict, List, Tuple
-
-import asyncio
 import logging
 
 import httpx
@@ -68,59 +66,4 @@ async def chat(messages: List[Dict[str, str]]) -> Tuple[str, int | None, float |
     return reply, tokens, cost
 
 
-async def embed(text: str, model: str) -> List[float]:
-    """Получить эмбеддинг для текста через OpenRouter.
-
-    Делает несколько попыток при временных ошибках и логирует их."""
-
-    if not OPENROUTER_API_KEY:
-        raise RuntimeError("OPENROUTER_API_KEY environment variable required")
-
-    base_url = OPENROUTER_BASE_URL or "https://openrouter.ai/api/v1"
-    api_url = base_url.rstrip("/") + "/embeddings"
-
-    payload: Dict[str, Any] = {"model": model, "input": text}
-    headers = {
-        "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-        "HTTP-Referer": OPENROUTER_SITE_URL or "https://github.com/docrouter",
-        "X-Title": OPENROUTER_SITE_NAME or "DocRouter",
-    }
-
-    async with httpx.AsyncClient(timeout=60) as client:
-        for attempt in range(3):
-            try:
-                response = await client.post(api_url, json=payload, headers=headers)
-                response.raise_for_status()
-                try:
-                    data = response.json()
-                except ValueError as exc:
-                    logger.error(
-                        "OpenRouter returned non-JSON response: %s", response.text
-                    )
-                    raise OpenRouterError(
-                        "OpenRouter returned non-JSON response"
-                    ) from exc
-                return data["data"][0]["embedding"]
-            except httpx.HTTPStatusError as exc:
-                status = exc.response.status_code
-                if status == 429 and attempt < 2:
-                    wait = 2 ** attempt
-                    logger.warning(
-                        "OpenRouter rate limited (429). Retrying in %s seconds", wait
-                    )
-                    await asyncio.sleep(wait)
-                    continue
-                logger.error("OpenRouter embedding failed: %s", exc)
-                raise OpenRouterError(
-                    f"OpenRouter request failed: {status}"
-                ) from exc
-            except httpx.HTTPError as exc:
-                logger.error("HTTP error during embedding request: %s", exc)
-                raise OpenRouterError(
-                    "HTTP error during embedding request"
-                ) from exc
-
-    raise OpenRouterError("Failed to fetch embedding from OpenRouter")
-
-
-__all__ = ["chat", "embed", "OpenRouterError"]
+__all__ = ["chat", "OpenRouterError"]

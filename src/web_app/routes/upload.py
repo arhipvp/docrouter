@@ -8,7 +8,6 @@ from pathlib import Path
 
 from fastapi import APIRouter, UploadFile, File, HTTPException, Form
 
-from file_utils.embeddings import get_embedding
 from file_sorter import place_file, get_folder_tree
 from models import Metadata, UploadResponse
 from services.openrouter import OpenRouterError
@@ -57,7 +56,6 @@ async def upload_file(
             metadata = raw_meta
         metadata.extracted_text = text
         metadata.language = lang
-        embedding = await get_embedding(text)
 
         meta_dict = metadata.model_dump()
         # Раскладываем файл по директориям без создания недостающих
@@ -72,9 +70,6 @@ async def upload_file(
 
     except HTTPException:
         raise
-    except OpenRouterError as exc:
-        logger.exception("Embedding failed for %s", filename)
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
     except ValueError as exc:
         logger.exception("Upload/processing failed for %s", filename)
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -92,7 +87,6 @@ async def upload_file(
             meta_result.get("prompt"),
             meta_result.get("raw_response"),
             missing,
-            embedding=embedding,
             suggested_path=str(dest_path),
             confirmed=confirmed,
             created_path=str(dest_path) if confirmed else None,
@@ -116,7 +110,6 @@ async def upload_file(
         meta_result.get("prompt"),
         meta_result.get("raw_response"),
         [],  # missing
-        embedding=embedding,
         suggested_path=str(dest_path),
         confirmed=confirmed,
         created_path=str(dest_path) if confirmed else None,
@@ -186,7 +179,6 @@ async def upload_images(
             metadata = raw_meta
         metadata.extracted_text = text
         metadata.language = lang
-        embedding = await get_embedding(text)
 
         meta_dict = metadata.model_dump()
         dest_path, missing, confirmed = place_file(
@@ -199,9 +191,6 @@ async def upload_images(
         metadata = Metadata(**meta_dict)
     except HTTPException:
         raise
-    except OpenRouterError as exc:
-        logger.exception("Embedding failed for images")
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
     except Exception as exc:  # pragma: no cover
         logger.exception("Upload/processing failed for images")
         raise HTTPException(status_code=500, detail=str(exc)) from exc
@@ -219,7 +208,6 @@ async def upload_images(
             meta_result.get("raw_response"),
             missing,
             sources=sources,
-            embedding=embedding,
             suggested_path=str(dest_path),
             confirmed=confirmed,
             created_path=str(dest_path) if confirmed else None,
@@ -243,7 +231,6 @@ async def upload_images(
         meta_result.get("raw_response"),
         [],
         sources=sources,
-        embedding=embedding,
         suggested_path=str(dest_path),
         confirmed=confirmed,
         created_path=str(dest_path) if confirmed else None,

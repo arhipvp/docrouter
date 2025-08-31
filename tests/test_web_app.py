@@ -19,17 +19,9 @@ os.environ["DB_URL"] = ":memory:"             # in-memory БД для тесто
 # Импортируем сервер
 from web_app import server  # noqa: E402
 from models import Metadata  # noqa: E402
-from services.openrouter import OpenRouterError
 
 app = server.app
 
-
-@pytest.fixture(autouse=True)
-def _mock_embeddings(monkeypatch):
-    async def fake_embed(text: str, model: str):
-        return [0.1] * 8
-
-    monkeypatch.setattr("file_utils.embeddings.openrouter.embed", fake_embed)
 
 
 class LiveClient:
@@ -302,7 +294,6 @@ def test_details_endpoint_returns_full_record(tmp_path, monkeypatch):
 
         # merged expectation: есть и поля перевода, и чат-история
         details_json = details.json()
-        assert "embedding" in details_json
         expected = data.copy()
         expected["translated_text"] = None
         expected["translation_lang"] = None
@@ -313,23 +304,8 @@ def test_details_endpoint_returns_full_record(tmp_path, monkeypatch):
         expected["passport_number"] = data["metadata"]["passport_number"]
         expected["confirmed"] = False
         expected["created_path"] = None
-        details_json_no_emb = details_json.copy()
-        details_json_no_emb.pop("embedding", None)
-    assert details_json_no_emb == expected
+    assert details_json == expected
 
-
-def test_upload_embedding_failure_returns_502(tmp_path, monkeypatch):
-    monkeypatch.setattr(server.metadata_generation, "generate_metadata", _mock_generate_metadata)
-    server.config.output_dir = str(tmp_path)
-
-    async def failing_embed(text: str, model: str):
-        raise OpenRouterError("boom")
-
-    monkeypatch.setattr("file_utils.embeddings.openrouter.embed", failing_embed)
-
-    with LiveClient(app) as client:
-        resp = client.post("/upload", files={"file": ("example.txt", b"content")})
-        assert resp.status_code == 502
 
 
 def test_download_file_not_found_returns_404(tmp_path, monkeypatch):
