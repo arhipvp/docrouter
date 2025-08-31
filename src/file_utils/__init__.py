@@ -4,9 +4,11 @@ from pathlib import Path
 from typing import Callable, Dict, Union
 import csv
 import logging
+import mimetypes
 import tempfile
 from PIL import Image, ImageOps
 import httpx
+from fastapi import HTTPException
 
 from config import (
     OPENROUTER_API_KEY,
@@ -36,6 +38,11 @@ try:
     import openpyxl
 except ImportError:  # pragma: no cover - dependency missing
     openpyxl = None
+
+try:
+    import magic
+except ImportError:  # pragma: no cover - optional dependency
+    magic = None
 
 # OCR для изображений — модуль может отсутствовать
 try:
@@ -156,7 +163,23 @@ def extract_text(file_path: Union[str, Path], language: str = "eng") -> str:
     """
     path = Path(file_path)
     ext = path.suffix.lower()
+    guessed = False
     logger.info("Extracting text from %s", path)
+
+    if not ext:
+        mime = None
+        if magic is not None:
+            try:
+                mime = magic.from_file(str(path), mime=True)
+            except Exception:  # pragma: no cover - magic failure
+                mime = None
+        if mime:
+            ext = mimetypes.guess_extension(mime) or ""
+            guessed = True
+            logger.debug("Guessed extension %s for %s", ext, path)
+        if not ext:
+            logger.error("Cannot determine file type for %s", path)
+            raise HTTPException(status_code=400, detail="Не удалось определить тип файла")
 
     # Ветвь для изображений — нужен отдельный параметр language
     if ext in {".jpg", ".jpeg", ".png", ".tiff"}:
@@ -171,6 +194,8 @@ def extract_text(file_path: Union[str, Path], language: str = "eng") -> str:
     parser = _PARSER_REGISTRY.get(ext)
     if parser is None:
         logger.error("Unsupported/unknown file extension: %s", ext)
+        if guessed:
+            raise HTTPException(status_code=400, detail=f"Неизвестный тип файла: {ext}")
         raise ValueError(f"Unsupported/unknown file extension: {ext}")
     text = parser(path)
     logger.debug("Extracted %d characters from %s", len(text), path)

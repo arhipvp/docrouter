@@ -67,6 +67,12 @@ export function setupUpload() {
 
   form.addEventListener('submit', (e) => {
     e.preventDefault();
+    const fileInput = form.querySelector('input[type="file"]') as HTMLInputElement;
+    const file = fileInput?.files?.[0];
+    if (!file || !file.name) {
+      alert('Файл должен иметь имя');
+      return;
+    }
     const data = new FormData(form);
     progress.value = 0;
     const xhr = new XMLHttpRequest();

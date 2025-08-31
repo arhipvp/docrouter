@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import mimetypes
 import shutil
 import uuid
 from pathlib import Path
@@ -28,7 +29,11 @@ async def upload_file(
 ):
     """Загрузить файл и обработать его."""
     file_id = str(uuid.uuid4())
-    temp_path = UPLOAD_DIR / f"{file_id}_{file.filename}"
+    filename = file.filename or ""
+    if not filename:
+        guessed_ext = mimetypes.guess_extension(file.content_type or "") or ""
+        filename = f"upload{guessed_ext}"
+    temp_path = UPLOAD_DIR / f"{file_id}_{filename}"
     try:
         contents = await file.read()
         with open(temp_path, "wb") as dest:
@@ -67,8 +72,11 @@ async def upload_file(
 
     except HTTPException:
         raise
+    except ValueError as exc:
+        logger.exception("Upload/processing failed for %s", filename)
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:  # pragma: no cover
-        logger.exception("Upload/processing failed for %s", file.filename)
+        logger.exception("Upload/processing failed for %s", filename)
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
     if missing:

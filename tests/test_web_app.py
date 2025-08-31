@@ -511,3 +511,15 @@ def test_chat_history(tmp_path, monkeypatch):
         details = client.get(f"/files/{file_id}/details")
         assert details.status_code == 200
         assert len(details.json()["chat_history"]) == 4
+
+
+def test_upload_file_without_extension(monkeypatch, tmp_path):
+    monkeypatch.setattr(server.metadata_generation, "generate_metadata", _mock_generate_metadata)
+    server.config.output_dir = str(tmp_path)
+    with LiveClient(app) as client:
+        resp = client.post(
+            "/upload",
+            files={"file": ("", b"\x00\x01", "application/octet-stream")},
+        )
+        assert resp.status_code == 400
+        assert "unsupported/unknown file extension" in resp.text.lower()
