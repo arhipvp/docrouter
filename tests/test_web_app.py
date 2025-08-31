@@ -467,6 +467,11 @@ def test_chat_history(tmp_path, monkeypatch):
     monkeypatch.setattr(server, "extract_text", _mock_extract_text)
     monkeypatch.setattr(server.metadata_generation, "generate_metadata", _mock_generate_metadata)
 
+    async def _mock_chat(messages):
+        return "Ответ", 10, 0.02
+
+    monkeypatch.setattr(server.chat.openrouter, "chat", _mock_chat)
+
     with LiveClient(app) as client:
         resp = client.post(
             "/upload",
@@ -479,13 +484,15 @@ def test_chat_history(tmp_path, monkeypatch):
         assert chat1.status_code == 200
         data1 = chat1.json()
         assert any(msg["message"] == "привет" for msg in data1["chat_history"])
-        assert "content" in data1["response"]
+        assert data1["chat_history"][-1]["tokens"] == 10
+        assert data1["chat_history"][-1]["cost"] == 0.02
         assert len(data1["chat_history"]) == 2
 
         chat2 = client.post(f"/chat/{file_id}", json={"message": "как дела"})
         data2 = chat2.json()
         assert len(data2["chat_history"]) == 4
         assert data2["chat_history"][0]["message"] == "привет"
+        assert data2["chat_history"][-1]["tokens"] == 10
 
         details = client.get(f"/files/{file_id}/details")
         assert details.status_code == 200

@@ -234,18 +234,29 @@ def list_files() -> List[FileRecord]:
     return [_row_to_record(r) for r in rows]
 
 
-def add_chat_message(file_id: str, role: str, message: str) -> List[Dict[str, str]]:
+def add_chat_message(
+    file_id: str,
+    role: str,
+    message: str,
+    tokens: int | None = None,
+    cost: float | None = None,
+) -> List[Dict[str, Any]]:
     record = get_file(file_id)
     if record is None:
         return []
     history = record.chat_history
-    history.append({"role": role, "message": message})
+    entry: Dict[str, Any] = {"role": role, "message": message}
+    if tokens is not None:
+        entry["tokens"] = tokens
+    if cost is not None:
+        entry["cost"] = cost
+    history.append(entry)
     record.chat_history = history
     _upsert(record)
     return history
 
 
-def get_chat_history(file_id: str) -> List[Dict[str, str]]:
+def get_chat_history(file_id: str) -> List[Dict[str, Any]]:
     record = get_file(file_id)
     if record is None:
         return []

@@ -46,7 +46,7 @@ class FileRecord(BaseModel):
     missing: List[str] = []
     translated_text: Optional[str] = None
     translation_lang: Optional[str] = None
-    chat_history: List[dict[str, str]] = []
+    chat_history: List[dict[str, Any]] = []
     sources: Optional[List[str]] = None
     embedding: Optional[List[float]] = None
     suggested_path: Optional[str] = None
