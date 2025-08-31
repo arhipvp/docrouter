@@ -256,7 +256,10 @@ async def generate_metadata(
     result = await analyzer.analyze(
         text, folder_tree=folder_tree, folder_index=folder_index, file_info=file_info
     )
-    metadata = result.get("metadata", {})
+    metadata = result.get("metadata") or {}
+    if not isinstance(metadata, dict):
+        logger.error("Metadata should be a dict, got %s", type(metadata).__name__)
+        metadata = {}
 
     defaults = {
         "category": None,
@@ -279,8 +282,8 @@ async def generate_metadata(
         "suggested_filename": None,
         "description": None,
         "needs_new_folder": False,
-    } 
-    defaults.update(metadata or {})
+    }
+    defaults.update(metadata)
 
     if not defaults.get("date"):
         military_date = parse_military_id_date(text)

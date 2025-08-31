@@ -249,3 +249,21 @@ def test_folder_index_reuses_existing_folder(tmp_path):
     assert meta.person == "BONCH-OSMOLOVSKAIA, Natalia"
     assert meta.category == "Taxes"
     assert meta.needs_new_folder is False
+
+
+class InvalidAnalyzer(MetadataAnalyzer):
+    async def analyze(
+        self,
+        text: str,
+        folder_tree: Dict[str, Any] | None = None,
+        folder_index: Dict[str, Any] | None = None,
+        file_info: Dict[str, Any] | None = None,
+    ) -> Dict[str, Any]:
+        return {"prompt": None, "raw_response": None, "metadata": ["not", "a", "dict"]}
+
+
+def test_generate_metadata_handles_invalid_metadata():
+    result = asyncio.run(generate_metadata("text", analyzer=InvalidAnalyzer()))
+    meta: Metadata = result["metadata"]
+    assert meta.category is None
+    assert meta.tags == []
