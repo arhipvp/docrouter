@@ -7,7 +7,7 @@ import pytest
 
 sys.path.append(str(Path(__file__).resolve().parents[1] / "src"))
 
-from file_utils import extract_text
+from file_utils import extract_text, UnsupportedFileType
 from docrouter import process_directory
 import metadata_generation
 from models import Metadata
@@ -17,7 +17,7 @@ def test_extract_text_logs_error_for_unknown_extension(tmp_path, caplog):
     file_path = tmp_path / "file.xyz"
     file_path.write_text("data", encoding="utf-8")
     with caplog.at_level(logging.ERROR):
-        with pytest.raises(ValueError):
+        with pytest.raises(UnsupportedFileType):
             extract_text(file_path)
     assert "Unsupported/unknown file extension" in caplog.text
 

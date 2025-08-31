@@ -9,6 +9,7 @@ from pathlib import Path
 from fastapi import APIRouter, UploadFile, File, HTTPException, Form
 
 from file_sorter import place_file, get_folder_tree
+from file_utils import UnsupportedFileType
 from models import Metadata, UploadResponse
 from services.openrouter import OpenRouterError
 from .. import db as database, server
@@ -77,6 +78,9 @@ async def upload_file(
 
     except HTTPException:
         raise
+    except UnsupportedFileType as exc:
+        logger.exception("Upload/processing failed for %s", filename)
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     except ValueError as exc:
         logger.exception("Upload/processing failed for %s", filename)
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -201,6 +205,9 @@ async def upload_images(
         metadata = Metadata(**meta_dict)
     except HTTPException:
         raise
+    except UnsupportedFileType as exc:
+        logger.exception("Upload/processing failed for images")
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:  # pragma: no cover
         logger.exception("Upload/processing failed for images")
         raise HTTPException(status_code=500, detail=str(exc)) from exc
