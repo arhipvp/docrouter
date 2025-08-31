@@ -135,3 +135,23 @@ def test_generate_metadata_parses_mrz():
     assert meta.date_of_birth == "1974-08-12"
     assert meta.expiration_date == "2012-04-15"
     assert meta.passport_number == "L898902C3"
+
+
+class DummyFilenameAnalyzer(MetadataAnalyzer):
+    async def analyze(
+        self, text: str, folder_tree: Dict[str, Any] | None = None
+    ) -> Dict[str, Any]:
+        return {
+            "prompt": None,
+            "raw_response": None,
+            "metadata": {"suggested_filename": "invoice.pdf"},
+        }
+
+
+def test_generate_metadata_extracts_suggested_name():
+    result = asyncio.run(
+        generate_metadata("text", analyzer=DummyFilenameAnalyzer())
+    )
+    meta: Metadata = result["metadata"]
+    assert meta.suggested_filename == "invoice.pdf"
+    assert meta.suggested_name == "invoice"

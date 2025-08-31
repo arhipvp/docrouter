@@ -1,4 +1,3 @@
-import json
 import sys
 import json
 from pathlib import Path
@@ -17,6 +16,7 @@ def sample_metadata():
         "issuer": "Sparkasse",
         "date": "2023-10-12",
         "suggested_name": "Kreditvertrag",
+        "suggested_filename": "Kreditvertrag.pdf",
     }
 
 
@@ -71,12 +71,45 @@ def test_place_file_uses_person_folder(tmp_path):
     ]
 
 
+def test_place_file_uses_person_from_metadata(tmp_path):
+    src = tmp_path / "input.pdf"
+    src.write_text("data")
+
+    dest_root = tmp_path / "Archive"
+    metadata = sample_metadata()
+    metadata["person"] = "Alice"
+    dest, missing, _ = place_file(src, metadata, dest_root, dry_run=True)
+
+    expected = (
+        dest_root / "Финансы" / "Банки" / "Alice" / "Sparkasse" / "2023-10-12__Kreditvertrag.pdf"
+    )
+    assert dest == expected
+    assert missing == [
+        "Финансы",
+        "Финансы/Банки",
+        "Финансы/Банки/Alice",
+        "Финансы/Банки/Alice/Sparkasse",
+    ]
+
+
+def test_place_file_prefers_suggested_name(tmp_path):
+    src = tmp_path / "file.pdf"
+    src.write_text("data")
+
+    dest_root = tmp_path / "Archive"
+    metadata = sample_metadata()
+    metadata["suggested_filename"] = "other.pdf"
+
+    dest, _, _ = place_file(src, metadata, dest_root, dry_run=True)
+    assert dest.name == "2023-10-12__Kreditvertrag.pdf"
+
+
 def test_place_file_moves_and_creates_json(tmp_path):
     src = tmp_path / "document.pdf"
     src.write_text("content")
 
     dest_root = tmp_path / "Archive"
-    # По умолчанию create_missing=True — каталоги будут созданы, файл перемещён
+    # Каталоги будут созданы, файл перемещён
     dest, missing, confirmed = place_file(
         src,
         sample_metadata(),
@@ -87,6 +120,15 @@ def test_place_file_moves_and_creates_json(tmp_path):
     )
 
     json_path = dest.with_suffix(dest.suffix + ".json")
+    expected = (
+        dest_root
+        / "Финансы"
+        / "Банки"
+        / GENERAL_FOLDER_NAME
+        / "Sparkasse"
+        / "2023-10-12__Kreditvertrag.pdf"
+    )
+    assert dest == expected
     assert dest.exists()
     assert json_path.exists()
     assert missing == []
@@ -154,6 +196,15 @@ def test_place_file_returns_missing_dirs_and_does_not_move_when_needs_new_folder
         needs_new_folder=False,
     )
 
+    expected = (
+        dest_root
+        / "Финансы"
+        / "Банки"
+        / GENERAL_FOLDER_NAME
+        / "Sparkasse"
+        / "2023-10-12__Kreditvertrag.pdf"
+    )
+    assert dest == expected
     assert missing == [
         "Финансы",
         "Финансы/Банки",
@@ -194,7 +245,16 @@ def test_place_file_creates_dirs_on_confirmation(tmp_path):
         confirm_callback=lambda _: True,
     )
 
+    expected = (
+        dest_root
+        / "Финансы"
+        / "Банки"
+        / GENERAL_FOLDER_NAME
+        / "Sparkasse"
+        / "2023-10-12__Kreditvertrag.pdf"
+    )
     assert confirmed is True
     assert missing == []
+    assert dest == expected
     assert dest.exists()
     assert dest.parent.exists()

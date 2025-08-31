@@ -20,11 +20,11 @@ class Metadata(BaseModel):
     tags_ru: List[str] = Field(default_factory=list)
     tags_en: List[str] = Field(default_factory=list)
     suggested_filename: Optional[str] = None
+    suggested_name: Optional[str] = None
     description: Optional[str] = None
     needs_new_folder: bool = False
     extracted_text: Optional[str] = None
     language: Optional[str] = None
-    suggested_name: Optional[str] = None
     suggested_name_translit: Optional[str] = None
     new_name_translit: Optional[str] = None
 

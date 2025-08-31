@@ -122,19 +122,22 @@ def place_file(
     dest_dir = base_dir
     missing: List[str] = []
 
+    # Сначала category/subcategory
     for key in ("category", "subcategory"):
         value = metadata.get(key)
         if value:
             dest_dir /= str(value)
             if not dest_dir.exists():
-                # сохраняем отсутствующую директорию как путь относительно корня
                 missing.append(str(dest_dir.relative_to(base_dir)))
 
+    # Затем person (или общий)
     person = metadata.get("person") or GENERAL_FOLDER_NAME
+    metadata["person"] = person
     dest_dir /= str(person)
     if not dest_dir.exists():
         missing.append(str(dest_dir.relative_to(base_dir)))
 
+    # Затем issuer (если есть)
     issuer = metadata.get("issuer")
     if issuer:
         dest_dir /= str(issuer)
