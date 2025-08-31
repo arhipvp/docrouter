@@ -15,7 +15,7 @@ async def get_embedding(text: str, model: str | None = None) -> List[float]:
     if not text:
         return []
 
-    model_name = model or config.openrouter_model or "text-embedding-3-small"
+    model_name = model or config.openrouter_embed_model or "text-embedding-3-small"
     return await openrouter.embed(text, model_name)
 
 
