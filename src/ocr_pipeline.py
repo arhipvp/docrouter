@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Union
 import logging
 
+import argparse
 import cv2
 import numpy as np
 from PIL import Image
@@ -14,7 +15,7 @@ import pytesseract
 logger = logging.getLogger(__name__)
 
 
-def increase_contrast(image: np.ndarray, alpha: float = 1.5, beta: int = 0) -> np.ndarray:
+def increase_contrast(image: np.ndarray, alpha: float = 1.5, beta: float = 0.0) -> np.ndarray:
     """Increase image contrast using a linear transformation.
 
     :param image: Input image as NumPy array.
@@ -29,9 +30,11 @@ def remove_noise(image: np.ndarray, ksize: int = 3) -> np.ndarray:
     """Remove noise from the image using median blur.
 
     :param image: Input image.
-    :param ksize: Size of the kernel; must be an odd integer.
+    :param ksize: Size of the kernel; must be an odd integer ≥3.
     :return: Denoised image.
     """
+    if ksize < 3 or ksize % 2 == 0:
+        raise ValueError("ksize must be an odd integer ≥3")
     return cv2.medianBlur(image, ksize)
 
 
@@ -101,20 +104,30 @@ def crop_margins(image: np.ndarray, margin: float = 0.05) -> np.ndarray:
     return image[top:bottom, left:right]
 
 
-def run_ocr(path: Union[str, Path], lang: str = "rus", dpi: int = 300) -> str:
+def run_ocr(
+    path: Union[str, Path],
+    lang: str = "rus",
+    dpi: int = 300,
+    alpha: float = 1.5,
+    beta: float = 0.0,
+    ksize: int = 3,
+) -> str:
     """Run the OCR pipeline on the given image and return recognized text.
 
     :param path: Path to the image file.
     :param lang: Tesseract language code (default ``"rus"``).
     :param dpi: Target DPI for preprocessing.
+    :param alpha: Contrast control passed to :func:`increase_contrast`.
+    :param beta: Brightness control passed to :func:`increase_contrast`.
+    :param ksize: Kernel size for :func:`remove_noise`.
     :return: Recognized text as a string.
     """
     image = cv2.imread(str(path))
     if image is None:
         raise FileNotFoundError(f"Image not found: {path}")
     image = resize_to_dpi(image, dpi)
-    image = increase_contrast(image)
-    image = remove_noise(image)
+    image = increase_contrast(image, alpha=alpha, beta=beta)
+    image = remove_noise(image, ksize=ksize)
     image = deskew(image)
     image = crop_margins(image)
     image = binarize(image)
@@ -126,3 +139,33 @@ def run_ocr(path: Union[str, Path], lang: str = "rus", dpi: int = 300) -> str:
             logger.warning("Tesseract language '%s' unavailable, falling back to 'eng'", lang)
             return pytesseract.image_to_string(pil_img, lang="eng")
         raise exc
+
+
+def _parse_odd_int(value: str) -> int:
+    """argparse type for odd integers ≥3."""
+    ivalue = int(value)
+    if ivalue < 3 or ivalue % 2 == 0:
+        raise argparse.ArgumentTypeError("ksize must be an odd integer ≥3")
+    return ivalue
+
+
+if __name__ == "__main__":  # pragma: no cover - simple CLI
+    parser = argparse.ArgumentParser(description="Run OCR pipeline on an image")
+    parser.add_argument("path", help="Path to image file")
+    parser.add_argument("--lang", default="rus", help="Tesseract language code")
+    parser.add_argument("--dpi", type=int, default=300, help="Target DPI")
+    parser.add_argument("--alpha", type=float, default=1.5, help="Contrast control")
+    parser.add_argument("--beta", type=float, default=0.0, help="Brightness control")
+    parser.add_argument(
+        "--ksize", type=_parse_odd_int, default=3, help="Median blur kernel size"
+    )
+    params = parser.parse_args()
+    result = run_ocr(
+        params.path,
+        lang=params.lang,
+        dpi=params.dpi,
+        alpha=params.alpha,
+        beta=params.beta,
+        ksize=params.ksize,
+    )
+    print(result)
