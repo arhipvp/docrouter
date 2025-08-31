@@ -16,6 +16,7 @@ def sample_metadata():
         "issuer": "Sparkasse",
         "date": "2023-10-12",
         "suggested_name": "Kreditvertrag",
+        "suggested_filename": "Kreditvertrag.pdf",
     }
 
 
@@ -54,6 +55,18 @@ def test_place_file_uses_person_from_metadata(tmp_path):
         "Alice/Финансы/Банки",
         "Alice/Финансы/Банки/Sparkasse",
     ]
+
+
+def test_place_file_prefers_suggested_name(tmp_path):
+    src = tmp_path / "file.pdf"
+    src.write_text("data")
+
+    dest_root = tmp_path / "Archive"
+    metadata = sample_metadata()
+    metadata["suggested_filename"] = "other.pdf"
+
+    dest, _, _ = place_file(src, metadata, dest_root, dry_run=True)
+    assert dest.name == "2023-10-12__Kreditvertrag.pdf"
 
 
 def test_place_file_moves_and_creates_json(tmp_path):
