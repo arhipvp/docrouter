@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 import json
+import os
 import sqlite3
 from typing import Any, Dict, List, Optional
 
@@ -19,21 +20,30 @@ def _get_conn() -> sqlite3.Connection:
     return _conn
 
 
-def init_db() -> None:
-    """Создать таблицы и очистить хранилище."""
+def init_db(force_reset: bool | None = None) -> None:
+    """Создать таблицы.
+
+    Параметр ``force_reset`` или переменная окружения ``DOCROUTER_RESET_DB``
+    (значение ``1``) приводит к удалению существующей схемы.
+    """
     global _conn
     if _conn is not None:
         try:
             _conn.close()
         except Exception:
             pass
+
+    if force_reset is None:
+        force_reset = os.getenv("DOCROUTER_RESET_DB") == "1"
+
     _conn = sqlite3.connect(_DB_PATH, check_same_thread=False)
     _conn.row_factory = sqlite3.Row
     with _conn:
-        _conn.execute("DROP TABLE IF EXISTS files")
+        if force_reset:
+            _conn.execute("DROP TABLE IF EXISTS files")
         _conn.execute(
             """
-            CREATE TABLE files (
+            CREATE TABLE IF NOT EXISTS files (
                 id TEXT PRIMARY KEY,
                 filename TEXT NOT NULL,
                 metadata TEXT NOT NULL,
