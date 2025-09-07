@@ -109,6 +109,7 @@ export function setupFiles() {
       if (!resp.ok) throw new Error();
       const data: FileInfo = await resp.json();
       textPreview.textContent = data.extracted_text || '';
+      (textPreview as HTMLElement).dataset.id = id;
     } catch {
       textPreview.textContent = '';
       showNotification('Не удалось получить содержимое файла');

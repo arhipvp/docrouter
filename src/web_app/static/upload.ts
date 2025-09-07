@@ -4,6 +4,8 @@
 import { setupUploadForm } from './uploadForm.js';
 import { setupImageBatch } from './imageBatch.js';
 import { setupImageEditor } from './imageEditor.js';
+import { apiRequest } from './http.js';
+import { showNotification } from './notify.js';
 
 /**
  * Точка входа инициализации загрузки/редактирования.
@@ -13,6 +15,35 @@ export function setupUpload() {
   setupUploadForm();
   setupImageEditor();
   setupImageBatch();
+
+  const textPreview = document.getElementById('text-preview');
+  if (textPreview) {
+    const rerunBtn = document.createElement('button');
+    rerunBtn.id = 'rerun-ocr-btn';
+    rerunBtn.type = 'button';
+    rerunBtn.textContent = 'Пересканировать';
+    textPreview.parentElement?.insertBefore(rerunBtn, textPreview);
+
+    rerunBtn.addEventListener('click', async () => {
+      const id = (textPreview as HTMLElement).dataset.id;
+      if (!id) return;
+      const langSelect = document.getElementById('language') as HTMLSelectElement | null;
+      const psmInput = document.getElementById('psm') as HTMLInputElement | null;
+      const language = langSelect?.value || 'eng';
+      const psm = parseInt(psmInput?.value || '3', 10);
+      try {
+        const resp = await apiRequest(`/files/${id}/rerun_ocr`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ language, psm }),
+        });
+        const data = await resp.json();
+        textPreview.textContent = data.extracted_text || '';
+      } catch {
+        showNotification('Ошибка пересканирования');
+      }
+    });
+  }
 }
 
 /**
