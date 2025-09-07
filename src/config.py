@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Optional
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -21,6 +22,7 @@ class Config(BaseSettings):
     openrouter_site_url: Optional[str] = None
     openrouter_site_name: Optional[str] = None
     db_url: Optional[str] = None
+    docrouter_reset_db: bool = Field(default=False, alias="DOCROUTER_RESET_DB")
 
 
 # --------- Backward compatibility / convenient aliases ---------
@@ -37,6 +39,7 @@ OPENROUTER_MODEL = config.openrouter_model
 OPENROUTER_SITE_URL = config.openrouter_site_url
 OPENROUTER_SITE_NAME = config.openrouter_site_name
 DB_URL = config.db_url
+DOCROUTER_RESET_DB = config.docrouter_reset_db
 
 __all__ = [
     "Config",
@@ -52,4 +55,5 @@ __all__ = [
     "OPENROUTER_SITE_URL",
     "OPENROUTER_SITE_NAME",
     "DB_URL",
+    "DOCROUTER_RESET_DB",
 ]
