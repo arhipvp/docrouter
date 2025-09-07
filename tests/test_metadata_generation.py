@@ -23,6 +23,7 @@ class DummyAnalyzer(MetadataAnalyzer):
 
 def test_generate_metadata_without_api_key(monkeypatch):
     monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+    monkeypatch.setattr("metadata_generation.config.openrouter_api_key", None)
     with pytest.raises(OpenRouterError):
         asyncio.run(generate_metadata("text"))
 
@@ -49,7 +50,7 @@ def test_prompt_includes_context(monkeypatch):
         return DummyResponse()
 
     monkeypatch.setenv("OPENROUTER_API_KEY", "test")
-    monkeypatch.setattr("metadata_generation.OPENROUTER_API_KEY", "test")
+    monkeypatch.setattr("metadata_generation.config.openrouter_api_key", "test")
     monkeypatch.setattr("metadata_generation.httpx.AsyncClient.post", fake_post)
 
     tree = [{"name": "Финансы", "children": [{"name": "Банки", "children": []}]}]
@@ -99,7 +100,7 @@ def test_response_format_in_extra_body(monkeypatch):
         return DummyResponse()
 
     monkeypatch.setenv("OPENROUTER_API_KEY", "test")
-    monkeypatch.setattr("metadata_generation.OPENROUTER_API_KEY", "test")
+    monkeypatch.setattr("metadata_generation.config.openrouter_api_key", "test")
     monkeypatch.setattr("metadata_generation.httpx.AsyncClient.post", fake_post)
 
     asyncio.run(generate_metadata("text"))
@@ -138,7 +139,7 @@ def test_multilanguage_tags_parsing(monkeypatch):
         return DummyResponse()
 
     monkeypatch.setenv("OPENROUTER_API_KEY", "test")
-    monkeypatch.setattr("metadata_generation.OPENROUTER_API_KEY", "test")
+    monkeypatch.setattr("metadata_generation.config.openrouter_api_key", "test")
     monkeypatch.setattr("metadata_generation.httpx.AsyncClient.post", fake_post)
 
     result = asyncio.run(generate_metadata("text"))

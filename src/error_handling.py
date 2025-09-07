@@ -9,9 +9,12 @@ from typing import Optional
 
 # Настройка логирования (мягкая зависимость)
 try:
-    from config import LOG_LEVEL  # алиас из нашего Config-модуля
+    from config import config
 except Exception:
-    LOG_LEVEL = "INFO"
+    class _Dummy:
+        log_level = "INFO"
+
+    config = _Dummy()
 
 try:
     from logging_config import setup_logging as _setup_logging  # pragma: no cover - optional
@@ -22,10 +25,10 @@ except Exception:
 logger = logging.getLogger(__name__)
 if _setup_logging:
     # Если есть модуль конфигурации логирования — используем его.
-    _setup_logging(LOG_LEVEL, None)
+    _setup_logging(config.log_level, None)
 else:
     # Базовая настройка на случай отсутствия кастомного конфигуратора
-    level = getattr(logging, str(LOG_LEVEL).upper(), logging.INFO)
+    level = getattr(logging, str(config.log_level).upper(), logging.INFO)
     logging.basicConfig(level=level, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
 

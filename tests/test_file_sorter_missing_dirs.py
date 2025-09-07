@@ -8,7 +8,7 @@ import pytest
 sys.path.append(str(Path(__file__).resolve().parents[1] / "src"))
 
 from file_sorter import place_file  # noqa: E402
-from config import GENERAL_FOLDER_NAME  # noqa: E402
+from config import config  # noqa: E402
 
 
 def test_place_file_suggests_nested_dirs_and_logs(tmp_path, caplog):
@@ -25,12 +25,12 @@ def test_place_file_suggests_nested_dirs_and_logs(tmp_path, caplog):
         dest, missing, confirmed = place_file(
             src, metadata, dest_root, dry_run=False
         )
-    expected = dest_root / GENERAL_FOLDER_NAME / "sub1" / "sub2" / "2024-01-01__data.txt"
+    expected = dest_root / config.general_folder_name / "sub1" / "sub2" / "2024-01-01__data.txt"
     assert dest == expected
     assert missing == [
-        f"{GENERAL_FOLDER_NAME}",
-        f"{GENERAL_FOLDER_NAME}/sub1",
-        f"{GENERAL_FOLDER_NAME}/sub1/sub2",
+        f"{config.general_folder_name}",
+        f"{config.general_folder_name}/sub1",
+        f"{config.general_folder_name}/sub1/sub2",
     ]
     assert "Missing directories (no create)" in caplog.text
     assert src.exists()

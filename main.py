@@ -15,7 +15,7 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).resolve().parent / "src"))
 
 import uvicorn
-from config import LOG_LEVEL  # type: ignore
+from config import config  # type: ignore
 from logging_config import setup_logging  # type: ignore
 
 logger = logging.getLogger(__name__)
@@ -35,7 +35,7 @@ def main() -> None:
     reload = os.getenv("RELOAD", "false").lower() in {"1", "true", "yes"}
 
     # Настраиваем логирование согласно конфигу
-    setup_logging(LOG_LEVEL, None)
+    setup_logging(config.log_level, None)
     logger.info("Starting FastAPI server on %s:%s", host, port)
 
     try:

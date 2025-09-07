@@ -7,7 +7,7 @@ import shutil
 from pathlib import Path
 from typing import Any, Dict, List, Tuple, Callable
 
-from config import GENERAL_FOLDER_NAME
+from config import config
 from utils.names import normalize_person_name
 
 try:
@@ -190,7 +190,7 @@ def place_file(
     person = normalize_person_name(metadata.get("person"))
     person = sanitize_dirname(person or "")
     if not person or not str(person).strip():
-        person = GENERAL_FOLDER_NAME
+        person = config.general_folder_name
     metadata["person"] = person
     dest_dir /= str(person)
     if not dest_dir.exists():

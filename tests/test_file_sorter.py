@@ -6,7 +6,7 @@ import pytest
 
 sys.path.append(str(Path(__file__).resolve().parents[1] / "src"))
 from file_sorter import place_file
-from config import GENERAL_FOLDER_NAME
+from config import config
 
 
 def sample_metadata():
@@ -30,7 +30,7 @@ def test_place_file_path_and_name(tmp_path):
 
     expected = (
         dest_root
-        / GENERAL_FOLDER_NAME
+        / config.general_folder_name
         / "Финансы"
         / "Банки"
         / "Sparkasse"
@@ -38,10 +38,10 @@ def test_place_file_path_and_name(tmp_path):
     )
     assert dest == expected
     assert missing == [
-        f"{GENERAL_FOLDER_NAME}",
-        f"{GENERAL_FOLDER_NAME}/Финансы",
-        f"{GENERAL_FOLDER_NAME}/Финансы/Банки",
-        f"{GENERAL_FOLDER_NAME}/Финансы/Банки/Sparkasse",
+        f"{config.general_folder_name}",
+        f"{config.general_folder_name}/Финансы",
+        f"{config.general_folder_name}/Финансы/Банки",
+        f"{config.general_folder_name}/Финансы/Банки/Sparkasse",
     ]
 
 
@@ -122,7 +122,7 @@ def test_place_file_uses_general_when_person_empty(tmp_path):
 
     expected = (
         dest_root
-        / GENERAL_FOLDER_NAME
+        / config.general_folder_name
         / "Финансы"
         / "Банки"
         / "Sparkasse"
@@ -130,10 +130,10 @@ def test_place_file_uses_general_when_person_empty(tmp_path):
     )
     assert dest == expected
     assert missing == [
-        f"{GENERAL_FOLDER_NAME}",
-        f"{GENERAL_FOLDER_NAME}/Финансы",
-        f"{GENERAL_FOLDER_NAME}/Финансы/Банки",
-        f"{GENERAL_FOLDER_NAME}/Финансы/Банки/Sparkasse",
+        f"{config.general_folder_name}",
+        f"{config.general_folder_name}/Финансы",
+        f"{config.general_folder_name}/Финансы/Банки",
+        f"{config.general_folder_name}/Финансы/Банки/Sparkasse",
     ]
 
 
@@ -167,7 +167,7 @@ def test_place_file_moves_and_creates_json(tmp_path):
     json_path = dest.with_suffix(dest.suffix + ".json")
     expected = (
         dest_root
-        / GENERAL_FOLDER_NAME
+        / config.general_folder_name
         / "Финансы"
         / "Банки"
         / "Sparkasse"
@@ -283,7 +283,7 @@ def test_place_file_returns_missing_dirs_and_does_not_move_when_needs_new_folder
 
     expected = (
         dest_root
-        / GENERAL_FOLDER_NAME
+        / config.general_folder_name
         / "Финансы"
         / "Банки"
         / "Sparkasse"
@@ -291,10 +291,10 @@ def test_place_file_returns_missing_dirs_and_does_not_move_when_needs_new_folder
     )
     assert dest == expected
     assert missing == [
-        f"{GENERAL_FOLDER_NAME}",
-        f"{GENERAL_FOLDER_NAME}/Финансы",
-        f"{GENERAL_FOLDER_NAME}/Финансы/Банки",
-        f"{GENERAL_FOLDER_NAME}/Финансы/Банки/Sparkasse",
+        f"{config.general_folder_name}",
+        f"{config.general_folder_name}/Финансы",
+        f"{config.general_folder_name}/Финансы/Банки",
+        f"{config.general_folder_name}/Финансы/Банки/Sparkasse",
     ]
     # файл не должен быть перемещён
     assert not dest.exists()
@@ -320,7 +320,7 @@ def test_place_file_missing_then_confirm_creation(tmp_path):
 
     expected = (
         dest_root
-        / GENERAL_FOLDER_NAME
+        / config.general_folder_name
         / "Финансы"
         / "Банки"
         / "Sparkasse"
@@ -328,10 +328,10 @@ def test_place_file_missing_then_confirm_creation(tmp_path):
     )
     assert dest == expected
     assert missing == [
-        f"{GENERAL_FOLDER_NAME}",
-        f"{GENERAL_FOLDER_NAME}/Финансы",
-        f"{GENERAL_FOLDER_NAME}/Финансы/Банки",
-        f"{GENERAL_FOLDER_NAME}/Финансы/Банки/Sparkasse",
+        f"{config.general_folder_name}",
+        f"{config.general_folder_name}/Финансы",
+        f"{config.general_folder_name}/Финансы/Банки",
+        f"{config.general_folder_name}/Финансы/Банки/Sparkasse",
     ]
     assert not dest.exists()
     assert src.exists()
@@ -384,7 +384,7 @@ def test_place_file_creates_dirs_on_confirmation(tmp_path):
 
     expected = (
         dest_root
-        / GENERAL_FOLDER_NAME
+        / config.general_folder_name
         / "Финансы"
         / "Банки"
         / "Sparkasse"

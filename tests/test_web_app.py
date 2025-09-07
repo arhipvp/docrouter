@@ -19,7 +19,6 @@ os.environ["DB_URL"] = ":memory:"             # in-memory БД для тесто
 # Импортируем сервер
 from web_app import server  # noqa: E402
 from models import Metadata  # noqa: E402
-from config import GENERAL_FOLDER_NAME  # noqa: E402
 
 app = server.app
 

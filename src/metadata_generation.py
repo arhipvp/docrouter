@@ -21,13 +21,7 @@ import httpx
 from models import Metadata
 from prompt_templates import build_metadata_prompt
 
-from config import (
-    OPENROUTER_API_KEY,
-    OPENROUTER_BASE_URL,
-    OPENROUTER_MODEL,
-    OPENROUTER_SITE_NAME,
-    OPENROUTER_SITE_URL,
-)
+from config import config
 
 from services.openrouter import OpenRouterError
 from file_utils.mrz import parse_mrz
@@ -141,15 +135,15 @@ class OpenRouterAnalyzer(MetadataAnalyzer):
         site_url: Optional[str] = None,
         site_name: Optional[str] = None,
     ):
-        self.api_key = api_key or OPENROUTER_API_KEY
+        self.api_key = api_key or config.openrouter_api_key
         if not self.api_key:
             raise OpenRouterError("OPENROUTER_API_KEY environment variable required")
 
-        self.model = model or OPENROUTER_MODEL or "openai/chatgpt-4o-latest"
-        self.base_url = base_url or OPENROUTER_BASE_URL or "https://openrouter.ai/api/v1"
+        self.model = model or config.openrouter_model or "openai/chatgpt-4o-latest"
+        self.base_url = base_url or config.openrouter_base_url or "https://openrouter.ai/api/v1"
         self.api_url = self.base_url.rstrip("/") + "/chat/completions"
-        self.site_url = site_url or OPENROUTER_SITE_URL or "https://github.com/docrouter"
-        self.site_name = site_name or OPENROUTER_SITE_NAME or "DocRouter Metadata Generator"
+        self.site_url = site_url or config.openrouter_site_url or "https://github.com/docrouter"
+        self.site_name = site_name or config.openrouter_site_name or "DocRouter Metadata Generator"
 
     async def analyze(
         self,

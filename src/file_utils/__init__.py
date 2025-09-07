@@ -9,13 +9,7 @@ import tempfile
 from PIL import Image, ImageOps
 import httpx
 
-from config import (
-    OPENROUTER_API_KEY,
-    OPENROUTER_BASE_URL,
-    OPENROUTER_MODEL,
-    OPENROUTER_SITE_URL,
-    OPENROUTER_SITE_NAME,
-)
+from config import config
 
 # Опциональные зависимости
 try:
@@ -310,11 +304,11 @@ except Exception:  # pragma: no cover - отсутствие плагинов н
 async def translate_text(text: str, target_lang: str) -> str:
     """Перевести *text* на язык ``target_lang`` с помощью OpenRouter."""
 
-    if not OPENROUTER_API_KEY:
+    if not config.openrouter_api_key:
         raise RuntimeError("OPENROUTER_API_KEY environment variable required")
 
-    model = OPENROUTER_MODEL or "openai/chatgpt-4o-mini"
-    base_url = OPENROUTER_BASE_URL or "https://openrouter.ai/api/v1"
+    model = config.openrouter_model or "openai/chatgpt-4o-mini"
+    base_url = config.openrouter_base_url or "https://openrouter.ai/api/v1"
     api_url = base_url.rstrip("/") + "/chat/completions"
     prompt = f"Translate the following text to {target_lang}:\n{text}"
     payload = {
@@ -323,9 +317,9 @@ async def translate_text(text: str, target_lang: str) -> str:
         "temperature": 0.1,
     }
     headers = {
-        "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-        "HTTP-Referer": OPENROUTER_SITE_URL or "https://github.com/docrouter",
-        "X-Title": OPENROUTER_SITE_NAME or "DocRouter",
+        "Authorization": f"Bearer {config.openrouter_api_key}",
+        "HTTP-Referer": config.openrouter_site_url or "https://github.com/docrouter",
+        "X-Title": config.openrouter_site_name or "DocRouter",
     }
     async with httpx.AsyncClient(timeout=60) as client:
         response = await client.post(api_url, json=payload, headers=headers)

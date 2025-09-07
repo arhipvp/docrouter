@@ -28,6 +28,7 @@ def test_main_js_rotate_crop(tmp_path):
           appendChild(child) { this.children.push(child); if (!this.firstChild) this.firstChild = child; return child; }
           insertBefore(node) { this.children.push(node); return node; }
           addEventListener(type, cb) { this.events[type] = cb; }
+          removeEventListener(type) { delete this.events[type]; }
           dispatchEvent(evt) { (this.events[evt.type] || (()=>{}))(evt); }
           click() { this.dispatchEvent({ type: 'click', target: this }); }
           reset() { this.value = ''; }
@@ -84,7 +85,7 @@ def test_main_js_rotate_crop(tmp_path):
         let setDataCalls = 0;
         global.Cropper = class {
           constructor(canvas, opts) {}
-          rotate(angle) { rotations.push(angle); }
+          rotate(angle) { rotations.push(angle); setDataCalls++; }
           setData() { setDataCalls++; }
           getCroppedCanvas() { return { toBlob: (cb) => { cropped = true; cb(new Blob(['a'], { type: 'image/jpeg' })); } }; }
           destroy() {}
@@ -113,7 +114,7 @@ def test_main_js_rotate_crop(tmp_path):
     )
     js_code = js_code.replace("%MAIN_JS_PATH%", repr(str(main_js)))
 
-    js_file = tmp_path / "main_test.js"
+    js_file = tmp_path / "main_test.cjs"
     js_file.write_text(js_code)
 
     result = subprocess.run(["node", str(js_file)], capture_output=True, text=True)

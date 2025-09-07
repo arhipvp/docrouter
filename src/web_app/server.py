@@ -13,7 +13,7 @@ try:
 except Exception:  # pragma: no cover
     Jinja2Templates = None  # type: ignore[misc,assignment]
 
-from config import load_config
+from config import config
 from logging_config import setup_logging
 from file_utils import extract_text, merge_images_to_pdf, translate_text  # noqa: F401
 import metadata_generation  # noqa: F401
@@ -53,7 +53,6 @@ async def serve_index(request: Request):
 
 
 # --------- Конфиг и логирование ----------
-config = load_config()
 try:
     setup_logging(config.log_level, None)  # type: ignore[arg-type]
 except Exception:

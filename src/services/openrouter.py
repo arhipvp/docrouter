@@ -7,13 +7,7 @@ import logging
 
 import httpx
 
-from config import (
-    OPENROUTER_API_KEY,
-    OPENROUTER_BASE_URL,
-    OPENROUTER_MODEL,
-    OPENROUTER_SITE_URL,
-    OPENROUTER_SITE_NAME,
-)
+from config import config
 
 
 logger = logging.getLogger(__name__)
@@ -26,18 +20,18 @@ class OpenRouterError(RuntimeError):
 async def chat(messages: List[Dict[str, str]]) -> Tuple[str, int | None, float | None]:
     """Отправить запрос в OpenRouter и вернуть ответ, количество токенов и стоимость."""
 
-    if not OPENROUTER_API_KEY:
+    if not config.openrouter_api_key:
         raise OpenRouterError("OPENROUTER_API_KEY environment variable required")
 
-    model = OPENROUTER_MODEL or "openai/chatgpt-4o-mini"
-    base_url = OPENROUTER_BASE_URL or "https://openrouter.ai/api/v1"
+    model = config.openrouter_model or "openai/chatgpt-4o-mini"
+    base_url = config.openrouter_base_url or "https://openrouter.ai/api/v1"
     api_url = base_url.rstrip("/") + "/chat/completions"
 
     payload: Dict[str, Any] = {"model": model, "messages": messages, "temperature": 0.1}
     headers = {
-        "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-        "HTTP-Referer": OPENROUTER_SITE_URL or "https://github.com/docrouter",
-        "X-Title": OPENROUTER_SITE_NAME or "DocRouter",
+        "Authorization": f"Bearer {config.openrouter_api_key}",
+        "HTTP-Referer": config.openrouter_site_url or "https://github.com/docrouter",
+        "X-Title": config.openrouter_site_name or "DocRouter",
     }
 
     async with httpx.AsyncClient(timeout=60) as client:
