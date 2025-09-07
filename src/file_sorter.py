@@ -127,13 +127,17 @@ def get_folder_tree(
     return tree, index
 
 
+def _reject_paths(_: List[str]) -> bool:
+    return False
+
+
 def place_file(
     src_path: str | Path,
     metadata: Dict[str, Any],
     dest_root: str | Path,
     dry_run: bool = False,
     needs_new_folder: bool = False,
-    confirm_callback: Callable[[List[str]], bool] | None = None,
+    confirm_callback: Callable[[List[str]], bool] = _reject_paths,
 ) -> Tuple[Path, List[str], bool]:
     """Переместить файл в структуру папок на основе *metadata*.
 
@@ -243,9 +247,6 @@ def place_file(
         logger.info("Would write metadata JSON to %s", json_file)
         return dest_file, missing, confirmed
 
-    if confirm_callback is None:
-        confirm_callback = lambda _paths: False  # type: ignore[assignment]
-
     # Создаём недостающие каталоги только при подтверждении
     if missing and needs_new_folder:
         confirmed = bool(confirm_callback(missing))
@@ -298,6 +299,5 @@ def preview_destination(
         dest_root,
         dry_run=True,
         needs_new_folder=needs_new_folder,
-        confirm_callback=None,
     )
     return dest, missing
