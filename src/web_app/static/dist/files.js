@@ -24,6 +24,8 @@ let editSubcategory;
 let editIssuer;
 let editDate;
 let editName;
+let editDescription;
+let editSummary;
 let nameOriginalRadio;
 let nameLatinRadio;
 let nameOriginalLabel;
@@ -45,6 +47,8 @@ export function setupFiles() {
     editIssuer = document.getElementById('edit-issuer');
     editDate = document.getElementById('edit-date');
     editName = document.getElementById('edit-name');
+    editDescription = document.getElementById('edit-description');
+    editSummary = document.getElementById('edit-summary');
     nameOriginalRadio = document.getElementById('name-original');
     nameLatinRadio = document.getElementById('name-latin');
     nameOriginalLabel = document.getElementById('name-original-label');
@@ -65,6 +69,7 @@ export function setupFiles() {
                 issuer: editIssuer.value.trim(),
                 date: editDate.value,
                 suggested_name: editName.value.trim(),
+                description: editDescription.value.trim(),
             },
         };
         Object.keys(payload.metadata).forEach((k) => {
@@ -153,7 +158,7 @@ export function refreshFiles() {
             const files = yield resp.json();
             list.innerHTML = '';
             files.forEach((f) => {
-                var _a, _b;
+                var _a, _b, _c, _d;
                 const tr = document.createElement('tr');
                 tr.dataset.id = f.id;
                 const pathTd = document.createElement('td');
@@ -169,6 +174,16 @@ export function refreshFiles() {
                 const tagsText = Array.isArray(tags) ? tags.join(', ') : '';
                 tagsTd.textContent = tagsText;
                 tr.appendChild(tagsTd);
+                const summaryTd = document.createElement('td');
+                const summary = ((_c = f.metadata) === null || _c === void 0 ? void 0 : _c.summary) ? f.metadata.summary.substring(0, 100) : '';
+                summaryTd.textContent = summary;
+                summaryTd.classList.add('summary');
+                tr.appendChild(summaryTd);
+                const descTd = document.createElement('td');
+                const desc = ((_d = f.metadata) === null || _d === void 0 ? void 0 : _d.description) ? f.metadata.description.substring(0, 100) : '';
+                descTd.textContent = desc;
+                descTd.classList.add('description');
+                tr.appendChild(descTd);
                 const statusTd = document.createElement('td');
                 statusTd.textContent = f.status;
                 tr.appendChild(statusTd);
@@ -222,6 +237,8 @@ function openMetadataModal(file) {
     const orig = m.suggested_name || '';
     const latin = m.suggested_name_translit || orig;
     editName.value = orig;
+    editDescription.value = m.description || '';
+    editSummary.value = m.summary || '';
     if (nameOriginalRadio) {
         nameOriginalRadio.value = orig;
         nameOriginalRadio.checked = true;

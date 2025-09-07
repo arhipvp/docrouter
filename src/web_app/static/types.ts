@@ -13,6 +13,7 @@ export interface FileMetadata {
   suggested_name?: string;
   suggested_name_translit?: string;
   description?: string;
+  summary?: string;
 }
 
 export interface FileInfo {

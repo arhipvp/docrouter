@@ -248,7 +248,7 @@ async def generate_metadata(
     The returned dictionary always contains the following fields:
     ``category``, ``subcategory``, ``issuer``, ``person``, ``doc_type``,
     ``date``, ``amount``, ``counterparty``, ``document_number``, ``due_date``, ``currency``, ``tags``, ``tags_ru``,
-    ``tags_en``, ``suggested_filename``, ``description``, ``needs_new_folder``.
+    ``tags_en``, ``suggested_filename``, ``description``, ``summary``, ``needs_new_folder``.
     """
     if analyzer is None:
         analyzer = OpenRouterAnalyzer()
@@ -290,6 +290,7 @@ async def generate_metadata(
         "tags_ru": [],
         "tags_en": [],
         "suggested_filename": None,
+        "summary": None,
         "description": None,
         "needs_new_folder": False,
     }

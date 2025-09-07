@@ -39,6 +39,11 @@ form { display: flex; flex-direction: column; gap: var(--spacing-md); }
   resize: vertical;
 }
 
+#edit-summary {
+  min-height: 3em;
+  resize: vertical;
+}
+
 #files-table td.description {
   max-width: 20em;
   white-space: nowrap;
@@ -46,6 +51,16 @@ form { display: flex; flex-direction: column; gap: var(--spacing-md); }
   text-overflow: ellipsis;
 }
 #files-table th.description {
+  max-width: 20em;
+}
+
+#files-table td.summary {
+  max-width: 20em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#files-table th.summary {
   max-width: 20em;
 }
 button, input[type="submit"] { padding: var(--spacing-sm) var(--spacing-md); border: none; background-color: var(--color-primary); color: var(--color-surface); border-radius: 4px; cursor: pointer; }
@@ -141,7 +156,9 @@ button:hover, input[type="submit"]:hover { background-color: var(--color-primary
   #files-table th:nth-child(3),
   #files-table td:nth-child(3),
   #files-table th:nth-child(4),
-  #files-table td:nth-child(4) { display: none; }
+  #files-table td:nth-child(4),
+  #files-table th:nth-child(5),
+  #files-table td:nth-child(5) { display: none; }
   #folder-tree { display: none; }
 }
 

@@ -75,6 +75,7 @@ async def upload_file(
         metadata.language = lang_display
 
         meta_dict = metadata.model_dump()
+        meta_dict["summary"] = metadata.summary
         # Раскладываем файл по директориям без создания недостающих
         dest_path, missing, _ = place_file(
             str(temp_path),
@@ -179,6 +180,7 @@ async def upload_images(
         metadata.language = lang_display
 
         meta_dict = metadata.model_dump()
+        meta_dict["summary"] = metadata.summary
         dest_path, missing, _ = place_file(
             str(pdf_path),
             meta_dict,
