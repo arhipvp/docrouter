@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
+import os
 
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
@@ -60,7 +61,7 @@ except Exception:
 logger = logging.getLogger(__name__)
 
 # --------- Инициализация БД ----------
-database.init_db()
+database.init_db(force_reset=os.getenv("DOCROUTER_RESET_DB") == "1")
 
 # --------- Подключение маршрутов ----------
 app.include_router(upload.router)
