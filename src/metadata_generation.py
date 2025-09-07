@@ -72,7 +72,10 @@ def register_analyzer(name: str) -> Callable[[type["MetadataAnalyzer"]], type["M
 
 def get_analyzer(name: str) -> type["MetadataAnalyzer"]:
     """Получить класс анализатора по имени."""
-    return _ANALYZER_REGISTRY[name]
+    try:
+        return _ANALYZER_REGISTRY[name]
+    except KeyError as exc:
+        raise ValueError(f"Analyzer '{name}' not registered") from exc
 
 
 def _parse_person_from_text(text: str) -> Optional[str]:

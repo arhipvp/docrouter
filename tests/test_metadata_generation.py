@@ -283,3 +283,12 @@ def test_generate_metadata_accepts_list_of_dicts():
     meta: Metadata = result["metadata"]
     assert meta.category == "Health"
     assert set(meta.tags) == {"a", "Health"}
+
+
+def test_get_analyzer_unregistered():
+    from metadata_generation import get_analyzer
+
+    with pytest.raises(ValueError) as exc:
+        get_analyzer("unknown")
+
+    assert "unknown" in str(exc.value)
