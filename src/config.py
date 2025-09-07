@@ -10,6 +10,7 @@ class Config:
     """Configuration settings for the application."""
     log_level: str = "INFO"
     tesseract_lang: str = "eng"
+    tesseract_cmd: Optional[str] = None
     output_dir: str = "Archive"
     general_folder_name: str = "Shared"
     openrouter_api_key: Optional[str] = None
@@ -39,6 +40,7 @@ def load_config() -> Config:
     base = Config(
         log_level=_get_first_env("LOG_LEVEL", "log_level", default="INFO") or "INFO",
         tesseract_lang=_get_first_env("TESSERACT_LANG", "tesseract_lang", default="eng") or "eng",
+        tesseract_cmd=_get_first_env("TESSERACT_CMD", "tesseract_cmd"),
         output_dir=_get_first_env("OUTPUT_DIR", "output_dir", default="Archive") or "Archive",
         general_folder_name=_get_first_env("GENERAL_FOLDER_NAME", "general_folder_name", default="Shared") or "Shared",
         openrouter_api_key=_get_first_env("OPENROUTER_API_KEY", "openrouter_api_key"),
@@ -62,6 +64,7 @@ def load_config() -> Config:
             db_url: Optional[str] = Field(default=None, env=["db_url", "DB_URL"])
             log_level: str = Field(default="INFO", env=["log_level", "LOG_LEVEL"])
             tesseract_lang: str = Field(default="eng", env=["tesseract_lang", "TESSERACT_LANG"])
+            tesseract_cmd: Optional[str] = Field(default=None, env=["tesseract_cmd", "TESSERACT_CMD"])
             output_dir: str = Field(default="Archive", env=["output_dir", "OUTPUT_DIR"])
             general_folder_name: str = Field(default="Shared", env=["general_folder_name", "GENERAL_FOLDER_NAME"])
 
@@ -74,6 +77,7 @@ def load_config() -> Config:
         cfg = Config(
             log_level=s.log_level or base.log_level,
             tesseract_lang=s.tesseract_lang or base.tesseract_lang,
+            tesseract_cmd=s.tesseract_cmd or base.tesseract_cmd,
             output_dir=s.output_dir or base.output_dir,
             openrouter_api_key=s.openrouter_api_key or base.openrouter_api_key,
             openrouter_base_url=s.openrouter_base_url or base.openrouter_base_url,
@@ -87,6 +91,7 @@ def load_config() -> Config:
         # Финальный приоритет: UPPER_CASE переменные окружения (если заданы)
         cfg.log_level = _get_first_env("LOG_LEVEL", default=cfg.log_level) or cfg.log_level
         cfg.tesseract_lang = _get_first_env("TESSERACT_LANG", default=cfg.tesseract_lang) or cfg.tesseract_lang
+        cfg.tesseract_cmd = _get_first_env("TESSERACT_CMD", default=cfg.tesseract_cmd)
         cfg.output_dir = _get_first_env("OUTPUT_DIR", default=cfg.output_dir) or cfg.output_dir
         cfg.openrouter_api_key = _get_first_env("OPENROUTER_API_KEY", default=cfg.openrouter_api_key)
         cfg.openrouter_base_url = _get_first_env("OPENROUTER_BASE_URL", default=cfg.openrouter_base_url)
@@ -113,6 +118,7 @@ config: Config = load_config()
 
 LOG_LEVEL = config.log_level            # совместимо с старым кодом
 TESSERACT_LANG = config.tesseract_lang
+TESSERACT_CMD = config.tesseract_cmd
 OUTPUT_DIR = config.output_dir
 GENERAL_FOLDER_NAME = config.general_folder_name
 OPENROUTER_API_KEY = config.openrouter_api_key
@@ -128,6 +134,7 @@ __all__ = [
     "config",
     "LOG_LEVEL",
     "TESSERACT_LANG",
+    "TESSERACT_CMD",
     "OUTPUT_DIR",
     "GENERAL_FOLDER_NAME",
     "OPENROUTER_API_KEY",

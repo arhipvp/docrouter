@@ -10,8 +10,6 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "..", "src"))
 
 os.environ["DB_URL"] = ":memory:"
 
-# Заглушка для cv2, чтобы избежать требования libGL
-sys.modules.setdefault("cv2", object())
 
 from web_app import server  # noqa: E402
 
