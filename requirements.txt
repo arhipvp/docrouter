@@ -1,9 +1,7 @@
 fastapi
 uvicorn
 httpx
-requests
 pydantic
-python-dotenv
 pillow
 pytesseract
 numpy

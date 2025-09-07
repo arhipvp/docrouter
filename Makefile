@@ -1,3 +1,10 @@
-.PHONY: build-frontend
+.PHONY: build-frontend run up
+
 build-frontend:
-	npm run build
+	npx tsc
+
+run:
+	python main.py
+
+up:
+	docker compose up --build
