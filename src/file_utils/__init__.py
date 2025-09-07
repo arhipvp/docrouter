@@ -115,13 +115,15 @@ def extract_text_pdf(path: Path, language: str = "eng") -> str:
                 )
 
             pix = page.get_pixmap()
+
+            # На Windows невозможно перезаписать открытый временный файл,
+            # поэтому сначала закрываем его, а затем сохраняем изображение.
             tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
+            tmp_path = Path(tmp.name)
+            tmp.close()
+
             try:
-                pix.save(tmp.name)
-                tmp_path = Path(tmp.name)
-            finally:
-                tmp.close()
-            try:
+                pix.save(tmp_path)
                 ocr_text = extract_text_image(tmp_path, language=language)
             finally:
                 tmp_path.unlink(missing_ok=True)
