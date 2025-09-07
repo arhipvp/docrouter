@@ -198,8 +198,16 @@ export function refreshFiles() {
                 jsonLink.href = `/files/${f.id}/details`;
                 jsonLink.textContent = 'json';
                 jsonLink.target = '_blank';
+                jsonLink.classList.add('meta-link');
                 actionsTd.appendChild(document.createTextNode(' '));
                 actionsTd.appendChild(jsonLink);
+                const textLink = document.createElement('a');
+                textLink.href = `/files/${f.id}/text`;
+                textLink.textContent = 'текст';
+                textLink.target = '_blank';
+                textLink.classList.add('meta-link');
+                actionsTd.appendChild(document.createTextNode(' '));
+                actionsTd.appendChild(textLink);
                 const editBtn = document.createElement('button');
                 editBtn.type = 'button';
                 editBtn.textContent = 'Редактировать';

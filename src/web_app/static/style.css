@@ -34,6 +34,15 @@ form { display: flex; flex-direction: column; gap: var(--spacing-md); }
   background: var(--color-surface-alt);
 }
 
+#files-table td a.meta-link {
+  margin-left: var(--spacing-xs);
+  color: var(--color-primary);
+}
+
+#files-table td a.meta-link:hover {
+  color: var(--color-primary-hover);
+}
+
 #edit-description {
   min-height: 5em;
   resize: vertical;
