@@ -38,16 +38,21 @@ REV_LANG_MAP = {v: k for k, v in LANG_MAP.items()}
 def _check_tesseract() -> bool:
     """Проверить доступность бинарника tesseract."""
     if config.tesseract_cmd:
-        if not Path(config.tesseract_cmd).exists():
-            logger.warning(
-                "Указанный путь к tesseract не найден: %s", config.tesseract_cmd
-            )
+        cmd_path = Path(config.tesseract_cmd)
+        if cmd_path.exists():
+            logger.info("Используем указанный путь к tesseract: %s", cmd_path)
+            return True
+        logger.warning(
+            "Указанный путь к tesseract не найден: %s", config.tesseract_cmd
+        )
+    system_cmd = shutil.which("tesseract")
+    if system_cmd:
+        logger.info("Найден tesseract в PATH: %s", system_cmd)
         return True
-    if shutil.which("tesseract") is None:
-        logger.warning("Бинарник tesseract не найден. OCR будет недоступен")
-    return True
+    logger.warning("Бинарник tesseract не найден. OCR будет недоступен")
+    return False
 
-
+# Вычисляем доступность OCR при загрузке модуля
 OCR_AVAILABLE = _check_tesseract()
 
 
