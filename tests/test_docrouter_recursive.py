@@ -8,6 +8,7 @@ from docrouter import process_directory
 import metadata_generation
 from models import Metadata
 from config import GENERAL_FOLDER_NAME
+from web_app import db as database
 
 
 def test_process_directory_preserves_subdirs(tmp_path, monkeypatch):
@@ -22,8 +23,14 @@ def test_process_directory_preserves_subdirs(tmp_path, monkeypatch):
     monkeypatch.setattr(metadata_generation, "generate_metadata", fake_generate)
 
     dest_root = tmp_path / "Archive"
+    database.init_db()
     asyncio.run(process_directory(tmp_path / "input", dest_root))
 
     expected = dest_root / GENERAL_FOLDER_NAME / "sub1" / "sub2" / "2024-01-01__data.txt"
-    assert expected.exists()
-    assert not file_path.exists()
+    assert not expected.exists()
+    assert file_path.exists()
+    records = database.list_files()
+    assert len(records) == 1
+    rec = records[0]
+    assert rec.status == "pending"
+    assert rec.suggested_path == str(expected)
