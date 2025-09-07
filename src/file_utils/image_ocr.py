@@ -23,9 +23,9 @@ def extract_text_image(image_path: Union[str, Path], language: str = "eng") -> s
     :param language: Language for OCR (default 'eng').
     :return: Extracted text as a string.
     """
-    img = Image.open(Path(image_path))
     try:
-        return pytesseract.image_to_string(img, lang=language)
+        with Image.open(Path(image_path)) as img:
+            return pytesseract.image_to_string(img, lang=language)
     except pytesseract.TesseractNotFoundError as exc:
         raise RuntimeError(
             "Tesseract OCR executable not found. Please install Tesseract and ensure it's in PATH."
@@ -36,7 +36,8 @@ def extract_text_image(image_path: Union[str, Path], language: str = "eng") -> s
                 "Tesseract language '%s' unavailable, falling back to 'eng'", language
             )
             try:
-                return pytesseract.image_to_string(img, lang="eng")
+                with Image.open(Path(image_path)) as img:
+                    return pytesseract.image_to_string(img, lang="eng")
             except pytesseract.TesseractError:
                 pass
         raise exc
