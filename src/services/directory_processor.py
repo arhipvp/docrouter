@@ -64,7 +64,8 @@ async def process_input_directory(
             )
             metadata_obj = Metadata(**meta_dict)
             if missing:
-                database.add_file(
+                await asyncio.to_thread(
+                    database.add_file,
                     file_id,
                     path.name,
                     metadata_obj,
@@ -81,7 +82,8 @@ async def process_input_directory(
                 return
 
             status = "dry_run" if dry_run else "processed"
-            database.add_file(
+            await asyncio.to_thread(
+                database.add_file,
                 file_id,
                 path.name,
                 metadata_obj,
@@ -99,5 +101,11 @@ async def process_input_directory(
             handle_error(path, exc)
             logger.error("Failed to process %s: %s", path, exc)
 
-    tasks = [process_file(path) for path in input_path.rglob("*") if path.is_file()]
+    semaphore = asyncio.Semaphore(5)
+
+    async def sem_task(path: Path) -> None:
+        async with semaphore:
+            await process_file(path)
+
+    tasks = [asyncio.create_task(sem_task(path)) for path in input_path.rglob("*") if path.is_file()]
     await asyncio.gather(*tasks)
