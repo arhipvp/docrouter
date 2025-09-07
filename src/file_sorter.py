@@ -93,15 +93,29 @@ def transliterate(name: str) -> str:
 def get_folder_tree(
     root_dir: str | Path,
 ) -> Tuple[List[Dict[str, Any]], Dict[str, Dict[str, str]]]:
-    """Построить дерево папок и индекс существующих категорий."""
+    """Построить дерево папок и индекс существующих категорий.
+
+    Каждый узел дерева имеет вид ``{"name", "path", "children", "files"}``,
+    где ``files`` — список словарей ``{"name", "path"}`` для файлов в
+    соответствующей директории.
+    """
     root = Path(root_dir).resolve()
 
     def build(node: Path) -> Dict[str, Any]:
         children = [build(p) for p in sorted(node.iterdir()) if p.is_dir()]
+        files = [
+            {
+                "name": f.name,
+                "path": str(f.relative_to(root)),
+            }
+            for f in sorted(node.iterdir())
+            if f.is_file()
+        ]
         return {
             "name": node.name,
             "path": str(node.relative_to(root)),
             "children": children,
+            "files": files,
         }
 
     if not root.exists():
