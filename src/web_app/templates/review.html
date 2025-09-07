@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>DocRouter – Проверка файла</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <script type="module" src="/static/js/review.js"></script>
+</head>
+<body class="app">
+    <div class="app__container">
+        <h1>Проверка файла</h1>
+        <p>Предлагаемый путь: <span id="suggested-path"></span></p>
+        <ul id="missing-list"></ul>
+        <textarea id="comment" placeholder="Комментарий"></textarea>
+        <div id="review-dialog" class="ai-dialog"></div>
+        <div class="review__buttons">
+            <button id="confirm-btn" type="button">Подтвердить</button>
+            <button id="comment-btn" type="button">Отправить комментарий</button>
+        </div>
+    </div>
+</body>
+</html>
