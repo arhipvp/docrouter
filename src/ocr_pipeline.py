@@ -2,9 +2,9 @@ from __future__ import annotations
 
 """Utility functions for image preprocessing and OCR."""
 
-from pathlib import Path
-from typing import Union, Optional
 import logging
+from pathlib import Path
+from typing import Optional, Union
 
 import argparse
 import cv2
