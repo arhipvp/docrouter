@@ -8,6 +8,7 @@ import hashlib
 import time
 from pathlib import Path
 import httpx
+import ocr_pipeline
 
 from fastapi import APIRouter, HTTPException, Body
 from fastapi.responses import FileResponse, PlainTextResponse
@@ -343,6 +344,26 @@ async def review_file(file_id: str):
         "missing": record.missing,
         "metadata": record.metadata,
     }
+
+
+@router.post("/files/{file_id}/rerun_ocr")
+async def rerun_ocr(file_id: str, language: str = Body(...), psm: int = Body(3)):
+    record = database.get_file(file_id)
+    if not record or not record.path:
+        raise HTTPException(status_code=404, detail="File not found")
+    extract = getattr(ocr_pipeline, "extract_text", None)
+    if extract is None:
+        raise HTTPException(status_code=500, detail="OCR pipeline not available")
+    try:
+        text = extract(record.path, language=language, psm=psm)
+    except Exception as exc:  # pragma: no cover - depends on OCR setup
+        logger.exception("OCR rerun failed for %s", file_id)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    metadata = record.metadata
+    metadata.extracted_text = text
+    metadata.language = language
+    database.update_file(file_id, metadata=metadata, status="review")
+    return {"extracted_text": text}
 
 
 @router.post("/files/{file_id}/comment", response_model=FileRecord)

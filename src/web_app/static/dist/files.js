@@ -112,6 +112,7 @@ export function setupFiles() {
                 throw new Error();
             const data = yield resp.json();
             textPreview.textContent = data.extracted_text || '';
+            textPreview.dataset.id = id;
         }
         catch (_a) {
             textPreview.textContent = '';
