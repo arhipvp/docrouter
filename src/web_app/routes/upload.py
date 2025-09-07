@@ -34,6 +34,17 @@ LANG_MAP = {"en": "eng", "ru": "rus", "de": "deu"}
 REV_LANG_MAP = {v: k for k, v in LANG_MAP.items()}
 
 
+def _check_tesseract() -> bool:
+    """Проверить доступность бинарника tesseract."""
+    available = shutil.which("tesseract") is not None
+    if not available:
+        logger.warning("Бинарник tesseract не найден. OCR будет недоступен")
+    return available
+
+
+OCR_AVAILABLE = _check_tesseract()
+
+
 @router.post("/upload", response_model=UploadResponse)
 async def upload_file(
     file: UploadFile = File(...),
@@ -41,6 +52,11 @@ async def upload_file(
     dry_run: bool = False,
 ):
     """Загрузить файл и обработать его."""
+    if not OCR_AVAILABLE:
+        raise HTTPException(
+            status_code=503,
+            detail="OCR недоступен: бинарник tesseract не найден",
+        )
     file_id = str(uuid.uuid4())
     filename = file.filename or ""
     if not filename:
@@ -89,6 +105,9 @@ async def upload_file(
 
     except HTTPException:
         raise
+    except RuntimeError as exc:
+        logger.exception("Upload/processing failed for %s", filename)
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
     except UnsupportedFileType as exc:
         logger.exception("Upload/processing failed for %s", filename)
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -133,6 +152,11 @@ async def upload_images(
     dry_run: bool = False,
 ):
     """Загрузить несколько изображений, объединить их и обработать как PDF."""
+    if not OCR_AVAILABLE:
+        raise HTTPException(
+            status_code=503,
+            detail="OCR недоступен: бинарник tesseract не найден",
+        )
     file_id = str(uuid.uuid4())
     temp_dir = UPLOAD_DIR / file_id
     temp_dir.mkdir(exist_ok=True)
@@ -192,6 +216,9 @@ async def upload_images(
         metadata = Metadata(**meta_dict)
     except HTTPException:
         raise
+    except RuntimeError as exc:
+        logger.exception("Upload/processing failed for images")
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
     except UnsupportedFileType as exc:
         logger.exception("Upload/processing failed for images")
         raise HTTPException(status_code=400, detail=str(exc)) from exc
