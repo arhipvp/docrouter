@@ -4,6 +4,7 @@ import sys
 import pytest
 import uvicorn
 import httpx
+import asyncio
 
 # Add src to sys.path and configure server output dir before importing server
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", "src"))
@@ -53,7 +54,7 @@ def test_folder_tree_includes_files(tmp_path):
     (person / "file1.txt").write_text("content", encoding="utf-8")
 
     server.config.output_dir = str(tmp_path)
-    server.database.init_db()
+    asyncio.run(server.database.run_db(server.database.init_db))
 
     with LiveClient(app) as client:
         resp = client.get("/folder-tree")

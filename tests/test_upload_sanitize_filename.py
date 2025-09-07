@@ -1,6 +1,7 @@
 import os
 import sys
 from pathlib import Path
+import asyncio
 
 import pytest
 from fastapi.testclient import TestClient
@@ -25,11 +26,12 @@ def _mock_extract_text(path, language="eng"):
 
 
 def test_upload_path_traversal_is_sanitized(tmp_path, monkeypatch):
-    server.database.init_db()
+    asyncio.run(server.database.run_db(server.database.init_db))
     server.config.output_dir = str(tmp_path / "out")
     upload_dir = tmp_path / "uploads"
     upload_dir.mkdir()
     monkeypatch.setattr(upload_module, "UPLOAD_DIR", upload_dir)
+    monkeypatch.setattr(upload_module, "OCR_AVAILABLE", True)
 
     secret = upload_dir / "secret.txt"
     secret.write_text("SECRET", encoding="utf-8")

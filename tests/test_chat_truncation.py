@@ -2,6 +2,7 @@ import os
 import sys
 from pathlib import Path
 import logging
+import asyncio
 
 import pytest
 from fastapi.testclient import TestClient
@@ -18,7 +19,7 @@ app = server.app
 
 def test_chat_truncates_context(monkeypatch, tmp_path, caplog):
     monkeypatch.setattr(server.database, "_DB_PATH", tmp_path / "test.sqlite")
-    server.database.init_db()
+    asyncio.run(server.database.run_db(server.database.init_db))
     metadata = Metadata(extracted_text="x" * 5000)
     server.database.add_file("123", "file.txt", metadata, path=str(tmp_path))
 
@@ -34,7 +35,7 @@ def test_chat_truncates_context(monkeypatch, tmp_path, caplog):
         with caplog.at_level(logging.INFO):
             resp = client.post("/chat/123?max_context=1000", json={"message": "hi"})
 
-    server.database.init_db()
+    asyncio.run(server.database.run_db(server.database.init_db))
 
     assert resp.status_code == 200
     assert len(captured["messages"][0]["content"]) == 1000

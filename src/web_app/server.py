@@ -12,7 +12,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 import uvicorn
 import threading
-import importlib
+
 try:
     from fastapi.templating import Jinja2Templates
 except Exception:  # pragma: no cover
@@ -120,15 +120,7 @@ async def startup() -> None:
         except Exception:  # pragma: no cover - плагины не обязательны
             logger.debug("Plugin loading skipped", exc_info=True)
 
-    asyncio.create_task(asyncio.to_thread(_load_plugins))
-
-    def _load_plugins() -> None:
-        try:
-            file_utils = importlib.import_module("file_utils")
-            file_utils.load_plugins()
-        except Exception:  # pragma: no cover - ошибки плагинов не критичны
-            logger.warning("Plugin loading failed", exc_info=True)
-
+    # Фоновая загрузка плагинов, чтобы не блокировать старт
     threading.Thread(target=_load_plugins, name="plugin-loader", daemon=True).start()
 
 
