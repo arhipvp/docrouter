@@ -3,6 +3,9 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 import os
+import asyncio
+import importlib
+from types import ModuleType
 
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
@@ -20,6 +23,46 @@ from . import db as database
 from .routes import upload, files, folders, chat
 
 app = FastAPI()
+
+# --------- Ленивые импорты тяжёлых модулей ----------
+_file_utils: ModuleType | None = None
+_metadata_generation: ModuleType | None = None
+
+
+def _load_file_utils() -> ModuleType:
+    """Импортировать ``file_utils`` по требованию."""
+    global _file_utils
+    if _file_utils is None:
+        _file_utils = importlib.import_module("file_utils")
+    return _file_utils
+
+
+def _load_metadata_generation() -> ModuleType:
+    """Импортировать ``metadata_generation`` по требованию."""
+    global _metadata_generation
+    if _metadata_generation is None:
+        _metadata_generation = importlib.import_module("metadata_generation")
+    return _metadata_generation
+
+
+def extract_text(*args, **kwargs):
+    return _load_file_utils().extract_text(*args, **kwargs)
+
+
+def merge_images_to_pdf(*args, **kwargs):
+    return _load_file_utils().merge_images_to_pdf(*args, **kwargs)
+
+
+async def translate_text(*args, **kwargs):
+    return await _load_file_utils().translate_text(*args, **kwargs)
+
+
+class _MetadataGenerationProxy:
+    def __getattr__(self, name: str):
+        return getattr(_load_metadata_generation(), name)
+
+
+metadata_generation = _MetadataGenerationProxy()
 
 # --------- Статика и шаблоны ----------
 STATIC_DIR = Path(__file__).parent / "static"
@@ -67,9 +110,17 @@ def __getattr__(name: str):
 
 
 @app.on_event("startup")
-def startup() -> None:
-    """Инициализировать базу данных перед обработкой запросов."""
-    database.init_db()
+async def startup() -> None:
+    """Инициализировать базу данных и отложенно загрузить плагины."""
+    await database.run_db(database.init_db)
+
+    def _load_plugins() -> None:
+        try:
+            _load_file_utils().load_plugins()
+        except Exception:  # pragma: no cover - плагины не обязательны
+            logger.debug("Plugin loading skipped", exc_info=True)
+
+    asyncio.create_task(asyncio.to_thread(_load_plugins))
 
     def _load_plugins() -> None:
         try:

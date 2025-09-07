@@ -11,7 +11,6 @@ from pathlib import Path
 from fastapi import APIRouter, UploadFile, File, HTTPException, Form
 
 from file_sorter import place_file, get_folder_tree, sanitize_filename
-from file_utils import UnsupportedFileType
 from models import Metadata, UploadResponse
 from services.openrouter import OpenRouterError
 from .. import db as database
@@ -62,6 +61,7 @@ async def process_uploaded(
 ) -> tuple[Metadata, Path, list[str], dict]:
     """Обработать загруженный файл и вернуть метаданные."""
     from .. import server
+    from file_utils import UnsupportedFileType
 
     lang_display = language or REV_LANG_MAP.get(
         server.config.tesseract_lang, server.config.tesseract_lang
