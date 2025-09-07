@@ -51,6 +51,7 @@ class FileRecord(BaseModel):
     translated_text: Optional[str] = None
     translation_lang: Optional[str] = None
     chat_history: List[dict[str, Any]] = Field(default_factory=list)
+    review_comment: Optional[str] = None
     sources: Optional[List[str]] = None
     suggested_path: Optional[str] = None
     created_path: Optional[str] = None
