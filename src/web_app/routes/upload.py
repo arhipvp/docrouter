@@ -51,6 +51,52 @@ def _check_tesseract() -> bool:
 OCR_AVAILABLE = _check_tesseract()
 
 
+async def process_uploaded(
+    path: Path, language: str | None, dry_run: bool
+) -> tuple[Metadata, Path, list[str], dict]:
+    """Обработать загруженный файл и вернуть метаданные."""
+    from .. import server
+
+    lang_display = language or REV_LANG_MAP.get(
+        server.config.tesseract_lang, server.config.tesseract_lang
+    )
+    lang_ocr = LANG_MAP.get(lang_display, lang_display)
+    try:
+        text = server.extract_text(path, language=lang_ocr)
+        folder_tree, folder_index = get_folder_tree(server.config.output_dir)
+        meta_result = await server.metadata_generation.generate_metadata(
+            text, folder_tree=folder_tree, folder_index=folder_index
+        )
+        raw_meta = meta_result["metadata"]
+        metadata = Metadata(**raw_meta) if isinstance(raw_meta, dict) else raw_meta
+        metadata.extracted_text = text
+        metadata.language = lang_display
+        meta_dict = metadata.model_dump()
+        meta_dict["summary"] = metadata.summary
+        dest_path, missing, _ = place_file(
+            str(path),
+            meta_dict,
+            server.config.output_dir,
+            dry_run=dry_run,
+            needs_new_folder=metadata.needs_new_folder,
+            confirm_callback=lambda _paths: False,
+        )
+        metadata = Metadata(**meta_dict)
+    except OpenRouterError as exc:
+        logger.exception("Metadata generation failed for %s", path.name)
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    except UnsupportedFileType as exc:
+        logger.exception("Upload/processing failed for %s", path.name)
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        logger.exception("Upload/processing failed for %s", path.name)
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except Exception as exc:  # pragma: no cover
+        logger.exception("Upload/processing failed for %s", path.name)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    return metadata, dest_path, missing, meta_result
+
+
 @router.post("/upload", response_model=UploadResponse)
 async def upload_file(
     file: UploadFile = File(...),
@@ -71,64 +117,18 @@ async def upload_file(
         guessed_ext = mimetypes.guess_extension(file.content_type or "") or ""
         filename = sanitize_filename(f"upload{guessed_ext}")
     temp_path = UPLOAD_DIR / f"{file_id}_{filename}"
-    try:
-        with open(temp_path, "wb") as dest:
-            while True:
-                chunk = await file.read(1024 * 1024)
-                if not chunk:
-                    break
-                dest.write(chunk)
+    with open(temp_path, "wb") as dest:
+        while True:
+            chunk = await file.read(1024 * 1024)
+            if not chunk:
+                break
+            dest.write(chunk)
 
-        # Извлечение текста + генерация метаданных
-        lang_display = language or REV_LANG_MAP.get(
-            server.config.tesseract_lang, server.config.tesseract_lang
-        )
-        lang_ocr = LANG_MAP.get(lang_display, lang_display)
-        text = server.extract_text(temp_path, language=lang_ocr)
-        folder_tree, folder_index = get_folder_tree(server.config.output_dir)
-        try:
-            meta_result = await server.metadata_generation.generate_metadata(
-                text, folder_tree=folder_tree, folder_index=folder_index
-            )
-        except OpenRouterError as exc:
-            logger.exception("Metadata generation failed for %s", file.filename)
-            raise HTTPException(status_code=502, detail=str(exc)) from exc
-        raw_meta = meta_result["metadata"]
-        if isinstance(raw_meta, dict):
-            metadata = Metadata(**raw_meta)
-        else:
-            metadata = raw_meta
-        metadata.extracted_text = text
-        metadata.language = lang_display
-
-        meta_dict = metadata.model_dump()
-        meta_dict["summary"] = metadata.summary
-        # Раскладываем файл по директориям без создания недостающих
-        dest_path, missing, _ = place_file(
-            str(temp_path),
-            meta_dict,
-            server.config.output_dir,
-            dry_run=dry_run,
-            needs_new_folder=metadata.needs_new_folder,
-            confirm_callback=lambda _paths: False,
-        )
-        metadata = Metadata(**meta_dict)
-        final_path = dest_path if not dry_run and not missing else temp_path
-
-    except HTTPException:
-        raise
-    except RuntimeError as exc:
-        logger.exception("Upload/processing failed for %s", filename)
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
-    except UnsupportedFileType as exc:
-        logger.exception("Upload/processing failed for %s", filename)
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-    except ValueError as exc:
-        logger.exception("Upload/processing failed for %s", filename)
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-    except Exception as exc:  # pragma: no cover
-        logger.exception("Upload/processing failed for %s", filename)
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    metadata, dest_path, missing, meta_result = await process_uploaded(
+        temp_path, language, dry_run
+    )
+    final_path = dest_path if not dry_run and not missing else temp_path
+    sources = [file.filename]
 
     database.add_file(
         file_id,
@@ -139,6 +139,7 @@ async def upload_file(
         meta_result.get("prompt"),
         meta_result.get("raw_response"),
         missing,
+        sources=sources,
         suggested_path=str(dest_path),
     )
 
@@ -151,6 +152,7 @@ async def upload_file(
         path=str(final_path),
         status="review",
         missing=missing,
+        sources=sources,
         prompt=meta_result.get("prompt"),
         raw_response=meta_result.get("raw_response"),
         suggested_path=str(dest_path),
@@ -197,52 +199,10 @@ async def upload_images(
 
     shutil.rmtree(temp_dir, ignore_errors=True)
 
-    try:
-        lang_display = language or REV_LANG_MAP.get(
-            server.config.tesseract_lang, server.config.tesseract_lang
-        )
-        lang_ocr = LANG_MAP.get(lang_display, lang_display)
-        text = server.extract_text(pdf_path, language=lang_ocr)
-        folder_tree, folder_index = get_folder_tree(server.config.output_dir)
-        try:
-            meta_result = await server.metadata_generation.generate_metadata(
-                text, folder_tree=folder_tree, folder_index=folder_index
-            )
-        except OpenRouterError as exc:
-            logger.exception("Metadata generation failed for images")
-            raise HTTPException(status_code=502, detail=str(exc)) from exc
-        raw_meta = meta_result["metadata"]
-        if isinstance(raw_meta, dict):
-            metadata = Metadata(**raw_meta)
-        else:
-            metadata = raw_meta
-        metadata.extracted_text = text
-        metadata.language = lang_display
-
-        meta_dict = metadata.model_dump()
-        meta_dict["summary"] = metadata.summary
-        dest_path, missing, _ = place_file(
-            str(pdf_path),
-            meta_dict,
-            server.config.output_dir,
-            dry_run=dry_run,
-            needs_new_folder=metadata.needs_new_folder,
-            confirm_callback=lambda _paths: False,
-        )
-        metadata = Metadata(**meta_dict)
-        final_path = dest_path if not dry_run and not missing else pdf_path
-    except HTTPException:
-        raise
-    except RuntimeError as exc:
-        logger.exception("Upload/processing failed for images")
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
-    except UnsupportedFileType as exc:
-        logger.exception("Upload/processing failed for images")
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-    except Exception as exc:  # pragma: no cover
-        logger.exception("Upload/processing failed for images")
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
-
+    metadata, dest_path, missing, meta_result = await process_uploaded(
+        pdf_path, language, dry_run
+    )
+    final_path = dest_path if not dry_run and not missing else pdf_path
     sources = [f.filename for f in sorted_files]
 
     database.add_file(
