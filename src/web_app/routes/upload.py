@@ -76,11 +76,11 @@ async def upload_file(
 
         meta_dict = metadata.model_dump()
         # Раскладываем файл по директориям без создания недостающих
-        dest_path, missing, confirmed = place_file(
+        dest_path, missing, _ = place_file(
             str(temp_path),
             meta_dict,
             server.config.output_dir,
-            dry_run=dry_run,
+            dry_run=True,
             needs_new_folder=metadata.needs_new_folder,
             confirm_callback=lambda _paths: False,
         )
@@ -98,44 +98,16 @@ async def upload_file(
         logger.exception("Upload/processing failed for %s", filename)
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
-    if missing:
-        database.add_file(
-            file_id,
-            file.filename,
-            metadata,
-            str(temp_path),
-            "pending",
-            meta_result.get("prompt"),
-            meta_result.get("raw_response"),
-            missing,
-            suggested_path=str(dest_path),
-            confirmed=confirmed,
-            created_path=str(dest_path) if confirmed else None,
-        )
-        return UploadResponse(
-            id=file_id,
-            status="pending",
-            missing=missing,
-            suggested_path=str(dest_path),
-            prompt=meta_result.get("prompt"),
-            raw_response=meta_result.get("raw_response"),
-        )
-
-    status = "dry_run" if dry_run else "processed"
-
-    # Сохраняем запись в БД
     database.add_file(
         file_id,
         file.filename,
         metadata,
-        str(dest_path),
-        status,
+        str(temp_path),
+        "review",
         meta_result.get("prompt"),
         meta_result.get("raw_response"),
-        [],  # missing
+        missing,
         suggested_path=str(dest_path),
-        confirmed=confirmed,
-        created_path=str(dest_path) if confirmed else None,
     )
 
     return UploadResponse(
@@ -144,9 +116,9 @@ async def upload_file(
         metadata=metadata,
         tags_ru=metadata.tags_ru,
         tags_en=metadata.tags_en,
-        path=str(dest_path),
-        status=status,
-        missing=[],
+        path=str(temp_path),
+        status="review",
+        missing=missing,
         prompt=meta_result.get("prompt"),
         raw_response=meta_result.get("raw_response"),
         suggested_path=str(dest_path),
@@ -207,11 +179,11 @@ async def upload_images(
         metadata.language = lang_display
 
         meta_dict = metadata.model_dump()
-        dest_path, missing, confirmed = place_file(
+        dest_path, missing, _ = place_file(
             str(pdf_path),
             meta_dict,
             server.config.output_dir,
-            dry_run=dry_run,
+            dry_run=True,
             needs_new_folder=metadata.needs_new_folder,
             confirm_callback=lambda _paths: False,
         )
@@ -227,45 +199,17 @@ async def upload_images(
 
     sources = [f.filename for f in sorted_files]
 
-    if missing:
-        database.add_file(
-            file_id,
-            pdf_path.name,
-            metadata,
-            str(pdf_path),
-            "pending",
-            meta_result.get("prompt"),
-            meta_result.get("raw_response"),
-            missing,
-            sources=sources,
-            suggested_path=str(dest_path),
-            confirmed=confirmed,
-            created_path=str(dest_path) if confirmed else None,
-        )
-        return UploadResponse(
-            id=file_id,
-            status="pending",
-            missing=missing,
-            sources=sources,
-            suggested_path=str(dest_path),
-            prompt=meta_result.get("prompt"),
-            raw_response=meta_result.get("raw_response"),
-        )
-
-    status = "dry_run" if dry_run else "processed"
     database.add_file(
         file_id,
         pdf_path.name,
         metadata,
-        str(dest_path),
-        status,
+        str(pdf_path),
+        "review",
         meta_result.get("prompt"),
         meta_result.get("raw_response"),
-        [],
+        missing,
         sources=sources,
         suggested_path=str(dest_path),
-        confirmed=confirmed,
-        created_path=str(dest_path) if confirmed else None,
     )
 
     return UploadResponse(
@@ -274,9 +218,9 @@ async def upload_images(
         metadata=metadata,
         tags_ru=metadata.tags_ru,
         tags_en=metadata.tags_en,
-        path=str(dest_path),
-        status=status,
-        missing=[],
+        path=str(pdf_path),
+        status="review",
+        missing=missing,
         sources=sources,
         prompt=meta_result.get("prompt"),
         raw_response=meta_result.get("raw_response"),

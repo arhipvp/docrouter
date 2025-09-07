@@ -130,7 +130,7 @@ def test_upload_retrieve_and_download(tmp_path, monkeypatch):
         } <= set(data.keys())
         file_id = data["id"]
         assert data["filename"] == "example.txt"
-        assert data["status"] in {"dry_run", "processed"}
+        assert data["status"] == "review"
         assert data["missing"] == []
         assert data["metadata"]["extracted_text"].strip() == "content"
         assert data["metadata"]["language"] == "de"
@@ -346,6 +346,8 @@ def test_details_endpoint_returns_full_record(tmp_path, monkeypatch):
         expected["passport_number"] = data["metadata"]["passport_number"]
         expected["confirmed"] = False
         expected["created_path"] = None
+        expected["review_comment"] = None
+        expected["sources"] = None
     assert details_json == expected
 
 
@@ -434,7 +436,7 @@ def test_upload_pending_then_finalize(tmp_path, monkeypatch):
         resp = client.post("/upload", files={"file": ("doc.txt", b"content")})
         assert resp.status_code == 200
         data = resp.json()
-        assert data["status"] == "pending"
+        assert data["status"] == "review"
         assert data["missing"] == [
             f"{GENERAL_FOLDER_NAME}",
             f"{GENERAL_FOLDER_NAME}/Финансы",
@@ -454,7 +456,7 @@ def test_upload_pending_then_finalize(tmp_path, monkeypatch):
         assert Path(final_data["path"]).exists()
 
 
-def test_finalize_without_confirmation_keeps_pending(tmp_path, monkeypatch):
+def test_finalize_without_confirmation_keeps_review(tmp_path, monkeypatch):
     server.database.init_db()
     server.config.output_dir = str(tmp_path)
 
@@ -482,7 +484,7 @@ def test_finalize_without_confirmation_keeps_pending(tmp_path, monkeypatch):
         resp = client.post("/upload", files={"file": ("doc.txt", b"content")})
         assert resp.status_code == 200
         data = resp.json()
-        assert data["status"] == "pending"
+        assert data["status"] == "review"
         file_id = data["id"]
 
         resp_no = client.post(
@@ -491,7 +493,7 @@ def test_finalize_without_confirmation_keeps_pending(tmp_path, monkeypatch):
         )
         assert resp_no.status_code == 200
         final_data = resp_no.json()
-        assert final_data["status"] == "pending"
+        assert final_data["status"] == "review"
         assert final_data["missing"] == data["missing"]
         assert Path(final_data["path"]).exists()
 
