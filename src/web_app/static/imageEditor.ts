@@ -87,8 +87,10 @@ export function openImageEditModal(fileObj: { blob: Blob; name: string }) {
     ctx.drawImage(img, 0, 0);
     cropper?.destroy();
     const CropperCtor = (window as any).Cropper || (globalThis as any).Cropper;
-    cropper = new CropperCtor(editCanvas, { viewMode: 1 });
-    autoCropImage();
+    cropper = new CropperCtor(editCanvas, {
+      viewMode: 1,
+      ready: autoCropImage,
+    });
     URL.revokeObjectURL(url);
   };
   img.src = url;
