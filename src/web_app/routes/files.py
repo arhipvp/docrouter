@@ -10,6 +10,7 @@ from pathlib import Path
 import httpx
 
 from fastapi import APIRouter, HTTPException, Body
+from pydantic import BaseModel
 from fastapi.responses import FileResponse, PlainTextResponse
 
 from file_sorter import place_file
@@ -335,12 +336,19 @@ async def review_file(file_id: str):
     }
 
 
+class CommentRequest(BaseModel):
+    """Request body for comment_file endpoint."""
+
+    message: str
+
+
 @router.post("/files/{file_id}/comment", response_model=FileRecord)
-async def comment_file(file_id: str, message: str = Body(..., embed=True)):
+async def comment_file(file_id: str, data: CommentRequest):
     record = database.get_file(file_id)
     if not record:
         raise HTTPException(status_code=404, detail="File not found")
 
+    message = data.message
     database.add_chat_message(file_id, "user", message)
 
     text = (record.metadata.extracted_text or "") + "\n" + message
