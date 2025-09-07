@@ -2,11 +2,13 @@ from __future__ import annotations
 
 from typing import Optional
 
-from pydantic.v1 import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Config(BaseSettings):
     """Configuration settings for the application."""
+
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
     log_level: str = "INFO"
     tesseract_lang: str = "eng"
@@ -19,10 +21,6 @@ class Config(BaseSettings):
     openrouter_site_url: Optional[str] = None
     openrouter_site_name: Optional[str] = None
     db_url: Optional[str] = None
-
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
 
 
 # --------- Backward compatibility / convenient aliases ---------
