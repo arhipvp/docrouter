@@ -72,7 +72,7 @@ export function setupUploadForm() {
                             const resp = yield fetch(`/files/${result.id}/finalize`, {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ missing: result.missing || [] }),
+                                body: JSON.stringify({ missing: result.missing || [], confirm: true }),
                             });
                             if (!resp.ok)
                                 throw new Error();
