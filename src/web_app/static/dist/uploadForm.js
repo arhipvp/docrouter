@@ -72,7 +72,7 @@ export function setupUploadForm() {
                             const resp = yield fetch(`/files/${result.id}/finalize`, {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ missing: result.missing || [] })
+                                body: JSON.stringify({ missing: result.missing || [] }),
                             });
                             if (!resp.ok)
                                 throw new Error();
@@ -88,9 +88,20 @@ export function setupUploadForm() {
                             alert('Ошибка обработки');
                         }
                     });
-                    missingCancel.onclick = () => {
+                    missingCancel.onclick = () => __awaiter(this, void 0, void 0, function* () {
+                        try {
+                            yield fetch(`/files/${result.id}`, {
+                                method: 'PATCH',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ status: 'rejected' }),
+                            });
+                        }
+                        catch (_a) {
+                            // ignore errors, просто закрываем модалку
+                        }
                         missingModal.style.display = 'none';
-                    };
+                        refreshFiles();
+                    });
                 }
                 else {
                     renderDialog(aiExchange, result.prompt, result.raw_response);

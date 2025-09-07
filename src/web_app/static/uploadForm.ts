@@ -70,7 +70,7 @@ export function setupUploadForm() {
               const resp = await fetch(`/files/${result.id}/finalize`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ missing: result.missing || [] })
+                body: JSON.stringify({ missing: result.missing || [] }),
               });
               if (!resp.ok) throw new Error();
               const finalData = await resp.json();
@@ -84,8 +84,18 @@ export function setupUploadForm() {
               alert('Ошибка обработки');
             }
           };
-          missingCancel.onclick = () => {
+          missingCancel.onclick = async () => {
+            try {
+              await fetch(`/files/${result.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: 'rejected' }),
+              });
+            } catch {
+              // ignore errors, просто закрываем модалку
+            }
             missingModal.style.display = 'none';
+            refreshFiles();
           };
         } else {
           renderDialog(aiExchange, result.prompt, result.raw_response);
