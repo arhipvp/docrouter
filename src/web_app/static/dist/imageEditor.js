@@ -14,6 +14,7 @@ let rotateLeftBtn;
 let rotateRightBtn;
 let saveBtn;
 let cropper = null;
+let rotateHandler = null;
 function autoCropImage() {
     if (!cropper)
         return;
@@ -53,14 +54,30 @@ export function setupImageEditor() {
     rotateLeftBtn === null || rotateLeftBtn === void 0 ? void 0 : rotateLeftBtn.addEventListener('click', () => {
         if (!cropper)
             return;
+        if (rotateHandler) {
+            editCanvas.removeEventListener('cropend', rotateHandler);
+        }
+        rotateHandler = () => {
+            autoCropImage();
+            editCanvas.removeEventListener('cropend', rotateHandler);
+            rotateHandler = null;
+        };
+        editCanvas.addEventListener('cropend', rotateHandler);
         cropper.rotate(-90);
-        autoCropImage();
     });
     rotateRightBtn === null || rotateRightBtn === void 0 ? void 0 : rotateRightBtn.addEventListener('click', () => {
         if (!cropper)
             return;
+        if (rotateHandler) {
+            editCanvas.removeEventListener('cropend', rotateHandler);
+        }
+        rotateHandler = () => {
+            autoCropImage();
+            editCanvas.removeEventListener('cropend', rotateHandler);
+            rotateHandler = null;
+        };
+        editCanvas.addEventListener('cropend', rotateHandler);
         cropper.rotate(90);
-        autoCropImage();
     });
     saveBtn === null || saveBtn === void 0 ? void 0 : saveBtn.addEventListener('click', () => {
         if (!cropper)
@@ -103,8 +120,10 @@ export function openImageEditModal(fileObj) {
         ctx.drawImage(img, 0, 0);
         cropper === null || cropper === void 0 ? void 0 : cropper.destroy();
         const CropperCtor = window.Cropper || globalThis.Cropper;
-        cropper = new CropperCtor(editCanvas, { viewMode: 1 });
-        autoCropImage();
+        cropper = new CropperCtor(editCanvas, {
+            viewMode: 1,
+            ready: autoCropImage,
+        });
         URL.revokeObjectURL(url);
     };
     img.src = url;
@@ -112,6 +131,10 @@ export function openImageEditModal(fileObj) {
 }
 function closeEditor() {
     imageEditModal.style.display = 'none';
+    if (rotateHandler) {
+        editCanvas.removeEventListener('cropend', rotateHandler);
+        rotateHandler = null;
+    }
     cropper === null || cropper === void 0 ? void 0 : cropper.destroy();
     cropper = null;
 }

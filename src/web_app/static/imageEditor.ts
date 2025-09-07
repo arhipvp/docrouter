@@ -6,6 +6,7 @@ let rotateLeftBtn: HTMLElement | null;
 let rotateRightBtn: HTMLElement | null;
 let saveBtn: HTMLElement | null;
 let cropper: any = null;
+let rotateHandler: ((e: Event) => void) | null = null;
 
 function autoCropImage() {
   if (!cropper) return;
@@ -40,13 +41,29 @@ export function setupImageEditor() {
 
   rotateLeftBtn?.addEventListener('click', () => {
     if (!cropper) return;
+    if (rotateHandler) {
+      editCanvas.removeEventListener('cropend', rotateHandler);
+    }
+    rotateHandler = () => {
+      autoCropImage();
+      editCanvas.removeEventListener('cropend', rotateHandler!);
+      rotateHandler = null;
+    };
+    editCanvas.addEventListener('cropend', rotateHandler);
     cropper.rotate(-90);
-    autoCropImage();
   });
   rotateRightBtn?.addEventListener('click', () => {
     if (!cropper) return;
+    if (rotateHandler) {
+      editCanvas.removeEventListener('cropend', rotateHandler);
+    }
+    rotateHandler = () => {
+      autoCropImage();
+      editCanvas.removeEventListener('cropend', rotateHandler!);
+      rotateHandler = null;
+    };
+    editCanvas.addEventListener('cropend', rotateHandler);
     cropper.rotate(90);
-    autoCropImage();
   });
   saveBtn?.addEventListener('click', () => {
     if (!cropper) return;
@@ -99,6 +116,10 @@ export function openImageEditModal(fileObj: { blob: Blob; name: string }) {
 
 function closeEditor() {
   imageEditModal.style.display = 'none';
+  if (rotateHandler) {
+    editCanvas.removeEventListener('cropend', rotateHandler);
+    rotateHandler = null;
+  }
   cropper?.destroy();
   cropper = null;
 }
