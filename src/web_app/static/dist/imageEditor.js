@@ -25,11 +25,19 @@ function autoCropImage() {
     if (!width || !height)
         return;
     const { data } = ctx.getImageData(0, 0, width, height);
+    const bgR = data[0];
+    const bgG = data[1];
+    const bgB = data[2];
+    const threshold = 30;
     let left = width, right = -1, top = height, bottom = -1;
     for (let y = 0; y < height; y++) {
         for (let x = 0; x < width; x++) {
-            const alpha = data[(y * width + x) * 4 + 3];
-            if (alpha !== 0) {
+            const idx = (y * width + x) * 4;
+            const r = data[idx];
+            const g = data[idx + 1];
+            const b = data[idx + 2];
+            const diff = Math.abs(r - bgR) + Math.abs(g - bgG) + Math.abs(b - bgB);
+            if (diff > threshold) {
                 if (x < left)
                     left = x;
                 if (x > right)
