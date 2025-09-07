@@ -82,6 +82,7 @@ async def upload_file(
             server.config.output_dir,
             dry_run=dry_run,
             needs_new_folder=metadata.needs_new_folder,
+            confirm_callback=lambda _paths: False,
         )
         metadata = Metadata(**meta_dict)
 
@@ -212,6 +213,7 @@ async def upload_images(
             server.config.output_dir,
             dry_run=dry_run,
             needs_new_folder=metadata.needs_new_folder,
+            confirm_callback=lambda _paths: False,
         )
         metadata = Metadata(**meta_dict)
     except HTTPException:

@@ -2,11 +2,14 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import uuid
 from pathlib import Path
 
 from error_handling import handle_error
 from file_sorter import place_file, get_folder_tree
 from file_utils import extract_text
+from models import Metadata
+from web_app import db as database
 import metadata_generation
 
 logger = logging.getLogger(__name__)
@@ -39,24 +42,57 @@ async def process_directory(
                 meta_result = await metadata_generation.generate_metadata(text)  # type: ignore[arg-type]
             raw_meta = meta_result["metadata"]
             if isinstance(raw_meta, dict):
-                metadata = raw_meta
+                meta_dict = raw_meta
             else:
-                metadata = raw_meta.model_dump()
+                meta_dict = raw_meta.model_dump()
             rel_dir = path.parent.relative_to(input_path)
             rel_parts = list(rel_dir.parts)
-            if rel_parts and not metadata.get("category"):
-                metadata["category"] = rel_parts[0]
-            if len(rel_parts) > 1 and not metadata.get("subcategory"):
-                metadata["subcategory"] = rel_parts[1]
+            if rel_parts and not meta_dict.get("category"):
+                meta_dict["category"] = rel_parts[0]
+            if len(rel_parts) > 1 and not meta_dict.get("subcategory"):
+                meta_dict["subcategory"] = rel_parts[1]
             dest_base = Path(dest_root)
             dest_base.mkdir(parents=True, exist_ok=True)
-            place_file(
+            file_id = str(uuid.uuid4())
+            dest_path, missing, confirmed = place_file(
                 path,
-                metadata,
+                meta_dict,
                 dest_base,
                 dry_run=dry_run,
                 needs_new_folder=True,
-                confirm_callback=lambda _: True,
+                confirm_callback=lambda _paths: False,
+            )
+            metadata_obj = Metadata(**meta_dict)
+            if missing:
+                database.add_file(
+                    file_id,
+                    path.name,
+                    metadata_obj,
+                    str(path),
+                    "pending",
+                    meta_result.get("prompt"),
+                    meta_result.get("raw_response"),
+                    missing,
+                    suggested_path=str(dest_path),
+                    confirmed=confirmed,
+                    created_path=str(dest_path) if confirmed else None,
+                )
+                logger.info("Pending %s due to missing %s", path, missing)
+                return
+
+            status = "dry_run" if dry_run else "processed"
+            database.add_file(
+                file_id,
+                path.name,
+                metadata_obj,
+                str(dest_path),
+                status,
+                meta_result.get("prompt"),
+                meta_result.get("raw_response"),
+                [],
+                suggested_path=str(dest_path),
+                confirmed=confirmed,
+                created_path=str(dest_path) if confirmed else None,
             )
             logger.info("Finished processing %s", path)
         except Exception as exc:  # pragma: no cover - depending on runtime errors

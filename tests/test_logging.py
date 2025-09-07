@@ -11,6 +11,7 @@ from file_utils import extract_text, UnsupportedFileType
 from docrouter import process_directory
 import metadata_generation
 from models import Metadata
+from web_app import db as database
 
 
 def test_extract_text_logs_error_for_unknown_extension(tmp_path, caplog):
@@ -34,10 +35,11 @@ def test_process_directory_logs(tmp_path, monkeypatch, caplog):
     monkeypatch.setattr(metadata_generation, "generate_metadata", fake_generate)
 
     dest_root = tmp_path / "Archive"
+    database.init_db()
 
     with caplog.at_level(logging.INFO):
         asyncio.run(process_directory(input_dir, dest_root))
 
     assert f"Processing directory {input_dir}" in caplog.text
     assert f"Processing file {file_path}" in caplog.text
-    assert f"Finished processing {file_path}" in caplog.text
+    assert f"Pending {file_path} due to missing" in caplog.text

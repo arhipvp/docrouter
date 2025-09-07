@@ -141,7 +141,9 @@ def place_file(
     :param dest_root: корень архива.
     :param dry_run: «сухой прогон» без изменений на диске.
     :param needs_new_folder: требуется ли создание новой директории.
-    :param confirm_callback: функция подтверждения создания каталогов.
+    :param confirm_callback: функция подтверждения создания каталогов. Ей передаётся
+        список недостающих путей (относительно ``dest_root``), и она должна вернуть
+        ``True``, если каталоги следует создать.
     :return: (путь к файлу назначения, список отсутствующих каталогов, подтверждение).
     """
     src = Path(src_path)
@@ -227,18 +229,19 @@ def place_file(
         return dest_file, missing, confirmed
 
     if confirm_callback is None:
-        confirm_callback = lambda *_: False  # type: ignore[assignment]
+        confirm_callback = lambda _paths: False  # type: ignore[assignment]
 
     # Создаём недостающие каталоги только при подтверждении
-    if missing and needs_new_folder and confirm_callback(missing):
-        try:
-            dest_dir.mkdir(parents=True, exist_ok=True)
-        except FileExistsError as exc:
-            raise NotADirectoryError(
-                f"Cannot create directory '{exc.filename}'"
-            ) from exc
-        confirmed = True
-        missing = []
+    if missing and needs_new_folder:
+        confirmed = bool(confirm_callback(missing))
+        if confirmed:
+            try:
+                dest_dir.mkdir(parents=True, exist_ok=True)
+            except FileExistsError as exc:
+                raise NotADirectoryError(
+                    f"Cannot create directory '{exc.filename}'"
+                ) from exc
+            missing = []
 
     # Если каталоги всё ещё отсутствуют — выходим
     if missing:
