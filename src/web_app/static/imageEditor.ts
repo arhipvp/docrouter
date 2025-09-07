@@ -7,6 +7,30 @@ let rotateRightBtn: HTMLElement | null;
 let saveBtn: HTMLElement | null;
 let cropper: any = null;
 
+function autoCropImage() {
+  if (!cropper) return;
+  const ctx = editCanvas.getContext('2d');
+  if (!ctx) return;
+  const { width, height } = editCanvas;
+  if (!width || !height) return;
+  const { data } = ctx.getImageData(0, 0, width, height);
+  let left = width, right = -1, top = height, bottom = -1;
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const alpha = data[(y * width + x) * 4 + 3];
+      if (alpha !== 0) {
+        if (x < left) left = x;
+        if (x > right) right = x;
+        if (y < top) top = y;
+        if (y > bottom) bottom = y;
+      }
+    }
+  }
+  if (right >= left && bottom >= top) {
+    cropper.setData({ x: left, y: top, width: right - left + 1, height: bottom - top + 1 });
+  }
+}
+
 export function setupImageEditor() {
   imageEditModal = document.getElementById('edit-modal')!;
   editCanvas = document.getElementById('edit-canvas') as HTMLCanvasElement;
@@ -14,8 +38,16 @@ export function setupImageEditor() {
   rotateRightBtn = document.getElementById('rotate-right-btn');
   saveBtn = document.getElementById('save-btn');
 
-  rotateLeftBtn?.addEventListener('click', () => cropper?.rotate(-90));
-  rotateRightBtn?.addEventListener('click', () => cropper?.rotate(90));
+  rotateLeftBtn?.addEventListener('click', () => {
+    if (!cropper) return;
+    cropper.rotate(-90);
+    autoCropImage();
+  });
+  rotateRightBtn?.addEventListener('click', () => {
+    if (!cropper) return;
+    cropper.rotate(90);
+    autoCropImage();
+  });
   saveBtn?.addEventListener('click', () => {
     if (!cropper) return;
     cropper.getCroppedCanvas().toBlob(async (blob: Blob) => {
@@ -56,6 +88,7 @@ export function openImageEditModal(fileObj: { blob: Blob; name: string }) {
     cropper?.destroy();
     const CropperCtor = (window as any).Cropper || (globalThis as any).Cropper;
     cropper = new CropperCtor(editCanvas, { viewMode: 1 });
+    autoCropImage();
     URL.revokeObjectURL(url);
   };
   img.src = url;
