@@ -14,8 +14,11 @@ docker compose up --build
 
 ### Python
 
+Установите проект в режиме разработки и запустите сервер:
+
 ```bash
-python main.py
+pip install -e .
+python -m web_app.server
 ```
 
 После старта интерфейс будет доступен по адресу [http://localhost:8000](http://localhost:8000), где можно загружать, просматривать и скачивать документы.

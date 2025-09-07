@@ -9,10 +9,6 @@ from __future__ import annotations
 import logging
 import os
 import sys
-from pathlib import Path
-
-# Делаем пакет ``src`` доступным для импортов при запуске из корня репозитория
-sys.path.append(str(Path(__file__).resolve().parent / "src"))
 
 import uvicorn
 from config import LOG_LEVEL  # type: ignore

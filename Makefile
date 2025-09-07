@@ -4,7 +4,7 @@ build-frontend:
 	npx tsc
 
 run:
-	python main.py
+	python -m web_app.server
 
 up:
 	docker compose up --build

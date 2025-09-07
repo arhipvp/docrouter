@@ -7,6 +7,7 @@ import os
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
+import uvicorn
 try:
     from fastapi.templating import Jinja2Templates
 except Exception:  # pragma: no cover
@@ -68,3 +69,16 @@ app.include_router(upload.router)
 app.include_router(files.router)
 app.include_router(folders.router)
 app.include_router(chat.router)
+
+
+def main() -> None:
+    """Запустить сервер с параметрами из переменных окружения."""
+    host = os.getenv("HOST", "0.0.0.0")
+    port = int(os.getenv("PORT", "8000"))
+    reload = os.getenv("RELOAD", "false").lower() in {"1", "true", "yes"}
+    logger.info("Starting FastAPI server on %s:%s", host, port)
+    uvicorn.run(app, host=host, port=port, reload=reload)
+
+
+if __name__ == "__main__":
+    main()
