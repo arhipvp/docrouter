@@ -278,23 +278,23 @@ async def update_file(file_id: str, data: dict = Body(...)):
 
 
 @router.post("/files/{file_id}/finalize", response_model=FileRecord)
-async def finalize_file(file_id: str):
-    """Завершить обработку «отложенного» файла.
-
-    Перенести файл в целевую структуру (создавая недостающие каталоги) и
-    обновить запись в БД.
-    """
+async def finalize_file(file_id: str, data: dict = Body(...)):
+    """Завершить обработку отложенного файла."""
     record = database.get_file(file_id)
     if not record:
         raise HTTPException(status_code=404, detail="File not found")
+
     if record.status != "pending":
-        # Возвращаем текущую запись, ничего не делаем
         return record
 
-    # Путь к временно загруженному файлу
-    temp_path = record.path
-    if not temp_path:
-        temp_path = str(UPLOAD_DIR / f"{file_id}_{record.filename}")
+    missing = data.get("missing") or []
+    confirm = bool(data.get("confirm"))
+
+    if not confirm:
+        database.update_file(file_id, missing=missing)
+        return database.get_file(file_id)
+
+    temp_path = record.path or str(UPLOAD_DIR / f"{file_id}_{record.filename}")
 
     meta_dict = record.metadata.model_dump()
     dest_path, still_missing, confirmed = place_file(
