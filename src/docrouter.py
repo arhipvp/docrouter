@@ -54,13 +54,24 @@ async def process_directory(
             dest_base = Path(dest_root)
             dest_base.mkdir(parents=True, exist_ok=True)
             file_id = str(uuid.uuid4())
+
+            def _confirm(missing_paths: list[str]) -> bool:
+                print("Отсутствующие каталоги:")
+                for p in missing_paths:
+                    print(f"  {p}")
+                try:
+                    answer = input("Создать их? (y/n): ").strip().lower()
+                except Exception:
+                    return False
+                return answer == "y"
+
             dest_path, missing, confirmed = place_file(
                 path,
                 meta_dict,
                 dest_base,
                 dry_run=dry_run,
                 needs_new_folder=True,
-                confirm_callback=lambda _paths: False,
+                confirm_callback=_confirm,
             )
             metadata_obj = Metadata(**meta_dict)
             if missing:
@@ -77,7 +88,7 @@ async def process_directory(
                     confirmed=confirmed,
                     created_path=str(dest_path) if confirmed else None,
                 )
-                logger.info("Pending %s due to missing %s", path, missing)
+                logger.warning("Pending %s due to missing %s", path, missing)
                 return
 
             status = "dry_run" if dry_run else "processed"
