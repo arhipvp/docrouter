@@ -201,7 +201,6 @@ def extract_text(file_path: Union[str, Path], language: str = "eng") -> str:
     """
     path = Path(file_path)
     ext = path.suffix.lower()
-    guessed = False
     logger.info("Extracting text from %s", path)
 
     if not ext:
@@ -213,7 +212,6 @@ def extract_text(file_path: Union[str, Path], language: str = "eng") -> str:
                 mime = None
         if mime:
             ext = mimetypes.guess_extension(mime) or ""
-            guessed = True
             logger.debug("Guessed extension %s for %s", ext, path)
         if not ext:
             logger.error("Cannot determine file type for %s", path)
