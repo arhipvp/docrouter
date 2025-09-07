@@ -55,6 +55,8 @@ export interface FolderNode {
   files: FileEntry[];
 }
 
+export type FolderTree = FolderNode[];
+
 export interface ImageFile {
   blob: Blob;
   name: string;

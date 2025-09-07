@@ -52,13 +52,7 @@ def test_prompt_includes_context(monkeypatch):
     monkeypatch.setattr("metadata_generation.OPENROUTER_API_KEY", "test")
     monkeypatch.setattr("metadata_generation.httpx.AsyncClient.post", fake_post)
 
-    tree = [
-        {
-            "name": "Финансы",
-            "path": "Финансы",
-            "children": [{"name": "Банки", "path": "Финансы/Банки", "children": []}],
-        }
-    ]
+    tree = [{"name": "Финансы", "children": [{"name": "Банки", "children": []}]}]
     index = {"иванов иван": {"финансы": "Иванов Иван/Финансы"}}
     file_info = {"name": "invoice", "extension": ".pdf", "size": 100, "type": "pdf"}
     result = asyncio.run(

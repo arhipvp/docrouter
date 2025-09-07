@@ -10,14 +10,13 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 import { apiRequest } from './http.js';
 import { showNotification } from './notify.js';
 let folderTree;
-function renderTree(container, tree) {
-    Object.keys(tree).forEach((key) => {
+export function renderTree(container, tree) {
+    tree.forEach(({ name, children }) => {
         const li = document.createElement('li');
         const nameSpan = document.createElement('span');
-        nameSpan.textContent = key;
+        nameSpan.textContent = name;
         li.appendChild(nameSpan);
-        const children = tree[key];
-        if (children && Object.keys(children).length > 0) {
+        if (children && children.length > 0) {
             const ul = document.createElement('ul');
             renderTree(ul, children);
             li.appendChild(ul);

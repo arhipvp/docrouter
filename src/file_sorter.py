@@ -47,6 +47,7 @@ def build_folder_index(root_dir: str | Path) -> Dict[str, Dict[str, str]]:
         index[person_key] = categories
     return index
 
+
 # Запрещённые для имён файлов символы (Windows-совместимо)
 INVALID_CHARS_PATTERN = re.compile(r'[<>:"/\\|?*]')
 # Паттерн даты YYYY-MM-DD для удаления из suggested_name

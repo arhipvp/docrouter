@@ -11,32 +11,44 @@ function renderNodes(container: HTMLElement, nodes: FolderNode[]): void {
     nameSpan.textContent = node.name;
     li.appendChild(nameSpan);
 
-    if (node.files.length || node.children.length) {
+    // Если есть вложенные файлы или директории — строим дерево
+    if ((node.files && node.files.length) || (node.children && node.children.length)) {
       const ul = document.createElement('ul');
-      node.files.forEach((file: FileEntry) => {
+
+      // Файлы внутри папки
+      (node.files || []).forEach((file: FileEntry) => {
         const fileLi = document.createElement('li');
         const fileSpan = document.createElement('span');
         fileSpan.textContent = file.name;
         fileSpan.classList.add('file');
+
         if (file.id) {
+          // Клик по имени файла — открываем предпросмотр
           fileSpan.addEventListener('click', () => {
             window.open(`/preview/${file.id}`, '_blank');
           });
+
+          // Ссылка на скачивание файла
           const dl = document.createElement('a');
           dl.href = `/download/${file.id}`;
           dl.textContent = '⬇';
           dl.addEventListener('click', (e) => e.stopPropagation());
+
           fileLi.appendChild(fileSpan);
           fileLi.appendChild(document.createTextNode(' '));
           fileLi.appendChild(dl);
         } else {
           fileLi.appendChild(fileSpan);
         }
+
         ul.appendChild(fileLi);
       });
-      renderNodes(ul, node.children);
+
+      // Рекурсивно отрисовываем вложенные папки
+      renderNodes(ul, node.children || []);
       li.appendChild(ul);
     }
+
     container.appendChild(li);
   });
 }
