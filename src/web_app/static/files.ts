@@ -18,6 +18,7 @@ let editIssuer: HTMLInputElement;
 let editDate: HTMLInputElement;
 let editName: HTMLInputElement;
 let editDescription: HTMLTextAreaElement;
+let editSummary: HTMLTextAreaElement;
 let nameOriginalRadio: HTMLInputElement | null;
 let nameLatinRadio: HTMLInputElement | null;
 let nameOriginalLabel: HTMLElement | null;
@@ -41,6 +42,7 @@ export function setupFiles() {
   editDate = document.getElementById('edit-date') as HTMLInputElement;
   editName = document.getElementById('edit-name') as HTMLInputElement;
   editDescription = document.getElementById('edit-description') as HTMLTextAreaElement;
+  editSummary = document.getElementById('edit-summary') as HTMLTextAreaElement;
   nameOriginalRadio = document.getElementById('name-original') as HTMLInputElement;
   nameLatinRadio = document.getElementById('name-latin') as HTMLInputElement;
   nameOriginalLabel = document.getElementById('name-original-label');
@@ -174,6 +176,12 @@ export async function refreshFiles(force = false) {
       tagsTd.textContent = tagsText;
       tr.appendChild(tagsTd);
 
+      const summaryTd = document.createElement('td');
+      const summary = f.metadata?.summary ? f.metadata.summary.substring(0, 100) : '';
+      summaryTd.textContent = summary;
+      summaryTd.classList.add('summary');
+      tr.appendChild(summaryTd);
+
       const descTd = document.createElement('td');
       const desc = f.metadata?.description ? f.metadata.description.substring(0, 100) : '';
       descTd.textContent = desc;
@@ -239,6 +247,7 @@ function openMetadataModal(file: FileInfo) {
   const latin = m.suggested_name_translit || orig;
   editName.value = orig;
   editDescription.value = m.description || '';
+  editSummary.value = m.summary || '';
 
   if (nameOriginalRadio) {
     nameOriginalRadio.value = orig;
