@@ -44,7 +44,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   confirmBtn?.addEventListener('click', async () => {
     try {
-      await fetch(`/files/${id}/confirm`, { method: 'POST' });
+      await fetch(`/files/${id}/finalize`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirm: true }),
+      });
       await fetch('/files?force=1');
       if (window.opener) {
         window.opener.location.reload();
