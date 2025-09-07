@@ -288,13 +288,14 @@ __all__ = [
     "translate_text",
 ]
 
+def load_plugins() -> None:
+    """Явно загрузить плагины file_utils."""
+    try:
+        from plugins import load_plugins as _load_plugins
 
-try:  # Автообнаружение плагинов
-    from plugins import load_plugins as _load_plugins
-
-    _load_plugins()
-except Exception:  # pragma: no cover - отсутствие плагинов не критично
-    logger.debug("Plugin loading skipped", exc_info=True)
+        _load_plugins()
+    except Exception:  # pragma: no cover - отсутствие плагинов не критично
+        logger.debug("Plugin loading skipped", exc_info=True)
 
 
 async def translate_text(
