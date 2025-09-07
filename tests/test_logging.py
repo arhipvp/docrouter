@@ -8,7 +8,7 @@ import pytest
 sys.path.append(str(Path(__file__).resolve().parents[1] / "src"))
 
 from file_utils import extract_text, UnsupportedFileType
-from docrouter import process_directory
+from services.directory_processor import process_input_directory
 import metadata_generation
 from models import Metadata
 from web_app import db as database
@@ -23,7 +23,7 @@ def test_extract_text_logs_error_for_unknown_extension(tmp_path, caplog):
     assert "Unsupported/unknown file extension" in caplog.text
 
 
-def test_process_directory_logs(tmp_path, monkeypatch, caplog):
+def test_process_input_directory_logs(tmp_path, monkeypatch, caplog):
     input_dir = tmp_path / "input"
     input_dir.mkdir()
     file_path = input_dir / "data.txt"
@@ -38,8 +38,7 @@ def test_process_directory_logs(tmp_path, monkeypatch, caplog):
     database.init_db()
 
     with caplog.at_level(logging.INFO):
-        asyncio.run(process_directory(input_dir, dest_root))
-
+        asyncio.run(process_input_directory(input_dir, dest_root))
     assert f"Processing directory {input_dir}" in caplog.text
     assert f"Processing file {file_path}" in caplog.text
     assert f"Pending {file_path} due to missing" in caplog.text
