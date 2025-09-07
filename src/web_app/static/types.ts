@@ -42,12 +42,20 @@ export interface UploadFinalResponse {
 
 export type UploadResponse = UploadPendingResponse | UploadFinalResponse;
 
-export interface FolderTreeNode {
+export interface FileEntry {
   name: string;
-  children: FolderTreeNode[];
+  path: string;
+  id?: string;
 }
 
-export type FolderTree = FolderTreeNode[];
+export interface FolderNode {
+  name: string;
+  path: string;
+  children: FolderNode[];
+  files: FileEntry[];
+}
+
+export type FolderTree = FolderNode[];
 
 export interface ImageFile {
   blob: Blob;
