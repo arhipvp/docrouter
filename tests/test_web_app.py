@@ -443,7 +443,10 @@ def test_upload_pending_then_finalize(tmp_path, monkeypatch):
         ]
         file_id = data["id"]
 
-        resp_final = client.post(f"/files/{file_id}/finalize")
+        resp_final = client.post(
+            f"/files/{file_id}/finalize",
+            json={"missing": data["missing"], "confirm": True},
+        )
         assert resp_final.status_code == 200
         final_data = resp_final.json()
         assert final_data["status"] == "processed"
