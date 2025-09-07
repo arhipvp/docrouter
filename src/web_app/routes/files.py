@@ -284,7 +284,7 @@ async def finalize_file(file_id: str, data: dict = Body(...)):
     if not record:
         raise HTTPException(status_code=404, detail="File not found")
 
-    if record.status != "pending":
+    if record.status not in {"pending", "review"}:
         return record
 
     missing = data.get("missing") or []

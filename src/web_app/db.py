@@ -44,7 +44,7 @@ def init_db() -> None:
                 expiration_date TEXT,
                 passport_number TEXT,
                 path TEXT NOT NULL,
-                status TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'review',
                 prompt TEXT,
                 raw_response TEXT,
                 missing TEXT,
@@ -54,7 +54,8 @@ def init_db() -> None:
                 sources TEXT,
                 suggested_path TEXT,
                 created_path TEXT,
-                confirmed INTEGER
+                confirmed INTEGER,
+                review_comment TEXT
             )
             """
         )
@@ -86,6 +87,7 @@ def _serialize_record(record: FileRecord) -> Dict[str, Any]:
         "suggested_path": record.suggested_path,
         "created_path": record.created_path,
         "confirmed": 1 if record.confirmed else 0,
+        "review_comment": record.review_comment,
     }
 
 
@@ -113,6 +115,7 @@ def _row_to_record(row: sqlite3.Row) -> FileRecord:
         suggested_path=row["suggested_path"],
         created_path=row["created_path"],
         confirmed=bool(row["confirmed"]),
+        review_comment=row["review_comment"],
     )
 
 
@@ -133,7 +136,7 @@ def add_file(
     filename: str,
     metadata: Metadata,
     path: str,
-    status: str,
+    status: str = "review",
     prompt: Any | None = None,
     raw_response: Any | None = None,
     missing: Optional[List[str]] = None,
@@ -143,6 +146,7 @@ def add_file(
     suggested_path: str | None = None,
     confirmed: bool = False,
     created_path: str | None = None,
+    review_comment: str | None = None,
 ) -> None:
     record = FileRecord(
         id=file_id,
@@ -166,6 +170,7 @@ def add_file(
         suggested_path=suggested_path,
         created_path=created_path,
         confirmed=confirmed,
+        review_comment=review_comment,
     )
     _upsert(record)
 
@@ -196,6 +201,7 @@ def update_file(
     suggested_path: str | None = None,
     confirmed: bool | None = None,
     created_path: str | None = None,
+    review_comment: str | None = None,
 ) -> None:
     record = get_file(file_id)
     if record is None:
@@ -230,6 +236,8 @@ def update_file(
         record.confirmed = confirmed
     if created_path is not None:
         record.created_path = created_path
+    if review_comment is not None:
+        record.review_comment = review_comment
     _upsert(record)
 
 
