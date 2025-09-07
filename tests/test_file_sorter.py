@@ -302,6 +302,58 @@ def test_place_file_returns_missing_dirs_and_does_not_move_when_needs_new_folder
     assert confirmed is False
 
 
+def test_place_file_missing_then_confirm_creation(tmp_path):
+    src = tmp_path / "doc.pdf"
+    src.write_text("content")
+
+    dest_root = tmp_path / "Archive"
+
+    # Первый вызов: каталоги отсутствуют, подтверждения нет
+    dest, missing, confirmed = place_file(
+        src,
+        sample_metadata(),
+        dest_root,
+        dry_run=False,
+        needs_new_folder=True,
+        confirm_callback=lambda _: False,
+    )
+
+    expected = (
+        dest_root
+        / GENERAL_FOLDER_NAME
+        / "Финансы"
+        / "Банки"
+        / "Sparkasse"
+        / "2023-10-12__Kreditvertrag.pdf"
+    )
+    assert dest == expected
+    assert missing == [
+        f"{GENERAL_FOLDER_NAME}",
+        f"{GENERAL_FOLDER_NAME}/Финансы",
+        f"{GENERAL_FOLDER_NAME}/Финансы/Банки",
+        f"{GENERAL_FOLDER_NAME}/Финансы/Банки/Sparkasse",
+    ]
+    assert not dest.exists()
+    assert src.exists()
+    assert confirmed is False
+
+    # Повторный вызов с подтверждением создаёт каталоги и переносит файл
+    dest2, missing2, confirmed2 = place_file(
+        src,
+        sample_metadata(),
+        dest_root,
+        dry_run=False,
+        needs_new_folder=True,
+        confirm_callback=lambda _: True,
+    )
+
+    assert dest2 == expected
+    assert missing2 == []
+    assert confirmed2 is True
+    assert dest2.exists()
+    assert not src.exists()
+
+
 def test_place_file_generates_transliteration(tmp_path):
     pytest.importorskip("unidecode")
     src = tmp_path / "doc.pdf"
