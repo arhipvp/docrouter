@@ -103,10 +103,12 @@ def test_upload_retrieve_and_download(tmp_path, monkeypatch):
             return f.read()
 
     import file_utils, sys
-    monkeypatch.setattr(server, "extract_text", _mock_extract_text)
-    monkeypatch.setattr(file_utils, "extract_text", _mock_extract_text)
-    monkeypatch.setattr(server.metadata_generation, "generate_metadata", _mock_generate_metadata)
-    sys.modules["web_app.server"] = server
+    monkeypatch.setattr("web_app.server.extract_text", _mock_extract_text)
+    monkeypatch.setattr("file_utils.extract_text", _mock_extract_text)
+    monkeypatch.setattr(
+        "web_app.server.metadata_generation.generate_metadata", _mock_generate_metadata
+    )
+    server.database.init_db()
     server.config.output_dir = str(tmp_path)
     (tmp_path / "John Doe").mkdir()
 
@@ -209,8 +211,6 @@ def test_translation_error_returns_502(tmp_path, monkeypatch):
 
 
 def test_upload_images_returns_sources(tmp_path, monkeypatch):
-    server.database.init_db()
-
     captured = {}
 
     def _mock_merge(paths):
@@ -224,12 +224,14 @@ def test_upload_images_returns_sources(tmp_path, monkeypatch):
         return "pdf text"
 
     import file_utils, sys
-    monkeypatch.setattr(server, "merge_images_to_pdf", _mock_merge)
-    monkeypatch.setattr(file_utils, "merge_images_to_pdf", _mock_merge)
-    monkeypatch.setattr(server, "extract_text", _mock_extract_text)
-    monkeypatch.setattr(file_utils, "extract_text", _mock_extract_text)
-    monkeypatch.setattr(server.metadata_generation, "generate_metadata", _mock_generate_metadata)
-    sys.modules["web_app.server"] = server
+    monkeypatch.setattr("web_app.server.merge_images_to_pdf", _mock_merge)
+    monkeypatch.setattr("file_utils.merge_images_to_pdf", _mock_merge)
+    monkeypatch.setattr("web_app.server.extract_text", _mock_extract_text)
+    monkeypatch.setattr("file_utils.extract_text", _mock_extract_text)
+    monkeypatch.setattr(
+        "web_app.server.metadata_generation.generate_metadata", _mock_generate_metadata
+    )
+    server.database.init_db()
     server.config.output_dir = str(tmp_path)
     (tmp_path / "John Doe").mkdir()
 
@@ -256,8 +258,6 @@ def test_upload_images_returns_sources(tmp_path, monkeypatch):
 
 
 def test_upload_images_download_and_metadata(tmp_path, monkeypatch):
-    server.database.init_db()
-
     captured = {}
 
     pdf_bytes = b"PDF"
@@ -273,12 +273,14 @@ def test_upload_images_download_and_metadata(tmp_path, monkeypatch):
         return "page1\npage2"
 
     import file_utils, sys
-    monkeypatch.setattr(server, "merge_images_to_pdf", _mock_merge)
-    monkeypatch.setattr(file_utils, "merge_images_to_pdf", _mock_merge)
-    monkeypatch.setattr(server, "extract_text", _mock_extract_text)
-    monkeypatch.setattr(file_utils, "extract_text", _mock_extract_text)
-    monkeypatch.setattr(server.metadata_generation, "generate_metadata", _mock_generate_metadata)
-    sys.modules["web_app.server"] = server
+    monkeypatch.setattr("web_app.server.merge_images_to_pdf", _mock_merge)
+    monkeypatch.setattr("file_utils.merge_images_to_pdf", _mock_merge)
+    monkeypatch.setattr("web_app.server.extract_text", _mock_extract_text)
+    monkeypatch.setattr("file_utils.extract_text", _mock_extract_text)
+    monkeypatch.setattr(
+        "web_app.server.metadata_generation.generate_metadata", _mock_generate_metadata
+    )
+    server.database.init_db()
     server.config.output_dir = str(tmp_path)
     (tmp_path / "John Doe").mkdir()
 

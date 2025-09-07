@@ -49,11 +49,11 @@ def test_finalize_file_moves_and_creates_metadata(tmp_path, monkeypatch):
         )
         assert finalize_resp.status_code == 200
         dest_path = Path(finalize_resp.json()["path"])
+        record = server.database.get_file(file_id)
 
     assert dest_path.exists()
     assert not temp_path.exists()
     assert dest_path.with_suffix(dest_path.suffix + ".json").exists()
 
-    record = server.database.get_file(file_id)
     assert record is not None
     assert record.status == "processed"

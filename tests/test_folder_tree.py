@@ -25,6 +25,7 @@ def test_get_folder_tree_returns_name_children(tmp_path):
 def test_folder_tree_endpoint(tmp_path):
     (tmp_path / "X" / "Y").mkdir(parents=True)
     server.config.output_dir = str(tmp_path)
+    server.database.init_db()
     client = TestClient(server.app)
     resp = client.get("/folder-tree")
     assert resp.status_code == 200

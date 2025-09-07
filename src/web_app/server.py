@@ -61,6 +61,11 @@ def startup() -> None:
     """Инициализировать базу данных перед обработкой запросов."""
     database.init_db()
 
+
+@app.on_event("shutdown")
+def _shutdown() -> None:
+    database.close_db()
+
 # --------- Подключение маршрутов ----------
 app.include_router(upload.router)
 app.include_router(files.router)
