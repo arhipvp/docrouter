@@ -7,16 +7,22 @@ import json
 import os
 import sqlite3
 import asyncio
+import threading
 from typing import Any, Dict, List, Optional
 
 from models import FileRecord, Metadata
 
 _DB_PATH = Path(__file__).with_suffix(".sqlite")
 _conn: sqlite3.Connection | None = None
+_lock = threading.Lock()
 
 
 async def run_db(func, *args, **kwargs):
-    """Запустить синхронную функцию работы с БД в отдельном потоке."""
+    """Запустить синхронную функцию работы с БД в отдельном потоке.
+
+    Функция, передаваемая в ``run_db``, должна самостоятельно захватывать
+    ``_lock``, чтобы синхронные операции с БД выполнялись последовательно.
+    """
     return await asyncio.to_thread(func, *args, **kwargs)
 
 
@@ -44,40 +50,41 @@ def init_db(force_reset: bool | None = None) -> None:
 
     _conn = sqlite3.connect(_DB_PATH, check_same_thread=False)
     _conn.row_factory = sqlite3.Row
-    with _conn:
-        if force_reset:
-            _conn.execute("DROP TABLE IF EXISTS files")
-        _conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS files (
-                id TEXT PRIMARY KEY,
-                filename TEXT NOT NULL,
-                metadata TEXT NOT NULL,
-                tags_ru TEXT,
-                tags_en TEXT,
-                person TEXT,
-                date_of_birth TEXT,
-                expiration_date TEXT,
-                passport_number TEXT,
-                path TEXT NOT NULL,
-                status TEXT NOT NULL DEFAULT 'review',
-                prompt TEXT,
-                raw_response TEXT,
-                missing TEXT,
-                translated_text TEXT,
-                translation_lang TEXT,
-                chat_history TEXT,
-                review_comment TEXT,
-                sources TEXT,
-                suggested_path TEXT,
-                created_path TEXT,
-                confirmed INTEGER
+    with _lock:
+        with _conn:
+            if force_reset:
+                _conn.execute("DROP TABLE IF EXISTS files")
+            _conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS files (
+                    id TEXT PRIMARY KEY,
+                    filename TEXT NOT NULL,
+                    metadata TEXT NOT NULL,
+                    tags_ru TEXT,
+                    tags_en TEXT,
+                    person TEXT,
+                    date_of_birth TEXT,
+                    expiration_date TEXT,
+                    passport_number TEXT,
+                    path TEXT NOT NULL,
+                    status TEXT NOT NULL DEFAULT 'review',
+                    prompt TEXT,
+                    raw_response TEXT,
+                    missing TEXT,
+                    translated_text TEXT,
+                    translation_lang TEXT,
+                    chat_history TEXT,
+                    review_comment TEXT,
+                    sources TEXT,
+                    suggested_path TEXT,
+                    created_path TEXT,
+                    confirmed INTEGER
+                )
+                """
             )
-            """
-        )
-        _conn.execute(
-            "CREATE UNIQUE INDEX IF NOT EXISTS idx_files_id ON files(id)"
-        )
+            _conn.execute(
+                "CREATE UNIQUE INDEX IF NOT EXISTS idx_files_id ON files(id)"
+            )
 
 
 def close_db() -> None:
@@ -199,12 +206,14 @@ def add_file(
         created_path=created_path,
         confirmed=confirmed,
     )
-    _upsert(record)
+    with _lock:
+        _upsert(record)
 
 
 def get_file(file_id: str) -> Optional[FileRecord]:
     conn = _get_conn()
-    row = conn.execute("SELECT * FROM files WHERE id=?", (file_id,)).fetchone()
+    with _lock:
+        row = conn.execute("SELECT * FROM files WHERE id=?", (file_id,)).fetchone()
     if row is None:
         return None
     return _row_to_record(row)
@@ -268,33 +277,37 @@ def update_file(
         record.chat_history = chat_history
     if review_comment is not None:
         record.review_comment = review_comment
-    _upsert(record)
+    with _lock:
+        _upsert(record)
 
 
 def delete_file(file_id: str) -> None:
     conn = _get_conn()
-    with conn:
-        conn.execute("DELETE FROM files WHERE id=?", (file_id,))
+    with _lock:
+        with conn:
+            conn.execute("DELETE FROM files WHERE id=?", (file_id,))
 
 
 def list_files() -> List[FileRecord]:
     conn = _get_conn()
-    rows = conn.execute("SELECT * FROM files").fetchall()
+    with _lock:
+        rows = conn.execute("SELECT * FROM files").fetchall()
     return [_row_to_record(r) for r in rows]
 
 
 def search_files(query: str) -> List[FileRecord]:
     conn = _get_conn()
     pattern = f"%{query}%"
-    rows = conn.execute(
-        """
-        SELECT * FROM files
-        WHERE metadata LIKE ?
-           OR person LIKE ?
-           OR passport_number LIKE ?
-        """,
-        (pattern, pattern, pattern),
-    ).fetchall()
+    with _lock:
+        rows = conn.execute(
+            """
+            SELECT * FROM files
+            WHERE metadata LIKE ?
+               OR person LIKE ?
+               OR passport_number LIKE ?
+            """,
+            (pattern, pattern, pattern),
+        ).fetchall()
     return [_row_to_record(r) for r in rows]
 
 
@@ -316,7 +329,8 @@ def add_chat_message(
         entry["cost"] = cost
     history.append(entry)
     record.chat_history = history
-    _upsert(record)
+    with _lock:
+        _upsert(record)
     return history
 
 
