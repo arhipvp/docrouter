@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from typing import Any, Dict, List, Tuple, Optional
+import asyncio
 import logging
 
 import httpx
@@ -61,24 +62,56 @@ async def chat(
         "X-Title": site_name or OPENROUTER_SITE_NAME or "DocRouter",
     }
 
+    max_attempts = 3
+    delay = 1.0
+
     async with httpx.AsyncClient(timeout=60) as client:
-        try:
-            response = await client.post(api_url, json=payload, headers=headers)
-            response.raise_for_status()
-            data = response.json()
-        except httpx.HTTPStatusError as exc:
-            logger.error("OpenRouter request failed: %s", exc)
-            raise OpenRouterError(
-                f"OpenRouter request failed: {exc.response.status_code}"
-            ) from exc
-        except httpx.HTTPError as exc:
-            logger.error("HTTP error during chat request: %s", exc)
-            raise OpenRouterError("HTTP error during chat request") from exc
-        except ValueError as exc:
-            logger.error(
-                "OpenRouter returned non-JSON response: %s", response.text
-            )
-            raise OpenRouterError("OpenRouter returned non-JSON response") from exc
+        for attempt in range(1, max_attempts + 1):
+            try:
+                response = await client.post(api_url, json=payload, headers=headers)
+                response.raise_for_status()
+                try:
+                    data = response.json()
+                except ValueError as exc:
+                    logger.error(
+                        "OpenRouter returned non-JSON response: %s", response.text
+                    )
+                    raise OpenRouterError(
+                        "OpenRouter returned non-JSON response"
+                    ) from exc
+                break
+            except httpx.HTTPStatusError as exc:
+                status = exc.response.status_code
+                if status == 429 or 500 <= status < 600:
+                    if attempt < max_attempts:
+                        logger.warning(
+                            "OpenRouter transient error %s, retry %s/%s", status, attempt, max_attempts
+                        )
+                        await asyncio.sleep(delay)
+                        delay *= 2
+                        continue
+                    logger.error(
+                        "OpenRouter request failed after %s attempts: %s", max_attempts, status
+                    )
+                    raise OpenRouterError(
+                        f"OpenRouter request failed after {max_attempts} attempts: {status}"
+                    ) from exc
+                logger.error("OpenRouter request failed: %s", status)
+                raise OpenRouterError(
+                    f"OpenRouter request failed: {status}"
+                ) from exc
+            except httpx.HTTPError as exc:
+                if attempt < max_attempts:
+                    logger.warning(
+                        "HTTP error during chat request: %s, retry %s/%s", exc, attempt, max_attempts
+                    )
+                    await asyncio.sleep(delay)
+                    delay *= 2
+                    continue
+                logger.error("HTTP error during chat request: %s", exc)
+                raise OpenRouterError(
+                    f"HTTP error during chat request after {max_attempts} attempts"
+                ) from exc
 
     reply = data["choices"][0]["message"]["content"].strip()
     usage = data.get("usage", {})
