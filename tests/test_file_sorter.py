@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 sys.path.append(str(Path(__file__).resolve().parents[1] / "src"))
-from file_sorter import place_file
+from file_sorter import place_file, sanitize_dirname
 from config import GENERAL_FOLDER_NAME
 
 
@@ -252,6 +252,20 @@ def test_place_file_sanitizes_dirnames(tmp_path):
     assert metadata["category"] == "cat"
     assert metadata["subcategory"] == "sub"
     assert metadata["issuer"] == "iss"
+
+
+def test_sanitize_dirname_handles_dots_and_special_chars():
+    assert sanitize_dirname("..evil<:>:name..") == "evil____name"
+
+
+def test_sanitize_dirname_strips_leading_replacement():
+    assert sanitize_dirname(":folder") == "folder"
+
+
+def test_sanitize_dirname_prevents_parent_traversal():
+    result = sanitize_dirname("../../secret")
+    assert result == "secret"
+    assert ".." not in result
 
 
 def test_place_file_removes_date_from_suggested_name(tmp_path):
