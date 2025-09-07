@@ -72,9 +72,12 @@ async def upload_file(
         filename = sanitize_filename(f"upload{guessed_ext}")
     temp_path = UPLOAD_DIR / f"{file_id}_{filename}"
     try:
-        contents = await file.read()
         with open(temp_path, "wb") as dest:
-            dest.write(contents)
+            while True:
+                chunk = await file.read(1024 * 1024)
+                if not chunk:
+                    break
+                dest.write(chunk)
 
         # Извлечение текста + генерация метаданных
         lang_display = language or REV_LANG_MAP.get(
@@ -174,9 +177,12 @@ async def upload_images(
     image_paths: list[Path] = []
     for idx, img in enumerate(sorted_files):
         temp_img = temp_dir / f"{idx:03d}_{img.filename}"
-        contents = await img.read()
         with open(temp_img, "wb") as dest:
-            dest.write(contents)
+            while True:
+                chunk = await img.read(1024 * 1024)
+                if not chunk:
+                    break
+                dest.write(chunk)
         image_paths.append(temp_img)
 
     try:
