@@ -26,6 +26,10 @@ def extract_text_image(image_path: Union[str, Path], language: str = "eng") -> s
     img = Image.open(Path(image_path))
     try:
         return pytesseract.image_to_string(img, lang=language)
+    except pytesseract.TesseractNotFoundError as exc:
+        raise RuntimeError(
+            "Tesseract OCR executable not found. Please install Tesseract and ensure it's in PATH."
+        ) from exc
     except pytesseract.TesseractError as exc:
         if language != "eng":
             logger.warning(
