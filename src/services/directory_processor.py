@@ -107,5 +107,15 @@ async def process_input_directory(
         async with semaphore:
             await process_file(path)
 
-    tasks = [asyncio.create_task(sem_task(path)) for path in input_path.rglob("*") if path.is_file()]
-    await asyncio.gather(*tasks)
+    tasks = [
+        asyncio.create_task(sem_task(path), name=str(path))
+        for path in input_path.rglob("*")
+        if path.is_file()
+    ]
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+    for task, result in zip(tasks, results):
+        if isinstance(result, Exception):
+            handle_error(Path(task.get_name()), result)
+            logger.error(
+                "Unhandled exception while processing %s: %s", task.get_name(), result
+            )
