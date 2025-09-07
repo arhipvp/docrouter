@@ -38,7 +38,11 @@ def main() -> None:
     setup_logging(LOG_LEVEL, None)
     logger.info("Starting FastAPI server on %s:%s", host, port)
 
-    uvicorn.run("web_app.server:app", host=host, port=port, reload=reload)
+    try:
+        uvicorn.run("web_app.server:app", host=host, port=port, reload=reload)
+    except Exception:
+        logger.exception("Не удалось запустить сервер")
+        sys.exit(1)
 
 
 if __name__ == "__main__":
