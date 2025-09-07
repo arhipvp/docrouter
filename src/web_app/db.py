@@ -257,6 +257,21 @@ def list_files() -> List[FileRecord]:
     return [_row_to_record(r) for r in rows]
 
 
+def search_files(query: str) -> List[FileRecord]:
+    conn = _get_conn()
+    pattern = f"%{query}%"
+    rows = conn.execute(
+        """
+        SELECT * FROM files
+        WHERE metadata LIKE ?
+           OR person LIKE ?
+           OR passport_number LIKE ?
+        """,
+        (pattern, pattern, pattern),
+    ).fetchall()
+    return [_row_to_record(r) for r in rows]
+
+
 def add_chat_message(
     file_id: str,
     role: str,

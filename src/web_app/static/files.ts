@@ -8,6 +8,7 @@ let list: HTMLElement;
 let textPreview: HTMLElement;
 let tagLanguage: HTMLSelectElement;
 let displayLangSelect: HTMLSelectElement;
+let searchInput: HTMLInputElement;
 let previewModal: HTMLElement;
 let previewFrame: HTMLIFrameElement;
 let metadataModal: HTMLElement;
@@ -32,6 +33,7 @@ export function setupFiles() {
   textPreview = document.getElementById('text-preview')!;
   tagLanguage = document.getElementById('tag-language') as HTMLSelectElement;
   displayLangSelect = document.getElementById('display-lang') as HTMLSelectElement;
+  searchInput = document.getElementById('search-input') as HTMLInputElement;
   previewModal = document.getElementById('preview-modal')!;
   previewFrame = document.getElementById('preview-frame') as HTMLIFrameElement;
   metadataModal = document.getElementById('metadata-modal')!;
@@ -51,7 +53,7 @@ export function setupFiles() {
 
   displayLangSelect?.addEventListener('change', () => {
     displayLang = displayLangSelect.value;
-    refreshFiles();
+    refreshFiles(false, searchInput?.value.trim() || '');
   });
 
   editForm.addEventListener('submit', async (e) => {
@@ -134,7 +136,7 @@ export function setupFiles() {
     currentEditId = null;
   });
 
-  tagLanguage.addEventListener('change', () => refreshFiles());
+  tagLanguage.addEventListener('change', () => refreshFiles(false, searchInput?.value.trim() || ''));
   nameOriginalRadio?.addEventListener('change', () => {
     if (nameOriginalRadio.checked) editName.value = nameOriginalRadio.value;
   });
@@ -143,16 +145,25 @@ export function setupFiles() {
   });
 
   refreshBtn?.addEventListener('click', () => {
-    refreshFiles(true);
+    refreshFiles(true, searchInput?.value.trim() || '');
     refreshFolderTree();
+  });
+
+  searchInput?.addEventListener('input', () => {
+    const term = searchInput.value.trim();
+    if (term) refreshFiles(false, term);
+    else refreshFiles();
   });
 
   refreshFiles();
 }
 
-export async function refreshFiles(force = false) {
+export async function refreshFiles(force = false, q = '') {
   try {
-    const resp = await apiRequest(`/files${force ? '?force=1' : ''}`);
+    const url = q
+      ? `/files/search?q=${encodeURIComponent(q)}`
+      : `/files${force ? '?force=1' : ''}`;
+    const resp = await apiRequest(url);
     if (!resp.ok) throw new Error();
     const files: FileInfo[] = await resp.json();
 

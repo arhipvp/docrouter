@@ -15,6 +15,7 @@ let list;
 let textPreview;
 let tagLanguage;
 let displayLangSelect;
+let searchInput;
 let previewModal;
 let previewFrame;
 let metadataModal;
@@ -38,6 +39,7 @@ export function setupFiles() {
     textPreview = document.getElementById('text-preview');
     tagLanguage = document.getElementById('tag-language');
     displayLangSelect = document.getElementById('display-lang');
+    searchInput = document.getElementById('search-input');
     previewModal = document.getElementById('preview-modal');
     previewFrame = document.getElementById('preview-frame');
     metadataModal = document.getElementById('metadata-modal');
@@ -56,7 +58,7 @@ export function setupFiles() {
     const refreshBtn = document.getElementById('refresh-btn');
     displayLangSelect === null || displayLangSelect === void 0 ? void 0 : displayLangSelect.addEventListener('change', () => {
         displayLang = displayLangSelect.value;
-        refreshFiles();
+        refreshFiles(false, (searchInput === null || searchInput === void 0 ? void 0 : searchInput.value.trim()) || '');
     });
     editForm.addEventListener('submit', (e) => __awaiter(this, void 0, void 0, function* () {
         e.preventDefault();
@@ -135,7 +137,7 @@ export function setupFiles() {
         closeModal(metadataModal);
         currentEditId = null;
     });
-    tagLanguage.addEventListener('change', () => refreshFiles());
+    tagLanguage.addEventListener('change', () => refreshFiles(false, (searchInput === null || searchInput === void 0 ? void 0 : searchInput.value.trim()) || ''));
     nameOriginalRadio === null || nameOriginalRadio === void 0 ? void 0 : nameOriginalRadio.addEventListener('change', () => {
         if (nameOriginalRadio.checked)
             editName.value = nameOriginalRadio.value;
@@ -145,15 +147,25 @@ export function setupFiles() {
             editName.value = nameLatinRadio.value;
     });
     refreshBtn === null || refreshBtn === void 0 ? void 0 : refreshBtn.addEventListener('click', () => {
-        refreshFiles(true);
+        refreshFiles(true, (searchInput === null || searchInput === void 0 ? void 0 : searchInput.value.trim()) || '');
         refreshFolderTree();
+    });
+    searchInput === null || searchInput === void 0 ? void 0 : searchInput.addEventListener('input', () => {
+        const term = searchInput.value.trim();
+        if (term)
+            refreshFiles(false, term);
+        else
+            refreshFiles();
     });
     refreshFiles();
 }
 export function refreshFiles() {
-    return __awaiter(this, arguments, void 0, function* (force = false) {
+    return __awaiter(this, arguments, void 0, function* (force = false, q = '') {
         try {
-            const resp = yield apiRequest(`/files${force ? '?force=1' : ''}`);
+            const url = q
+                ? `/files/search?q=${encodeURIComponent(q)}`
+                : `/files${force ? '?force=1' : ''}`;
+            const resp = yield apiRequest(url);
             if (!resp.ok)
                 throw new Error();
             const files = yield resp.json();
