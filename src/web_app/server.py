@@ -54,7 +54,12 @@ async def serve_index(request: Request):
 logger = logging.getLogger(__name__)
 
 # --------- Инициализация БД ----------
-database.init_db(force_reset=os.getenv("DOCROUTER_RESET_DB") == "1")
+
+
+@app.on_event("startup")
+def startup() -> None:
+    """Инициализировать базу данных перед обработкой запросов."""
+    database.init_db()
 
 # --------- Подключение маршрутов ----------
 app.include_router(upload.router)
