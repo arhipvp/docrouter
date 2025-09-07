@@ -19,6 +19,8 @@ docker compose up --build
 ```bash
 pip install -e .
 python -m docrouter
+# или через main.py
+python main.py
 # или через созданный скрипт
 docrouter
 ```
