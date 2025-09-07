@@ -204,6 +204,14 @@ async def get_file_details(file_id: str, lang: str | None = None):
     return record
 
 
+@router.get("/files/{file_id}/text", response_class=PlainTextResponse)
+async def get_file_text(file_id: str):
+    record = database.get_file(file_id)
+    if not record:
+        raise HTTPException(status_code=404, detail="File not found")
+    return record.metadata.extracted_text or ""
+
+
 @router.get("/files", response_model=list[FileRecord])
 async def list_files(force: bool = False):
     global _last_scan_time, _last_upload_mtime
