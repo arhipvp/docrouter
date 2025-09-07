@@ -28,6 +28,7 @@ def test_main_js_rotate_crop(tmp_path):
           appendChild(child) { this.children.push(child); if (!this.firstChild) this.firstChild = child; return child; }
           insertBefore(node) { this.children.push(node); return node; }
           addEventListener(type, cb) { this.events[type] = cb; }
+          removeEventListener(type) { delete this.events[type]; }
           dispatchEvent(evt) { (this.events[evt.type] || (()=>{}))(evt); }
           click() { this.dispatchEvent({ type: 'click', target: this }); }
           reset() { this.value = ''; }

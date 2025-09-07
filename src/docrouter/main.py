@@ -9,14 +9,11 @@ from __future__ import annotations
 import logging
 import os
 import sys
-from pathlib import Path
-
-# Поддержка запуска из исходников: добавляем ``src`` в ``sys.path``
-sys.path.append(str(Path(__file__).resolve().parent / "src"))
 
 import uvicorn
-from config import LOG_LEVEL  # type: ignore
-from logging_config import setup_logging  # type: ignore
+from docrouter.config import LOG_LEVEL  # type: ignore
+from docrouter.logging_config import setup_logging  # type: ignore
+from docrouter.web_app.server import app
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +36,7 @@ def main() -> None:
     logger.info("Starting FastAPI server on %s:%s", host, port)
 
     try:
-        uvicorn.run("web_app.server:app", host=host, port=port, reload=reload)
+        uvicorn.run(app, host=host, port=port, reload=reload)
     except Exception:
         logger.exception("Не удалось запустить сервер")
         sys.exit(1)
@@ -47,4 +44,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
