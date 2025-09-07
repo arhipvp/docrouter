@@ -97,11 +97,10 @@ def get_folder_tree(
     root = Path(root_dir).resolve()
 
     def build(node: Path) -> Dict[str, Any]:
-        children = [build(p) for p in sorted(node.iterdir()) if p.is_dir()]
+        """Рекурсивно собрать вложенные каталоги."""
         return {
             "name": node.name,
-            "path": str(node.relative_to(root)),
-            "children": children,
+            "children": [build(p) for p in sorted(node.iterdir()) if p.is_dir()],
         }
 
     if not root.exists():

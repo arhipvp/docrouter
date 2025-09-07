@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Any, List
 
 from fastapi import APIRouter, HTTPException
 
@@ -18,8 +19,8 @@ def _resolve_in_output(relative: str) -> Path:
 
 
 @router.get("/folder-tree")
-async def folder_tree():
-    """Вернуть структуру папок в выходном каталоге."""
+async def folder_tree() -> List[dict[str, Any]]:
+    """Вернуть дерево вида ``[{name, children}]`` в выходном каталоге."""
     tree, _ = get_folder_tree(server.config.output_dir)
     return tree
 

@@ -4,16 +4,15 @@ import type { FolderTree } from './types.js';
 
 let folderTree: HTMLElement;
 
-function renderTree(container: HTMLElement, tree: FolderTree) {
-  Object.keys(tree).forEach((key) => {
+export function renderTree(container: HTMLElement, tree: FolderTree) {
+  tree.forEach(({ name, children }) => {
     const li = document.createElement('li');
 
     const nameSpan = document.createElement('span');
-    nameSpan.textContent = key;
+    nameSpan.textContent = name;
     li.appendChild(nameSpan);
 
-    const children = (tree as any)[key] as FolderTree | undefined;
-    if (children && Object.keys(children).length > 0) {
+    if (children && children.length > 0) {
       const ul = document.createElement('ul');
       renderTree(ul, children);
       li.appendChild(ul);
