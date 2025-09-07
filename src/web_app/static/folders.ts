@@ -7,11 +7,12 @@ let folderTree: HTMLElement;
 function renderNodes(container: HTMLElement, nodes: FolderNode[]): void {
   nodes.forEach((node) => {
     const li = document.createElement('li');
-    const nameSpan = document.createElement('span');
-    nameSpan.textContent = node.name;
-    li.appendChild(nameSpan);
 
-    // Если есть вложенные файлы или директории — строим дерево
+    const details = document.createElement('details');
+    const summary = document.createElement('summary');
+    summary.textContent = node.name;
+    details.appendChild(summary);
+
     if ((node.files && node.files.length) || (node.children && node.children.length)) {
       const ul = document.createElement('ul');
 
@@ -46,9 +47,10 @@ function renderNodes(container: HTMLElement, nodes: FolderNode[]): void {
 
       // Рекурсивно отрисовываем вложенные папки
       renderNodes(ul, node.children || []);
-      li.appendChild(ul);
+      details.appendChild(ul);
     }
 
+    li.appendChild(details);
     container.appendChild(li);
   });
 }
