@@ -20,6 +20,43 @@ python main.py
 
 После старта интерфейс будет доступен по адресу [http://localhost:8000](http://localhost:8000), где можно загружать, просматривать и скачивать документы.
 
+## Установка Tesseract
+
+Для распознавания текста DocRouter использует движок [Tesseract OCR](https://tesseract-ocr.github.io/). Если он не установлен, функции OCR будут недоступны.
+
+### Windows
+
+Скачайте [установщик](https://github.com/UB-Mannheim/tesseract/wiki) и установите его в `C:\\Program Files\\Tesseract-OCR`. Затем добавьте путь к программе и языковым данным:
+
+```powershell
+setx PATH "$Env:PATH;C:\\Program Files\\Tesseract-OCR"
+setx TESSDATA_PREFIX "C:\\Program Files\\Tesseract-OCR\\tessdata"
+```
+
+### Linux
+
+Установите пакет из репозитория и укажите путь к данным:
+
+```bash
+sudo apt install tesseract-ocr tesseract-ocr-rus
+export TESSDATA_PREFIX=/usr/share/tesseract-ocr/5/tessdata
+```
+
+### macOS
+
+Установите через Homebrew и задайте переменные окружения:
+
+```bash
+brew install tesseract
+export TESSDATA_PREFIX="$(brew --prefix)/share/tessdata"
+```
+
+В `.env` можно задать язык распознавания:
+
+```
+TESSERACT_LANG=rus
+```
+
 ## Настройка
 
 Все настройки выполняются через веб‑интерфейс. При загрузке можно выбрать язык документа для корректного OCR.
