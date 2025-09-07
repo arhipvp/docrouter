@@ -1,6 +1,7 @@
 import os
 import sys
 from pathlib import Path
+import asyncio
 
 import pytest
 from fastapi.testclient import TestClient
@@ -23,9 +24,10 @@ async def _mock_generate_metadata(text, folder_tree=None, folder_index=None):
 
 
 def test_large_file_processed_in_chunks(tmp_path, monkeypatch):
-    server.database.init_db()
+    asyncio.run(server.database.run_db(server.database.init_db))
     server.config.output_dir = str(tmp_path)
     monkeypatch.setattr(upload, "UPLOAD_DIR", tmp_path)
+    monkeypatch.setattr(upload, "OCR_AVAILABLE", True)
 
     def _mock_extract_text(path, language="eng"):
         return ""

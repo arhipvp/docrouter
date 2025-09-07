@@ -1,6 +1,7 @@
 import os
 import sys
 from pathlib import Path
+import asyncio
 
 import pytest
 from fastapi.testclient import TestClient
@@ -26,11 +27,12 @@ async def _mock_generate_metadata(text, folder_tree=None, folder_index=None):
 
 
 def test_finalize_file_moves_and_creates_metadata(tmp_path, monkeypatch):
-    server.database.init_db()
+    asyncio.run(server.database.run_db(server.database.init_db))
     server.config.output_dir = str(tmp_path / "archive")
     upload_dir = tmp_path / "uploads"
     upload_dir.mkdir()
     monkeypatch.setattr(upload, "UPLOAD_DIR", upload_dir)
+    monkeypatch.setattr(upload, "OCR_AVAILABLE", True)
 
     monkeypatch.setattr(server, "extract_text", lambda path, language="eng": "")
     monkeypatch.setattr(

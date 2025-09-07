@@ -15,7 +15,7 @@ def test_list_files_uses_cache(monkeypatch, tmp_path):
     upload_dir.mkdir()
     monkeypatch.setattr(files_module, "UPLOAD_DIR", upload_dir)
 
-    server.database.init_db()
+    asyncio.run(server.database.run_db(server.database.init_db))
 
     calls = {"n": 0}
 

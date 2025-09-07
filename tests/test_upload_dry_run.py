@@ -1,6 +1,7 @@
 import os
 import sys
 from pathlib import Path
+import asyncio
 
 from fastapi.testclient import TestClient
 
@@ -25,7 +26,7 @@ def _mock_extract_text(path, language="eng"):
 
 
 def test_upload_dry_run_keeps_file(tmp_path, monkeypatch):
-    server.database.init_db()
+    asyncio.run(server.database.run_db(server.database.init_db))
     out_dir = tmp_path / "out"
     (out_dir / "John Doe").mkdir(parents=True)
     server.config.output_dir = str(out_dir)
@@ -33,6 +34,7 @@ def test_upload_dry_run_keeps_file(tmp_path, monkeypatch):
     upload_dir = tmp_path / "uploads"
     upload_dir.mkdir()
     monkeypatch.setattr(upload_module, "UPLOAD_DIR", upload_dir)
+    monkeypatch.setattr(upload_module, "OCR_AVAILABLE", True)
 
     monkeypatch.setattr(server, "extract_text", _mock_extract_text)
     monkeypatch.setattr(server.metadata_generation, "generate_metadata", _mock_generate_metadata)

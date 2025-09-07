@@ -1,5 +1,6 @@
 import sys
 from pathlib import Path
+import asyncio
 
 from fastapi.testclient import TestClient
 sys.path.append(str(Path(__file__).resolve().parents[1] / "src"))
@@ -25,7 +26,7 @@ def test_get_folder_tree_returns_name_children(tmp_path):
 def test_folder_tree_endpoint(tmp_path):
     (tmp_path / "X" / "Y").mkdir(parents=True)
     server.config.output_dir = str(tmp_path)
-    server.database.init_db()
+    asyncio.run(server.database.run_db(server.database.init_db))
     client = TestClient(server.app)
     resp = client.get("/folder-tree")
     assert resp.status_code == 200

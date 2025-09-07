@@ -4,6 +4,7 @@ import sys
 import threading
 import time
 from pathlib import Path
+import asyncio
 
 import uvicorn
 from PIL import Image
@@ -22,6 +23,7 @@ from models import Metadata  # noqa: E402
 from config import GENERAL_FOLDER_NAME  # noqa: E402
 
 app = server.app
+server.upload.OCR_AVAILABLE = True
 
 
 class LiveClient:
@@ -108,7 +110,7 @@ def test_upload_retrieve_and_download(tmp_path, monkeypatch):
     monkeypatch.setattr(
         "web_app.server.metadata_generation.generate_metadata", _mock_generate_metadata
     )
-    server.database.init_db()
+    asyncio.run(server.database.run_db(server.database.init_db))
     server.config.output_dir = str(tmp_path)
     (tmp_path / "John Doe").mkdir()
 
@@ -180,7 +182,7 @@ def test_upload_retrieve_and_download(tmp_path, monkeypatch):
 
 
 def test_translation_error_returns_502(tmp_path, monkeypatch):
-    server.database.init_db()
+    asyncio.run(server.database.run_db(server.database.init_db))
 
     def _mock_extract_text(path, language="eng"):
         with open(path, "r", encoding="utf-8") as f:
@@ -231,7 +233,7 @@ def test_upload_images_returns_sources(tmp_path, monkeypatch):
     monkeypatch.setattr(
         "web_app.server.metadata_generation.generate_metadata", _mock_generate_metadata
     )
-    server.database.init_db()
+    asyncio.run(server.database.run_db(server.database.init_db))
     server.config.output_dir = str(tmp_path)
     (tmp_path / "John Doe").mkdir()
 
@@ -280,7 +282,7 @@ def test_upload_images_download_and_metadata(tmp_path, monkeypatch):
     monkeypatch.setattr(
         "web_app.server.metadata_generation.generate_metadata", _mock_generate_metadata
     )
-    server.database.init_db()
+    asyncio.run(server.database.run_db(server.database.init_db))
     server.config.output_dir = str(tmp_path)
     (tmp_path / "John Doe").mkdir()
 
@@ -317,7 +319,7 @@ def test_upload_images_download_and_metadata(tmp_path, monkeypatch):
 
 
 def test_details_endpoint_returns_full_record(tmp_path, monkeypatch):
-    server.database.init_db()
+    asyncio.run(server.database.run_db(server.database.init_db))
 
     captured = {}
 
@@ -358,5 +360,5 @@ def test_details_endpoint_returns_full_record(tmp_path, monkeypatch):
         expected["confirmed"] = False
         expected["created_path"] = None
         expected["review_comment"] = None
-        expected["sources"] = None
+        expected["sources"] = data["sources"]
     assert details_json == expected

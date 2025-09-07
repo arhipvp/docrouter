@@ -15,7 +15,7 @@ def test_scan_output_dir_updates_on_rename(tmp_path, monkeypatch):
 
     db_path = tmp_path / "db.sqlite"
     monkeypatch.setattr(server.database, "_DB_PATH", db_path)
-    server.database.init_db()
+    asyncio.run(server.database.run_db(server.database.init_db))
 
     server.config.output_dir = str(out_dir)
 

@@ -1,6 +1,7 @@
 import importlib
 import sys
 import types
+import asyncio
 
 dummy_server = types.ModuleType("server")
 dummy_server.app = None
@@ -15,7 +16,7 @@ def test_full_text_search(tmp_path):
     try:
         db._DB_PATH = tmp_path / "test.sqlite"
         db._conn = None
-        db.init_db()
+        asyncio.run(db.run_db(db.init_db))
 
         db.add_file("1", "a.pdf", Metadata(extracted_text="Иван Петров паспорт 1234"), "a.pdf")
         db.add_file("2", "b.pdf", Metadata(extracted_text="Анна Сидорова паспорт 5678"), "b.pdf")

@@ -1,6 +1,7 @@
 import sqlite3
 import web_app.db as db
 import pytest
+import asyncio
 
 
 def test_close_and_reopen_db(tmp_path):
@@ -9,7 +10,7 @@ def test_close_and_reopen_db(tmp_path):
     try:
         db._DB_PATH = tmp_path / "test.sqlite"
         db._conn = None
-        db.init_db()
+        asyncio.run(db.run_db(db.init_db))
         conn1 = db._conn
         assert conn1 is not None
 
@@ -18,7 +19,7 @@ def test_close_and_reopen_db(tmp_path):
         with pytest.raises(sqlite3.ProgrammingError):
             conn1.execute("SELECT 1")
 
-        db.init_db()
+        asyncio.run(db.run_db(db.init_db))
         conn2 = db._conn
         assert conn2 is not None
         assert conn2 is not conn1

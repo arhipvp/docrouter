@@ -57,9 +57,9 @@ logger = logging.getLogger(__name__)
 
 
 @app.on_event("startup")
-def startup() -> None:
+async def startup() -> None:
     """Инициализировать базу данных перед обработкой запросов."""
-    database.init_db()
+    await database.run_db(database.init_db)
 
 
 @app.on_event("shutdown")
