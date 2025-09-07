@@ -104,8 +104,11 @@ button:hover, input[type="submit"]:hover { background-color: var(--color-primary
   border: 1px solid var(--color-border);
   margin-top: var(--spacing-md);
 }
-#folder-tree { list-style: none; padding-left: var(--spacing-md); }
+#folder-tree,
+#folder-tree ul { list-style: none; padding-left: var(--spacing-md); }
 #folder-tree li { margin: var(--spacing-xs) 0; }
+#folder-tree details { padding-left: var(--spacing-xs); }
+#folder-tree summary { cursor: pointer; }
 .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); justify-content: center; align-items: center; }
 .modal__content { background: var(--color-surface); padding: var(--spacing-md); border-radius: 4px; width: 90%; max-width: 400px; }
 .modal__close { float: right; cursor: pointer; }

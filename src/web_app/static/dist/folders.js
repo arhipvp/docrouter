@@ -10,17 +10,45 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 import { apiRequest } from './http.js';
 import { showNotification } from './notify.js';
 let folderTree;
-export function renderTree(container, tree) {
-    tree.forEach(({ name, children }) => {
+function renderNodes(container, nodes) {
+    nodes.forEach((node) => {
         const li = document.createElement('li');
-        const nameSpan = document.createElement('span');
-        nameSpan.textContent = name;
-        li.appendChild(nameSpan);
-        if (children && children.length > 0) {
+        const details = document.createElement('details');
+        const summary = document.createElement('summary');
+        summary.textContent = node.name;
+        details.appendChild(summary);
+        if ((node.files && node.files.length) || (node.children && node.children.length)) {
             const ul = document.createElement('ul');
-            renderTree(ul, children);
-            li.appendChild(ul);
+            // Файлы внутри папки
+            (node.files || []).forEach((file) => {
+                const fileLi = document.createElement('li');
+                const fileSpan = document.createElement('span');
+                fileSpan.textContent = file.name;
+                fileSpan.classList.add('file');
+                if (file.id) {
+                    // Клик по имени файла — открываем предпросмотр
+                    fileSpan.addEventListener('click', () => {
+                        window.open(`/preview/${file.id}`, '_blank');
+                    });
+                    // Ссылка на скачивание файла
+                    const dl = document.createElement('a');
+                    dl.href = `/download/${file.id}`;
+                    dl.textContent = '⬇';
+                    dl.addEventListener('click', (e) => e.stopPropagation());
+                    fileLi.appendChild(fileSpan);
+                    fileLi.appendChild(document.createTextNode(' '));
+                    fileLi.appendChild(dl);
+                }
+                else {
+                    fileLi.appendChild(fileSpan);
+                }
+                ul.appendChild(fileLi);
+            });
+            // Рекурсивно отрисовываем вложенные папки
+            renderNodes(ul, node.children || []);
+            details.appendChild(ul);
         }
+        li.appendChild(details);
         container.appendChild(li);
     });
 }
@@ -33,7 +61,7 @@ export function refreshFolderTree() {
                 throw new Error();
             const tree = yield resp.json();
             folderTree.innerHTML = '';
-            renderTree(folderTree, tree);
+            renderNodes(folderTree, tree);
         }
         catch (_a) {
             showNotification('Не удалось загрузить дерево папок');
