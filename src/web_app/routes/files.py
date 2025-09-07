@@ -17,6 +17,7 @@ from models import Metadata, FileRecord
 from .. import db as database, server
 from .upload import UPLOAD_DIR
 from .folders import _resolve_in_output
+from services.openrouter import OpenRouterError
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -315,6 +316,94 @@ async def finalize_file(file_id: str, data: dict = Body(...)):
         record.prompt,
         record.raw_response,
         still_missing,
+        suggested_path=str(dest_path),
+        confirmed=confirmed,
+        created_path=str(dest_path) if confirmed else None,
+    )
+    return database.get_file(file_id)
+
+
+@router.get("/files/{file_id}/review")
+async def review_file(file_id: str):
+    record = database.get_file(file_id)
+    if not record:
+        raise HTTPException(status_code=404, detail="File not found")
+    return {
+        "suggested_path": record.suggested_path,
+        "missing": record.missing,
+        "metadata": record.metadata,
+    }
+
+
+@router.post("/files/{file_id}/comment", response_model=FileRecord)
+async def comment_file(file_id: str, message: str = Body(..., embed=True)):
+    record = database.get_file(file_id)
+    if not record:
+        raise HTTPException(status_code=404, detail="File not found")
+
+    database.add_chat_message(file_id, "user", message)
+
+    text = (record.metadata.extracted_text or "") + "\n" + message
+    try:
+        meta_result = await server.metadata_generation.generate_metadata(text)
+    except OpenRouterError as exc:
+        logger.exception("Metadata regeneration failed")
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    except Exception as exc:  # pragma: no cover - сеть может быть недоступна
+        logger.exception("Metadata regeneration failed")
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    raw_meta = meta_result.get("metadata")
+    metadata = raw_meta if isinstance(raw_meta, Metadata) else Metadata(**raw_meta)
+    metadata.extracted_text = record.metadata.extracted_text
+    metadata.language = record.metadata.language
+
+    meta_dict = metadata.model_dump()
+    dest_path, missing, _ = place_file(
+        record.path,
+        meta_dict,
+        server.config.output_dir,
+        dry_run=True,
+        needs_new_folder=metadata.needs_new_folder,
+        confirm_callback=lambda _paths: False,
+    )
+    metadata = Metadata(**meta_dict)
+
+    database.update_file(
+        file_id,
+        metadata=metadata,
+        prompt=meta_result.get("prompt"),
+        raw_response=meta_result.get("raw_response"),
+        missing=missing,
+        suggested_path=str(dest_path),
+        review_comment=message,
+    )
+    return database.get_file(file_id)
+
+
+@router.post("/files/{file_id}/confirm", response_model=FileRecord)
+async def confirm_file(file_id: str):
+    record = database.get_file(file_id)
+    if not record:
+        raise HTTPException(status_code=404, detail="File not found")
+
+    meta_dict = record.metadata.model_dump()
+    dest_path, missing, confirmed = place_file(
+        record.path,
+        meta_dict,
+        server.config.output_dir,
+        dry_run=False,
+        needs_new_folder=True,
+        confirm_callback=lambda _paths: True,
+    )
+    metadata = Metadata(**meta_dict)
+
+    database.update_file(
+        file_id,
+        metadata=metadata,
+        path=str(dest_path),
+        status="processed",
+        missing=missing,
         suggested_path=str(dest_path),
         confirmed=confirmed,
         created_path=str(dest_path) if confirmed else None,

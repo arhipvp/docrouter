@@ -346,6 +346,7 @@ def test_details_endpoint_returns_full_record(tmp_path, monkeypatch):
         expected["passport_number"] = data["metadata"]["passport_number"]
         expected["confirmed"] = False
         expected["created_path"] = None
+        expected["review_comment"] = None
     assert details_json == expected
 
 
@@ -550,6 +551,53 @@ def test_chat_history(tmp_path, monkeypatch):
         details = client.get(f"/files/{file_id}/details")
         assert details.status_code == 200
         assert len(details.json()["chat_history"]) == 4
+
+
+def test_review_comment_confirm_flow(tmp_path, monkeypatch):
+    server.database.init_db()
+    server.config.output_dir = str(tmp_path)
+
+    def _mock_extract_text(path, language="eng"):
+        with open(path, "r", encoding="utf-8") as f:
+            return f.read()
+
+    async def _metadata_pending(text: str, folder_tree=None, folder_index=None, file_info=None):
+        meta = Metadata(
+            category="Финансы",
+            subcategory="Банки",
+            issuer="Sparkasse",
+            date="2024-01-01",
+        )
+        return {"prompt": "PROMPT", "raw_response": "{}", "metadata": meta}
+
+    monkeypatch.setattr(server, "extract_text", _mock_extract_text)
+    monkeypatch.setattr(server.metadata_generation, "generate_metadata", _metadata_pending)
+
+    with LiveClient(app) as client:
+        resp = client.post("/upload", files={"file": ("doc.txt", b"content")})
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["status"] == "pending"
+        file_id = data["id"]
+
+        review = client.get(f"/files/{file_id}/review")
+        assert review.status_code == 200
+        review_data = review.json()
+        assert review_data["suggested_path"] == data["suggested_path"]
+
+        comment_resp = client.post(
+            f"/files/{file_id}/comment", json={"message": "ок"}
+        )
+        assert comment_resp.status_code == 200
+        comment_data = comment_resp.json()
+        assert comment_data["review_comment"] == "ок"
+        assert any(msg["message"] == "ок" for msg in comment_data["chat_history"])
+
+        confirm_resp = client.post(f"/files/{file_id}/confirm")
+        assert confirm_resp.status_code == 200
+        final = confirm_resp.json()
+        assert final["status"] == "processed"
+        assert Path(final["path"]).exists()
 
 
 def test_upload_file_without_extension(monkeypatch, tmp_path):

@@ -51,6 +51,7 @@ def init_db() -> None:
                 translated_text TEXT,
                 translation_lang TEXT,
                 chat_history TEXT,
+                review_comment TEXT,
                 sources TEXT,
                 suggested_path TEXT,
                 created_path TEXT,
@@ -82,6 +83,7 @@ def _serialize_record(record: FileRecord) -> Dict[str, Any]:
         "translated_text": record.translated_text,
         "translation_lang": record.translation_lang,
         "chat_history": json.dumps(record.chat_history, ensure_ascii=False),
+        "review_comment": record.review_comment,
         "sources": json.dumps(record.sources, ensure_ascii=False) if record.sources is not None else None,
         "suggested_path": record.suggested_path,
         "created_path": record.created_path,
@@ -109,6 +111,7 @@ def _row_to_record(row: sqlite3.Row) -> FileRecord:
         translated_text=row["translated_text"],
         translation_lang=row["translation_lang"],
         chat_history=json.loads(row["chat_history"]) if row["chat_history"] else [],
+        review_comment=row["review_comment"],
         sources=json.loads(row["sources"]) if row["sources"] else None,
         suggested_path=row["suggested_path"],
         created_path=row["created_path"],
@@ -143,6 +146,8 @@ def add_file(
     suggested_path: str | None = None,
     confirmed: bool = False,
     created_path: str | None = None,
+    chat_history: Optional[List[Dict[str, Any]]] = None,
+    review_comment: str | None = None,
 ) -> None:
     record = FileRecord(
         id=file_id,
@@ -161,7 +166,8 @@ def add_file(
         missing=missing or [],
         translated_text=translated_text,
         translation_lang=translation_lang,
-        chat_history=[],
+        chat_history=chat_history or [],
+        review_comment=review_comment,
         sources=sources,
         suggested_path=suggested_path,
         created_path=created_path,
@@ -196,6 +202,8 @@ def update_file(
     suggested_path: str | None = None,
     confirmed: bool | None = None,
     created_path: str | None = None,
+    chat_history: Optional[List[Dict[str, Any]]] = None,
+    review_comment: str | None = None,
 ) -> None:
     record = get_file(file_id)
     if record is None:
@@ -230,6 +238,10 @@ def update_file(
         record.confirmed = confirmed
     if created_path is not None:
         record.created_path = created_path
+    if chat_history is not None:
+        record.chat_history = chat_history
+    if review_comment is not None:
+        record.review_comment = review_comment
     _upsert(record)
 
 
