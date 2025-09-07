@@ -144,7 +144,7 @@ async def download_file(file_id: str, lang: str | None = None):
         else:
             try:
                 text = await server.translate_text(extracted, lang)
-            except httpx.HTTPError as e:
+            except (httpx.HTTPError, RuntimeError) as e:
                 raise HTTPException(
                     status_code=502,
                     detail="Translation service unavailable",
@@ -192,7 +192,7 @@ async def get_file_details(file_id: str, lang: str | None = None):
         else:
             try:
                 text = await server.translate_text(extracted, lang)
-            except httpx.HTTPError as e:
+            except (httpx.HTTPError, RuntimeError) as e:
                 raise HTTPException(
                     status_code=502,
                     detail="Translation service unavailable",
