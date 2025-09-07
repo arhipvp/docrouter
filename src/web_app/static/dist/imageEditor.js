@@ -103,8 +103,10 @@ export function openImageEditModal(fileObj) {
         ctx.drawImage(img, 0, 0);
         cropper === null || cropper === void 0 ? void 0 : cropper.destroy();
         const CropperCtor = window.Cropper || globalThis.Cropper;
-        cropper = new CropperCtor(editCanvas, { viewMode: 1 });
-        autoCropImage();
+        cropper = new CropperCtor(editCanvas, {
+            viewMode: 1,
+            ready: autoCropImage,
+        });
         URL.revokeObjectURL(url);
     };
     img.src = url;
