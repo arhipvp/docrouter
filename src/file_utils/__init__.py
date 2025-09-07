@@ -328,7 +328,17 @@ async def translate_text(text: str, target_lang: str) -> str:
         "X-Title": OPENROUTER_SITE_NAME or "DocRouter",
     }
     async with httpx.AsyncClient(timeout=60) as client:
-        response = await client.post(api_url, json=payload, headers=headers)
-    response.raise_for_status()
-    content = response.json()["choices"][0]["message"]["content"]
+        try:
+            response = await client.post(api_url, json=payload, headers=headers)
+            response.raise_for_status()
+            data = response.json()
+        except httpx.HTTPError as exc:
+            logger.error("HTTP error during translation request: %s", exc)
+            raise RuntimeError("HTTP error during translation request") from exc
+        except ValueError as exc:
+            logger.error(
+                "OpenRouter returned non-JSON response: %s", response.text
+            )
+            raise RuntimeError("OpenRouter returned non-JSON response") from exc
+    content = data["choices"][0]["message"]["content"]
     return content.strip()
