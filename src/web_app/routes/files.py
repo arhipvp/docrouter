@@ -225,6 +225,11 @@ async def list_files(force: bool = False):
     return database.list_files()
 
 
+@router.get("/files/search", response_model=list[FileRecord])
+async def search_files_route(q: str):
+    return database.search_files(q)
+
+
 
 @router.patch("/files/{file_id}", response_model=FileRecord)
 async def update_file(file_id: str, data: dict = Body(...)):
