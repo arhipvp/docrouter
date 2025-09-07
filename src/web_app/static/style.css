@@ -105,7 +105,11 @@ button:hover, input[type="submit"]:hover { background-color: var(--color-primary
   margin-top: var(--spacing-md);
 }
 #folder-tree,
-#folder-tree ul { list-style: none; padding-left: var(--spacing-md); }
+#folder-tree ul {
+  list-style: none;
+  margin-left: var(--spacing-md);
+  padding-left: var(--spacing-md);
+}
 #folder-tree li { margin: var(--spacing-xs) 0; }
 #folder-tree details { padding-left: var(--spacing-xs); }
 #folder-tree summary { cursor: pointer; }
