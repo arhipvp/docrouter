@@ -102,8 +102,11 @@ def test_upload_retrieve_and_download(tmp_path, monkeypatch):
         with open(path, "r", encoding="utf-8") as f:
             return f.read()
 
+    import file_utils, sys
     monkeypatch.setattr(server, "extract_text", _mock_extract_text)
+    monkeypatch.setattr(file_utils, "extract_text", _mock_extract_text)
     monkeypatch.setattr(server.metadata_generation, "generate_metadata", _mock_generate_metadata)
+    sys.modules["web_app.server"] = server
     server.config.output_dir = str(tmp_path)
     (tmp_path / "John Doe").mkdir()
 
@@ -220,9 +223,13 @@ def test_upload_images_returns_sources(tmp_path, monkeypatch):
         captured["language"] = language
         return "pdf text"
 
+    import file_utils, sys
     monkeypatch.setattr(server, "merge_images_to_pdf", _mock_merge)
+    monkeypatch.setattr(file_utils, "merge_images_to_pdf", _mock_merge)
     monkeypatch.setattr(server, "extract_text", _mock_extract_text)
+    monkeypatch.setattr(file_utils, "extract_text", _mock_extract_text)
     monkeypatch.setattr(server.metadata_generation, "generate_metadata", _mock_generate_metadata)
+    sys.modules["web_app.server"] = server
     server.config.output_dir = str(tmp_path)
     (tmp_path / "John Doe").mkdir()
 
@@ -265,9 +272,13 @@ def test_upload_images_download_and_metadata(tmp_path, monkeypatch):
         captured["language"] = language
         return "page1\npage2"
 
+    import file_utils, sys
     monkeypatch.setattr(server, "merge_images_to_pdf", _mock_merge)
+    monkeypatch.setattr(file_utils, "merge_images_to_pdf", _mock_merge)
     monkeypatch.setattr(server, "extract_text", _mock_extract_text)
+    monkeypatch.setattr(file_utils, "extract_text", _mock_extract_text)
     monkeypatch.setattr(server.metadata_generation, "generate_metadata", _mock_generate_metadata)
+    sys.modules["web_app.server"] = server
     server.config.output_dir = str(tmp_path)
     (tmp_path / "John Doe").mkdir()
 

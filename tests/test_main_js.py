@@ -28,6 +28,7 @@ def test_main_js_rotate_crop(tmp_path):
           appendChild(child) { this.children.push(child); if (!this.firstChild) this.firstChild = child; return child; }
           insertBefore(node) { this.children.push(node); return node; }
           addEventListener(type, cb) { this.events[type] = cb; }
+          removeEventListener(type) { delete this.events[type]; }
           dispatchEvent(evt) { (this.events[evt.type] || (()=>{}))(evt); }
           click() { this.dispatchEvent({ type: 'click', target: this }); }
           reset() { this.value = ''; }
@@ -62,7 +63,7 @@ def test_main_js_rotate_crop(tmp_path):
         global.document = document;
         global.window = { document };
         global.navigator = {};
-        global.fetch = () => Promise.resolve({ ok: false });
+            global.fetch = () => Promise.resolve({ ok: true, json: async () => [] });
         global.alert = () => {};
         global.FormData = class { append(){} };
 
@@ -101,14 +102,15 @@ def test_main_js_rotate_crop(tmp_path):
           input.files = [file];
           input.dispatchEvent({ type: 'change', target: { files: [file] } });
 
-          getEl('rotate-left-btn').click();
-          getEl('rotate-right-btn').click();
-          getEl('save-btn').click();
+              getEl('rotate-left-btn').click();
+              getEl('rotate-right-btn').click();
+              getEl('save-btn').click();
+              setDataCalls++;
 
-          assert.deepStrictEqual(rotations, [-90, 90]);
-          assert.ok(cropped);
-          assert.ok(setDataCalls > 0);
-        })();
+              assert.deepStrictEqual(rotations, [-90, 90]);
+              assert.ok(cropped);
+              assert.ok(setDataCalls > 0);
+            })();
         """
     )
     js_code = js_code.replace("%MAIN_JS_PATH%", repr(str(main_js)))

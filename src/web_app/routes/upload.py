@@ -108,11 +108,12 @@ async def upload_file(
             str(temp_path),
             meta_dict,
             server.config.output_dir,
-            dry_run=True,
+            dry_run=dry_run,
             needs_new_folder=metadata.needs_new_folder,
             confirm_callback=lambda _paths: False,
         )
         metadata = Metadata(**meta_dict)
+        final_path = dest_path if not dry_run and not missing else temp_path
 
     except HTTPException:
         raise
@@ -133,7 +134,7 @@ async def upload_file(
         file_id,
         file.filename,
         metadata,
-        str(temp_path),
+        str(final_path),
         "review",
         meta_result.get("prompt"),
         meta_result.get("raw_response"),
@@ -147,7 +148,7 @@ async def upload_file(
         metadata=metadata,
         tags_ru=metadata.tags_ru,
         tags_en=metadata.tags_en,
-        path=str(temp_path),
+        path=str(final_path),
         status="review",
         missing=missing,
         prompt=meta_result.get("prompt"),
@@ -224,11 +225,12 @@ async def upload_images(
             str(pdf_path),
             meta_dict,
             server.config.output_dir,
-            dry_run=True,
+            dry_run=dry_run,
             needs_new_folder=metadata.needs_new_folder,
             confirm_callback=lambda _paths: False,
         )
         metadata = Metadata(**meta_dict)
+        final_path = dest_path if not dry_run and not missing else pdf_path
     except HTTPException:
         raise
     except RuntimeError as exc:
@@ -247,7 +249,7 @@ async def upload_images(
         file_id,
         pdf_path.name,
         metadata,
-        str(pdf_path),
+        str(final_path),
         "review",
         meta_result.get("prompt"),
         meta_result.get("raw_response"),
@@ -262,7 +264,7 @@ async def upload_images(
         metadata=metadata,
         tags_ru=metadata.tags_ru,
         tags_en=metadata.tags_en,
-        path=str(pdf_path),
+        path=str(final_path),
         status="review",
         missing=missing,
         sources=sources,
