@@ -13,10 +13,9 @@ try:
 except Exception:  # pragma: no cover
     Jinja2Templates = None  # type: ignore[misc,assignment]
 
-from config import load_config
-from logging_config import setup_logging
 from file_utils import extract_text, merge_images_to_pdf, translate_text  # noqa: F401
 import metadata_generation  # noqa: F401
+from config import config  # type: ignore
 from . import db as database
 from .routes import upload, files, folders, chat
 
@@ -51,13 +50,6 @@ async def serve_index(request: Request):
         return HTMLResponse("<h1>Docrouter</h1><p>templates/index.html не найден</p>")
     return HTMLResponse(index_path.read_text(encoding="utf-8"))
 
-
-# --------- Конфиг и логирование ----------
-config = load_config()
-try:
-    setup_logging(config.log_level, None)  # type: ignore[arg-type]
-except Exception:
-    logging.basicConfig(level=getattr(logging, str(config.log_level).upper(), logging.INFO))
 
 logger = logging.getLogger(__name__)
 
