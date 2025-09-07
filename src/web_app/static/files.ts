@@ -17,6 +17,7 @@ let editSubcategory: HTMLInputElement;
 let editIssuer: HTMLInputElement;
 let editDate: HTMLInputElement;
 let editName: HTMLInputElement;
+let editDescription: HTMLTextAreaElement;
 let nameOriginalRadio: HTMLInputElement | null;
 let nameLatinRadio: HTMLInputElement | null;
 let nameOriginalLabel: HTMLElement | null;
@@ -39,6 +40,7 @@ export function setupFiles() {
   editIssuer = document.getElementById('edit-issuer') as HTMLInputElement;
   editDate = document.getElementById('edit-date') as HTMLInputElement;
   editName = document.getElementById('edit-name') as HTMLInputElement;
+  editDescription = document.getElementById('edit-description') as HTMLTextAreaElement;
   nameOriginalRadio = document.getElementById('name-original') as HTMLInputElement;
   nameLatinRadio = document.getElementById('name-latin') as HTMLInputElement;
   nameOriginalLabel = document.getElementById('name-original-label');
@@ -61,6 +63,7 @@ export function setupFiles() {
         issuer: editIssuer.value.trim(),
         date: editDate.value,
         suggested_name: editName.value.trim(),
+        description: editDescription.value.trim(),
       },
     };
     (Object.keys(payload.metadata) as (keyof FileMetadata)[]).forEach((k) => {
@@ -171,6 +174,12 @@ export async function refreshFiles(force = false) {
       tagsTd.textContent = tagsText;
       tr.appendChild(tagsTd);
 
+      const descTd = document.createElement('td');
+      const desc = f.metadata?.description ? f.metadata.description.substring(0, 100) : '';
+      descTd.textContent = desc;
+      descTd.classList.add('description');
+      tr.appendChild(descTd);
+
       const statusTd = document.createElement('td');
       statusTd.textContent = f.status;
       tr.appendChild(statusTd);
@@ -229,6 +238,7 @@ function openMetadataModal(file: FileInfo) {
   const orig = m.suggested_name || '';
   const latin = m.suggested_name_translit || orig;
   editName.value = orig;
+  editDescription.value = m.description || '';
 
   if (nameOriginalRadio) {
     nameOriginalRadio.value = orig;
