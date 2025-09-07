@@ -223,6 +223,8 @@ async def update_file(file_id: str, data: dict = Body(...)):
     if not record:
         raise HTTPException(status_code=404, detail="File not found")
     metadata_updates = data.get("metadata") or {}
+    allowed_fields = set(Metadata.model_fields.keys())
+    metadata_updates = {k: v for k, v in metadata_updates.items() if k in allowed_fields}
     new_metadata_dict = record.metadata.model_dump()
     if metadata_updates:
         new_metadata_dict.update(metadata_updates)

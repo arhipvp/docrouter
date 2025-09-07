@@ -12,6 +12,7 @@ export interface FileMetadata {
   tags_en?: string[];
   suggested_name?: string;
   suggested_name_translit?: string;
+  description?: string;
 }
 
 export interface FileInfo {
