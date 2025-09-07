@@ -10,7 +10,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, UploadFile, File, HTTPException, Form
 
-from file_sorter import place_file, get_folder_tree
+from file_sorter import place_file, get_folder_tree, sanitize_filename
 from file_utils import UnsupportedFileType
 from models import Metadata, UploadResponse
 from services.openrouter import OpenRouterError
@@ -66,9 +66,10 @@ async def upload_file(
         )
     file_id = str(uuid.uuid4())
     filename = file.filename or ""
+    filename = sanitize_filename(Path(filename).name)
     if not filename:
         guessed_ext = mimetypes.guess_extension(file.content_type or "") or ""
-        filename = f"upload{guessed_ext}"
+        filename = sanitize_filename(f"upload{guessed_ext}")
     temp_path = UPLOAD_DIR / f"{file_id}_{filename}"
     try:
         contents = await file.read()
