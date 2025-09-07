@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from fastapi import APIRouter, HTTPException, Body
+from fastapi import APIRouter, HTTPException, Body, Query
 
 from .. import db as database
 from services import openrouter
@@ -12,13 +12,23 @@ logger = logging.getLogger(__name__)
 
 
 @router.post("/chat/{file_id}")
-async def chat(file_id: str, message: str = Body(..., embed=True)):
+async def chat(
+    file_id: str,
+    message: str = Body(..., embed=True),
+    max_context: int = Query(3000, gt=0),
+):
     """Простой чат с учётом текста файла."""
     record = database.get_file(file_id)
     if not record:
         raise HTTPException(status_code=404, detail="File not found")
 
     text = record.metadata.extracted_text or ""
+    original_len = len(text)
+    if original_len > max_context:
+        logger.info(
+            "Truncating extracted text from %s to %s characters", original_len, max_context
+        )
+        text = text[:max_context]
 
     messages = [
         {"role": "system", "content": text},
