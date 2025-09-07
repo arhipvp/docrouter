@@ -286,15 +286,21 @@ __all__ = [
     "merge_images_to_pdf",
     "parse_mrz",
     "translate_text",
+    "load_plugins",
 ]
 
-
-try:  # Автообнаружение плагинов
-    from plugins import load_plugins as _load_plugins
-
-    _load_plugins()
-except Exception:  # pragma: no cover - отсутствие плагинов не критично
-    logger.debug("Plugin loading skipped", exc_info=True)
+def load_plugins() -> None:
+    """Автоматически обнаружить и загрузить плагины, если они доступны."""
+    try:
+        import importlib
+        plugin_module = importlib.import_module("plugins")
+    except Exception:  # pragma: no cover - отсутствие плагинов не критично
+        logger.debug("Plugin module not found", exc_info=True)
+        return
+    try:
+        plugin_module.load_plugins()  # type: ignore[attr-defined]
+    except Exception:  # pragma: no cover - ошибки плагинов не критичны
+        logger.warning("Plugin loading failed", exc_info=True)
 
 
 async def translate_text(
