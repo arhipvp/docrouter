@@ -56,6 +56,11 @@ logger = logging.getLogger(__name__)
 # --------- Инициализация БД ----------
 database.init_db(force_reset=os.getenv("DOCROUTER_RESET_DB") == "1")
 
+
+@app.on_event("shutdown")
+def _shutdown() -> None:
+    database.close_db()
+
 # --------- Подключение маршрутов ----------
 app.include_router(upload.router)
 app.include_router(files.router)

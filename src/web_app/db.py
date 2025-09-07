@@ -74,6 +74,16 @@ def init_db(force_reset: bool | None = None) -> None:
         )
 
 
+def close_db() -> None:
+    """Закрыть соединение с БД и сбросить ссылку."""
+    global _conn
+    if _conn is not None:
+        try:
+            _conn.close()
+        finally:
+            _conn = None
+
+
 def _serialize_record(record: FileRecord) -> Dict[str, Any]:
     return {
         "id": record.id,

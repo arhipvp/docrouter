@@ -53,6 +53,7 @@ def test_folder_tree_includes_files(tmp_path):
     (person / "file1.txt").write_text("content", encoding="utf-8")
 
     server.config.output_dir = str(tmp_path)
+    server.database.init_db()
 
     with LiveClient(app) as client:
         resp = client.get("/folder-tree")
