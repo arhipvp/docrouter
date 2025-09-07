@@ -30,27 +30,13 @@ def test_generate_metadata_without_api_key(monkeypatch):
 def test_prompt_includes_context(monkeypatch):
     captured: dict[str, str] = {}
 
-    class DummyResponse:
-        status_code = 200
-        text = "{}"
-
-        def raise_for_status(self) -> None:
-            pass
-
-        def json(self) -> Dict[str, Any]:  # type: ignore[override]
-            return {
-                "choices": [
-                    {"message": {"content": json.dumps({"needs_new_folder": True})}}
-                ]
-            }
-
-    async def fake_post(self, url, json=None, headers=None, **kwargs):  # type: ignore[no-redef]
-        captured["prompt"] = json["messages"][0]["content"]
-        return DummyResponse()
+    async def fake_chat(messages, **kwargs):  # type: ignore[no-redef]
+        captured["prompt"] = messages[0]["content"]
+        return json.dumps({"needs_new_folder": True}), 0, 0.0
 
     monkeypatch.setenv("OPENROUTER_API_KEY", "test")
     monkeypatch.setattr("metadata_generation.OPENROUTER_API_KEY", "test")
-    monkeypatch.setattr("metadata_generation.httpx.AsyncClient.post", fake_post)
+    monkeypatch.setattr("metadata_generation.chat", fake_chat)
 
     tree = [{"name": "Финансы", "children": [{"name": "Банки", "children": []}]}]
     index = {"иванов иван": {"финансы": "Иванов Иван/Финансы"}}
@@ -84,62 +70,37 @@ def test_prompt_includes_context(monkeypatch):
 def test_response_format_in_extra_body(monkeypatch):
     captured: dict[str, Any] = {}
 
-    class DummyResponse:
-        status_code = 200
-        text = "{}"
-
-        def raise_for_status(self) -> None:
-            pass
-
-        def json(self) -> Dict[str, Any]:  # type: ignore[override]
-            return {"choices": [{"message": {"content": json.dumps({})}}]}
-
-    async def fake_post(self, url, json=None, headers=None, **kwargs):  # type: ignore[no-redef]
-        captured["json"] = json
-        return DummyResponse()
+    async def fake_chat(messages, response_format=None, extra_body=None, **kwargs):  # type: ignore[no-redef]
+        captured["response_format"] = response_format
+        captured["extra_body"] = extra_body
+        return json.dumps({}), 0, 0.0
 
     monkeypatch.setenv("OPENROUTER_API_KEY", "test")
     monkeypatch.setattr("metadata_generation.OPENROUTER_API_KEY", "test")
-    monkeypatch.setattr("metadata_generation.httpx.AsyncClient.post", fake_post)
+    monkeypatch.setattr("metadata_generation.chat", fake_chat)
 
     asyncio.run(generate_metadata("text"))
-    assert "response_format" in captured["json"]
-    assert captured["json"]["response_format"] == {"type": "json_object"}
+    assert captured["response_format"] == {"type": "json_object"}
+    assert captured["extra_body"] == {"response_format": {"type": "json_object"}}
 
 
 def test_multilanguage_tags_parsing(monkeypatch):
-    class DummyResponse:
-        status_code = 200
-        text = json.dumps(
-            {
-                "choices": [
-                    {"message": {"content": json.dumps({"tags": []})}}
-                ]
-            }
-        )
-
-        def raise_for_status(self) -> None:
-            pass
-
-        def json(self) -> Dict[str, Any]:  # type: ignore[override]
-            data = {
-                "tags": ["base"],
-                "tags_ru": ["тег1", "тег2"],
-                "tags_en": ["tag1", "tag2"],
-                "category": "Категория",
-                "subcategory": "Подкатегория",
-                "doc_type": "Тип",
-                "issuer": "Организация",
-                "person": "Иван Иванов",
-            }
-            return {"choices": [{"message": {"content": json.dumps(data)}}]}
-
-    async def fake_post(self, url, json=None, headers=None, **kwargs):  # type: ignore[no-redef]
-        return DummyResponse()
+    async def fake_chat(messages, **kwargs):  # type: ignore[no-redef]
+        data = {
+            "tags": ["base"],
+            "tags_ru": ["тег1", "тег2"],
+            "tags_en": ["tag1", "tag2"],
+            "category": "Категория",
+            "subcategory": "Подкатегория",
+            "doc_type": "Тип",
+            "issuer": "Организация",
+            "person": "Иван Иванов",
+        }
+        return json.dumps(data), 0, 0.0
 
     monkeypatch.setenv("OPENROUTER_API_KEY", "test")
     monkeypatch.setattr("metadata_generation.OPENROUTER_API_KEY", "test")
-    monkeypatch.setattr("metadata_generation.httpx.AsyncClient.post", fake_post)
+    monkeypatch.setattr("metadata_generation.chat", fake_chat)
 
     result = asyncio.run(generate_metadata("text"))
     meta: Metadata = result["metadata"]
