@@ -263,3 +263,26 @@ def place_file(
     logger.debug("Wrote metadata to %s", json_file)
 
     return dest_file, missing, confirmed
+
+
+def preview_destination(
+    src_path: str | Path,
+    metadata: Dict[str, Any],
+    dest_root: str | Path,
+    needs_new_folder: bool = False,
+) -> Tuple[Path, List[str]]:
+    """Рассчитать путь назначения без перемещения файла.
+
+    Это удобная обёртка над :func:`place_file` с ``dry_run=True``.
+    Возвращает путь к предполагаемому файлу и список недостающих каталогов.
+    """
+
+    dest, missing, _ = place_file(
+        src_path,
+        metadata,
+        dest_root,
+        dry_run=True,
+        needs_new_folder=needs_new_folder,
+        confirm_callback=None,
+    )
+    return dest, missing

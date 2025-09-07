@@ -44,7 +44,7 @@ class FileRecord(BaseModel):
     expiration_date: Optional[str] = None
     passport_number: Optional[str] = None
     path: str
-    status: str
+    status: str = "review"
     prompt: Any | None = None
     raw_response: Any | None = None
     missing: List[str] = Field(default_factory=list)
@@ -56,6 +56,7 @@ class FileRecord(BaseModel):
     suggested_path: Optional[str] = None
     created_path: Optional[str] = None
     confirmed: bool = False
+    review_comment: Optional[str] = None
 
 
 class UploadResponse(BaseModel):
