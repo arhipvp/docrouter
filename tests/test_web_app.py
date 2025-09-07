@@ -5,7 +5,6 @@ import threading
 import time
 from pathlib import Path
 
-import requests
 import uvicorn
 from PIL import Image
 import pytest
@@ -41,7 +40,7 @@ class LiveClient:
         self.thread.start()
         while not getattr(self.server, "started", False):
             time.sleep(0.01)
-        self.session = requests.Session()
+        self.session = httpx.Client()
         return self
 
     def __exit__(self, exc_type, exc, tb):
