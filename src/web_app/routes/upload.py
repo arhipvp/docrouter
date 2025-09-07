@@ -15,6 +15,7 @@ from file_utils import UnsupportedFileType
 from models import Metadata, UploadResponse
 from services.openrouter import OpenRouterError
 from .. import db as database
+from ..db import run_db
 from config import config
 
 router = APIRouter()
@@ -130,7 +131,8 @@ async def upload_file(
         logger.exception("Upload/processing failed for %s", filename)
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
-    database.add_file(
+    await run_db(
+        database.add_file,
         file_id,
         file.filename,
         metadata,
@@ -245,7 +247,8 @@ async def upload_images(
 
     sources = [f.filename for f in sorted_files]
 
-    database.add_file(
+    await run_db(
+        database.add_file,
         file_id,
         pdf_path.name,
         metadata,

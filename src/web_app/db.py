@@ -6,12 +6,18 @@ from pathlib import Path
 import json
 import os
 import sqlite3
+import asyncio
 from typing import Any, Dict, List, Optional
 
 from models import FileRecord, Metadata
 
 _DB_PATH = Path(__file__).with_suffix(".sqlite")
 _conn: sqlite3.Connection | None = None
+
+
+async def run_db(func, *args, **kwargs):
+    """Запустить синхронную функцию работы с БД в отдельном потоке."""
+    return await asyncio.to_thread(func, *args, **kwargs)
 
 
 def _get_conn() -> sqlite3.Connection:

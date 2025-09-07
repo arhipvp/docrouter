@@ -1,5 +1,6 @@
 import sys
 from pathlib import Path
+import asyncio
 
 import pytest
 
@@ -21,7 +22,7 @@ def test_scan_output_dir_updates_on_rename(tmp_path, monkeypatch):
     file = out_dir / "doc.txt"
     file.write_text("content")
 
-    _scan_output_dir()
+    asyncio.run(_scan_output_dir())
     records = server.database.list_files()
     assert len(records) == 1
     file_id = records[0].id
@@ -29,7 +30,7 @@ def test_scan_output_dir_updates_on_rename(tmp_path, monkeypatch):
     new_path = out_dir / "renamed.txt"
     file.rename(new_path)
 
-    _scan_output_dir()
+    asyncio.run(_scan_output_dir())
     records = server.database.list_files()
     assert len(records) == 1
     record = records[0]

@@ -15,9 +15,11 @@ def test_list_files_uses_cache(monkeypatch, tmp_path):
     upload_dir.mkdir()
     monkeypatch.setattr(files_module, "UPLOAD_DIR", upload_dir)
 
+    server.database.init_db()
+
     calls = {"n": 0}
 
-    def fake_scan():
+    async def fake_scan():
         calls["n"] += 1
 
     monkeypatch.setattr(files_module, "_scan_output_dir", fake_scan)
