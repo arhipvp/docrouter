@@ -454,6 +454,48 @@ def test_upload_pending_then_finalize(tmp_path, monkeypatch):
         assert Path(final_data["path"]).exists()
 
 
+def test_finalize_without_confirmation_keeps_pending(tmp_path, monkeypatch):
+    server.database.init_db()
+    server.config.output_dir = str(tmp_path)
+
+    def _mock_extract_text(path, language="eng"):
+        with open(path, "r", encoding="utf-8") as f:
+            return f.read()
+
+    async def _metadata_pending(text: str, folder_tree=None, folder_index=None, file_info=None):
+        meta = Metadata(
+            category="Финансы",
+            subcategory="Банки",
+            issuer="Sparkasse",
+            date="2024-01-01",
+        )
+        return {
+            "prompt": "PROMPT",
+            "raw_response": "{}",
+            "metadata": meta,
+        }
+
+    monkeypatch.setattr(server, "extract_text", _mock_extract_text)
+    monkeypatch.setattr(server.metadata_generation, "generate_metadata", _metadata_pending)
+
+    with LiveClient(app) as client:
+        resp = client.post("/upload", files={"file": ("doc.txt", b"content")})
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["status"] == "pending"
+        file_id = data["id"]
+
+        resp_no = client.post(
+            f"/files/{file_id}/finalize",
+            json={"missing": data["missing"], "confirm": False},
+        )
+        assert resp_no.status_code == 200
+        final_data = resp_no.json()
+        assert final_data["status"] == "pending"
+        assert final_data["missing"] == data["missing"]
+        assert Path(final_data["path"]).exists()
+
+
 def test_preview_endpoint_serves_file(tmp_path, monkeypatch):
     server.database.init_db()
     monkeypatch.setattr(server.metadata_generation, "generate_metadata", _mock_generate_metadata)
