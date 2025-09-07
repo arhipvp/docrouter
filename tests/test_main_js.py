@@ -31,7 +31,7 @@ def test_main_js_rotate_crop(tmp_path):
           dispatchEvent(evt) { (this.events[evt.type] || (()=>{}))(evt); }
           click() { this.dispatchEvent({ type: 'click', target: this }); }
           reset() { this.value = ''; }
-          getContext() { return { clearRect(){}, drawImage(){} }; }
+          getContext() { return { clearRect(){}, drawImage(){}, getImageData(){ return { data: new Uint8ClampedArray([0,0,0,255]) }; } }; }
           querySelector() { return new Element(); }
           querySelectorAll() { return []; }
         }
@@ -81,9 +81,11 @@ def test_main_js_rotate_crop(tmp_path):
 
         let rotations = [];
         let cropped = false;
+        let setDataCalls = 0;
         global.Cropper = class {
           constructor(canvas, opts) {}
           rotate(angle) { rotations.push(angle); }
+          setData() { setDataCalls++; }
           getCroppedCanvas() { return { toBlob: (cb) => { cropped = true; cb(new Blob(['a'], { type: 'image/jpeg' })); } }; }
           destroy() {}
         };
@@ -105,6 +107,7 @@ def test_main_js_rotate_crop(tmp_path):
 
           assert.deepStrictEqual(rotations, [-90, 90]);
           assert.ok(cropped);
+          assert.ok(setDataCalls > 0);
         })();
         """
     )

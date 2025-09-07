@@ -14,14 +14,54 @@ let rotateLeftBtn;
 let rotateRightBtn;
 let saveBtn;
 let cropper = null;
+function autoCropImage() {
+    if (!cropper)
+        return;
+    const ctx = editCanvas.getContext('2d');
+    if (!ctx)
+        return;
+    const { width, height } = editCanvas;
+    if (!width || !height)
+        return;
+    const { data } = ctx.getImageData(0, 0, width, height);
+    let left = width, right = -1, top = height, bottom = -1;
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+            const alpha = data[(y * width + x) * 4 + 3];
+            if (alpha !== 0) {
+                if (x < left)
+                    left = x;
+                if (x > right)
+                    right = x;
+                if (y < top)
+                    top = y;
+                if (y > bottom)
+                    bottom = y;
+            }
+        }
+    }
+    if (right >= left && bottom >= top) {
+        cropper.setData({ x: left, y: top, width: right - left + 1, height: bottom - top + 1 });
+    }
+}
 export function setupImageEditor() {
     imageEditModal = document.getElementById('edit-modal');
     editCanvas = document.getElementById('edit-canvas');
     rotateLeftBtn = document.getElementById('rotate-left-btn');
     rotateRightBtn = document.getElementById('rotate-right-btn');
     saveBtn = document.getElementById('save-btn');
-    rotateLeftBtn === null || rotateLeftBtn === void 0 ? void 0 : rotateLeftBtn.addEventListener('click', () => cropper === null || cropper === void 0 ? void 0 : cropper.rotate(-90));
-    rotateRightBtn === null || rotateRightBtn === void 0 ? void 0 : rotateRightBtn.addEventListener('click', () => cropper === null || cropper === void 0 ? void 0 : cropper.rotate(90));
+    rotateLeftBtn === null || rotateLeftBtn === void 0 ? void 0 : rotateLeftBtn.addEventListener('click', () => {
+        if (!cropper)
+            return;
+        cropper.rotate(-90);
+        autoCropImage();
+    });
+    rotateRightBtn === null || rotateRightBtn === void 0 ? void 0 : rotateRightBtn.addEventListener('click', () => {
+        if (!cropper)
+            return;
+        cropper.rotate(90);
+        autoCropImage();
+    });
     saveBtn === null || saveBtn === void 0 ? void 0 : saveBtn.addEventListener('click', () => {
         if (!cropper)
             return;
@@ -64,6 +104,7 @@ export function openImageEditModal(fileObj) {
         cropper === null || cropper === void 0 ? void 0 : cropper.destroy();
         const CropperCtor = window.Cropper || globalThis.Cropper;
         cropper = new CropperCtor(editCanvas, { viewMode: 1 });
+        autoCropImage();
         URL.revokeObjectURL(url);
     };
     img.src = url;
