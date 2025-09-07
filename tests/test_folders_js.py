@@ -8,6 +8,7 @@ def test_render_tree_js(tmp_path):
         Path(__file__).resolve().parent.parent
         / "src" / "web_app" / "static" / "dist" / "folders.js"
     )
+    folders_js_str = str(folders_js)
     js_code = textwrap.dedent(
         f"""
         const assert = require('assert');
@@ -36,14 +37,16 @@ def test_render_tree_js(tmp_path):
         const tree = [{{ name: 'A', children: [{{ name: 'B', children: [] }}] }}];
 
         (async () => {{
-          const {{ renderTree }} = await import(pathToFileURL({folders_js!r}).href);
+          const {{ renderTree }} = await import(pathToFileURL({folders_js_str!r}).href);
           renderTree(container, tree);
           assert.equal(container.children.length, 1);
           const li = container.children[0];
-          assert.equal(li.children[0].textContent, 'A');
-          const ul = li.children[1];
+          const details = li.children[0];
+          assert.equal(details.children[0].textContent, 'A');
+          const ul = details.children[1];
           const childLi = ul.children[0];
-          assert.equal(childLi.children[0].textContent, 'B');
+          const childDetails = childLi.children[0];
+          assert.equal(childDetails.children[0].textContent, 'B');
         }})().catch(err => {{ console.error(err); process.exit(1); }});
         """
     )

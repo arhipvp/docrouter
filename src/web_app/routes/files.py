@@ -8,7 +8,11 @@ import hashlib
 import time
 from pathlib import Path
 import httpx
-import ocr_pipeline
+
+try:
+    import ocr_pipeline
+except Exception:  # pragma: no cover - optional dependency
+    ocr_pipeline = None  # type: ignore
 
 from fastapi import APIRouter, HTTPException, Body
 from fastapi.responses import FileResponse, PlainTextResponse

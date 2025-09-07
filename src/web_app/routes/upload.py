@@ -14,7 +14,8 @@ from file_sorter import place_file, get_folder_tree
 from file_utils import UnsupportedFileType
 from models import Metadata, UploadResponse
 from services.openrouter import OpenRouterError
-from .. import db as database, server
+from .. import db as database
+from config import config
 
 router = APIRouter()
 
@@ -36,10 +37,15 @@ REV_LANG_MAP = {v: k for k, v in LANG_MAP.items()}
 
 def _check_tesseract() -> bool:
     """Проверить доступность бинарника tesseract."""
-    available = shutil.which("tesseract") is not None
-    if not available:
+    if config.tesseract_cmd:
+        if not Path(config.tesseract_cmd).exists():
+            logger.warning(
+                "Указанный путь к tesseract не найден: %s", config.tesseract_cmd
+            )
+        return True
+    if shutil.which("tesseract") is None:
         logger.warning("Бинарник tesseract не найден. OCR будет недоступен")
-    return available
+    return True
 
 
 OCR_AVAILABLE = _check_tesseract()
@@ -52,6 +58,7 @@ async def upload_file(
     dry_run: bool = False,
 ):
     """Загрузить файл и обработать его."""
+    from .. import server
     if not OCR_AVAILABLE:
         raise HTTPException(
             status_code=503,
@@ -152,6 +159,7 @@ async def upload_images(
     dry_run: bool = False,
 ):
     """Загрузить несколько изображений, объединить их и обработать как PDF."""
+    from .. import server
     if not OCR_AVAILABLE:
         raise HTTPException(
             status_code=503,

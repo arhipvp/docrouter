@@ -52,6 +52,9 @@ function renderNodes(container, nodes) {
         container.appendChild(li);
     });
 }
+export function renderTree(container, tree) {
+    renderNodes(container, tree);
+}
 export function refreshFolderTree() {
     return __awaiter(this, void 0, void 0, function* () {
         folderTree = document.getElementById('folder-tree');

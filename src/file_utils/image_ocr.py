@@ -4,6 +4,8 @@ from pathlib import Path
 from typing import Union
 import logging
 
+from config import config
+
 try:
     from PIL import Image
     import pytesseract
@@ -14,6 +16,9 @@ except ModuleNotFoundError as exc:  # pragma: no cover - handled at runtime
 
 
 logger = logging.getLogger(__name__)
+
+if config.tesseract_cmd:
+    pytesseract.pytesseract.tesseract_cmd = config.tesseract_cmd
 
 
 def extract_text_image(image_path: Union[str, Path], language: str = "eng") -> str:

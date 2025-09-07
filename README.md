@@ -25,7 +25,7 @@ python -m web_app.server
 
 ## Установка Tesseract
 
-Для распознавания текста DocRouter использует движок [Tesseract OCR](https://tesseract-ocr.github.io/). Если он не установлен, функции OCR будут недоступны.
+Для распознавания текста DocRouter использует движок [Tesseract OCR](https://tesseract-ocr.github.io/). Если он не установлен, функции OCR будут недоступны. Если исполняемый файл Tesseract отсутствует в `PATH`, укажите его путь через переменную `TESSERACT_CMD`.
 
 ### Windows
 
@@ -34,6 +34,7 @@ python -m web_app.server
 ```powershell
 setx PATH "$Env:PATH;C:\\Program Files\\Tesseract-OCR"
 setx TESSDATA_PREFIX "C:\\Program Files\\Tesseract-OCR\\tessdata"
+setx TESSERACT_CMD "C:\\Program Files\\Tesseract-OCR\\tesseract.exe"
 ```
 
 ### Linux
@@ -43,6 +44,7 @@ setx TESSDATA_PREFIX "C:\\Program Files\\Tesseract-OCR\\tessdata"
 ```bash
 sudo apt install tesseract-ocr tesseract-ocr-rus
 export TESSDATA_PREFIX=/usr/share/tesseract-ocr/5/tessdata
+export TESSERACT_CMD=/usr/bin/tesseract
 ```
 
 ### macOS
@@ -54,10 +56,14 @@ brew install tesseract
 export TESSDATA_PREFIX="$(brew --prefix)/share/tessdata"
 ```
 
-В `.env` можно задать язык распознавания:
+В `.env` можно задать язык распознавания и путь к бинарнику:
 
 ```
 TESSERACT_LANG=rus
+# Linux
+TESSERACT_CMD=/usr/bin/tesseract
+# Windows
+# TESSERACT_CMD="C:\\Program Files\\Tesseract-OCR\\tesseract.exe"
 ```
 
 ## Настройка
