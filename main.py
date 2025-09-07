@@ -9,6 +9,10 @@ from __future__ import annotations
 import logging
 import os
 import sys
+from pathlib import Path
+
+# Поддержка запуска из исходников: добавляем ``src`` в ``sys.path``
+sys.path.append(str(Path(__file__).resolve().parent / "src"))
 
 import uvicorn
 from config import LOG_LEVEL  # type: ignore
