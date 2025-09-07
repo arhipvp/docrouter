@@ -11,12 +11,14 @@ from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 import uvicorn
+import threading
+import importlib
 try:
     from fastapi.templating import Jinja2Templates
 except Exception:  # pragma: no cover
     Jinja2Templates = None  # type: ignore[misc,assignment]
 
-from config import config  # type: ignore
+from config import config  # type: ignore  # noqa: F401
 from . import db as database
 from .routes import upload, files, folders, chat
 
@@ -94,6 +96,16 @@ async def serve_index(request: Request):
 
 logger = logging.getLogger(__name__)
 
+
+def __getattr__(name: str):
+    """Лениво импортировать тяжёлые зависимости при обращении."""
+    if name in {"extract_text", "merge_images_to_pdf", "translate_text"}:
+        utils = importlib.import_module("file_utils")
+        return getattr(utils, name)
+    if name == "metadata_generation":
+        return importlib.import_module("metadata_generation")
+    raise AttributeError(f"module {__name__} has no attribute {name}")
+
 # --------- Инициализация БД ----------
 
 
@@ -109,6 +121,15 @@ async def startup() -> None:
             logger.debug("Plugin loading skipped", exc_info=True)
 
     asyncio.create_task(asyncio.to_thread(_load_plugins))
+
+    def _load_plugins() -> None:
+        try:
+            file_utils = importlib.import_module("file_utils")
+            file_utils.load_plugins()
+        except Exception:  # pragma: no cover - ошибки плагинов не критичны
+            logger.warning("Plugin loading failed", exc_info=True)
+
+    threading.Thread(target=_load_plugins, name="plugin-loader", daemon=True).start()
 
 
 @app.on_event("shutdown")

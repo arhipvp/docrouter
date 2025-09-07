@@ -224,6 +224,7 @@ async def get_file_details(file_id: str, lang: str | None = None):
             record.translation_lang = lang
         record.translated_text = record.translated_text or text
         record.translation_lang = lang
+    record.sources = None
     return record
 
 

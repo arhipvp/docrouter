@@ -1,13 +1,12 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Callable, Dict, Union
+from typing import Any, List, Union, Callable, Dict
 import csv
 import logging
 import mimetypes
 import tempfile
 from PIL import Image, ImageOps
-
 
 # Опциональные зависимости
 try:
@@ -55,16 +54,13 @@ _PARSER_REGISTRY: Dict[str, Callable[[Path], str]] = {}
 
 def register_parser(ext: str) -> Callable[[Callable[[Path], str]], Callable[[Path], str]]:
     """Декоратор для регистрации парсеров файлов."""
-
     def decorator(func: Callable[[Path], str]) -> Callable[[Path], str]:
         _PARSER_REGISTRY[ext.lower()] = func
         return func
-
     return decorator
 
 
 # ---------- Парсеры для «текстовых» форматов ----------
-
 
 @register_parser(".txt")
 def extract_text_txt(path: Path) -> str:
@@ -84,11 +80,6 @@ def extract_text_pdf(path: Path, language: str = "eng") -> str:
 
     Если страница не содержит текстового слоя, при наличии ``extract_text_image``
     страница будет конвертирована в изображение и обработана через OCR.
-
-    :param path: путь к PDF-файлу.
-    :param language: язык OCR для страниц без текстового слоя.
-    :return: извлечённый текст по всем страницам.
-    :raises RuntimeError: если PyMuPDF или OCR-модуль недоступны.
     """
     if fitz is None:
         raise RuntimeError("PyMuPDF не установлен, обработка PDF невозможна")
@@ -102,14 +93,11 @@ def extract_text_pdf(path: Path, language: str = "eng") -> str:
                 continue
 
             if extract_text_image is None:
-                raise RuntimeError(
-                    "OCR недоступен: функция extract_text_image не найдена"
-                )
+                raise RuntimeError("OCR недоступен: функция extract_text_image не найдена")
 
             pix = page.get_pixmap()
 
-            # На Windows невозможно перезаписать открытый временный файл,
-            # поэтому сначала закрываем его, а затем сохраняем изображение.
+            # На Windows нельзя перезаписать открытый временный файл
             tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
             tmp_path = Path(tmp.name)
             tmp.close()
@@ -119,6 +107,7 @@ def extract_text_pdf(path: Path, language: str = "eng") -> str:
                 ocr_text = extract_text_image(tmp_path, language=language)
             finally:
                 tmp_path.unlink(missing_ok=True)
+
             if ocr_text.strip():
                 parts.append(ocr_text)
 
@@ -184,12 +173,6 @@ def extract_text(file_path: Union[str, Path], language: str = "eng") -> str:
       - Текстовые: .txt, .md, .pdf, .docx
       - Таблицы: .csv, .xls, .xlsx
       - Изображения (OCR): .jpg, .jpeg, .png, .tiff (через image_ocr.extract_text_image)
-
-    :param file_path: путь к файлу.
-    :param language: язык OCR (ISO-коды tesseract, напр. 'eng', 'rus', 'deu').
-    :return: извлечённый текст.
-    :raises UnsupportedFileType: если расширение не поддерживается или не определено.
-    :raises RuntimeError: если требуемая зависимость для формата не установлена.
     """
     path = Path(file_path)
     ext = path.suffix.lower()
@@ -236,13 +219,7 @@ def extract_text(file_path: Union[str, Path], language: str = "eng") -> str:
 # ---------- Вспомогательные утилиты ----------
 
 def merge_images_to_pdf(paths: list[Path]) -> Path:
-    """Преобразовать несколько изображений в один PDF во временном файле.
-
-    Обрабатываются изображения в различных цветовых пространствах и размерах.
-
-    :param paths: список путей к изображениям.
-    :return: путь к созданному временному PDF-файлу.
-    """
+    """Преобразовать несколько изображений в один PDF во временном файле."""
     if not paths:
         raise ValueError("No images provided")
 
@@ -286,16 +263,38 @@ __all__ = [
     "merge_images_to_pdf",
     "parse_mrz",
     "translate_text",
+    "load_plugins",
 ]
 
-def load_plugins() -> None:
-    """Явно загрузить плагины file_utils."""
-    try:
-        from plugins import load_plugins as _load_plugins
 
-        _load_plugins()
-    except Exception:  # pragma: no cover - отсутствие плагинов не критично
-        logger.debug("Plugin loading skipped", exc_info=True)
+def load_plugins() -> None:
+    """Загрузить плагины, если они доступны.
+
+    Поддерживает оба варианта:
+    1) явный экспорт `plugins.load_plugins`
+    2) модуль `plugins` с функцией `load_plugins` внутри
+    """
+    try:
+        # Вариант 1: явный экспорт
+        from plugins import load_plugins as _load_plugins  # type: ignore
+        try:
+            _load_plugins()
+            return
+        except Exception:  # pragma: no cover
+            logger.warning("Plugin loading failed (direct import)", exc_info=True)
+    except Exception:
+        # Вариант 2: общий модуль
+        try:
+            import importlib
+            plugin_module = importlib.import_module("plugins")
+            if hasattr(plugin_module, "load_plugins"):
+                try:
+                    plugin_module.load_plugins()  # type: ignore[attr-defined]
+                    return
+                except Exception:  # pragma: no cover
+                    logger.warning("Plugin loading failed (module)", exc_info=True)
+        except Exception:  # pragma: no cover
+            logger.debug("Plugin module not found", exc_info=True)
 
 
 async def translate_text(
@@ -307,7 +306,6 @@ async def translate_text(
     base_url: str | None = None,
 ) -> str:
     """Перевести *text* на язык ``target_lang`` с помощью OpenRouter."""
-
     from services.openrouter import OpenRouterError, chat
 
     prompt = f"Translate the following text to {target_lang}:\n{text}"
