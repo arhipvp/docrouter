@@ -7,15 +7,7 @@ import logging
 import mimetypes
 import tempfile
 from PIL import Image, ImageOps
-import httpx
 
-from config import (
-    OPENROUTER_API_KEY,
-    OPENROUTER_BASE_URL,
-    OPENROUTER_MODEL,
-    OPENROUTER_SITE_URL,
-    OPENROUTER_SITE_NAME,
-)
 
 # Опциональные зависимости
 try:
@@ -305,38 +297,27 @@ except Exception:  # pragma: no cover - отсутствие плагинов н
     logger.debug("Plugin loading skipped", exc_info=True)
 
 
-async def translate_text(text: str, target_lang: str) -> str:
+async def translate_text(
+    text: str,
+    target_lang: str,
+    *,
+    model: str | None = None,
+    api_key: str | None = None,
+    base_url: str | None = None,
+) -> str:
     """Перевести *text* на язык ``target_lang`` с помощью OpenRouter."""
 
-    if not OPENROUTER_API_KEY:
-        raise RuntimeError("OPENROUTER_API_KEY environment variable required")
+    from services.openrouter import OpenRouterError, chat
 
-    model = OPENROUTER_MODEL or "openai/chatgpt-4o-mini"
-    base_url = OPENROUTER_BASE_URL or "https://openrouter.ai/api/v1"
-    api_url = base_url.rstrip("/") + "/chat/completions"
     prompt = f"Translate the following text to {target_lang}:\n{text}"
-    payload = {
-        "model": model,
-        "messages": [{"role": "user", "content": prompt}],
-        "temperature": 0.1,
-    }
-    headers = {
-        "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-        "HTTP-Referer": OPENROUTER_SITE_URL or "https://github.com/docrouter",
-        "X-Title": OPENROUTER_SITE_NAME or "DocRouter",
-    }
-    async with httpx.AsyncClient(timeout=60) as client:
-        try:
-            response = await client.post(api_url, json=payload, headers=headers)
-            response.raise_for_status()
-            data = response.json()
-        except httpx.HTTPError as exc:
-            logger.error("HTTP error during translation request: %s", exc)
-            raise RuntimeError("HTTP error during translation request") from exc
-        except ValueError as exc:
-            logger.error(
-                "OpenRouter returned non-JSON response: %s", response.text
-            )
-            raise RuntimeError("OpenRouter returned non-JSON response") from exc
-    content = data["choices"][0]["message"]["content"]
-    return content.strip()
+    try:
+        reply, _, _ = await chat(
+            messages=[{"role": "user", "content": prompt}],
+            model=model,
+            api_key=api_key,
+            base_url=base_url,
+        )
+    except OpenRouterError as exc:
+        logger.error("Translation request failed: %s", exc)
+        raise RuntimeError("Translation request failed") from exc
+    return reply
