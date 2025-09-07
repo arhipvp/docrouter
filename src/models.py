@@ -57,7 +57,6 @@ class FileRecord(BaseModel):
     suggested_path: Optional[str] = None
     created_path: Optional[str] = None
     confirmed: bool = False
-    review_comment: Optional[str] = None
 
 
 class UploadResponse(BaseModel):
