@@ -4,6 +4,7 @@ import logging
 from fastapi import APIRouter, HTTPException, Body, Query
 
 from .. import db as database
+from ..db import run_db
 from services import openrouter
 from services.openrouter import OpenRouterError
 
@@ -18,7 +19,7 @@ async def chat(
     max_context: int = Query(3000, gt=0),
 ):
     """Простой чат с учётом текста файла."""
-    record = database.get_file(file_id)
+    record = await run_db(database.get_file, file_id)
     if not record:
         raise HTTPException(status_code=404, detail="File not found")
 
@@ -45,8 +46,8 @@ async def chat(
 
     logger.info("OpenRouter usage: tokens=%s, cost=%s", tokens, cost)
 
-    database.add_chat_message(file_id, "user", message)
-    history = database.add_chat_message(
-        file_id, "assistant", reply, tokens=tokens, cost=cost
+    await run_db(database.add_chat_message, file_id, "user", message)
+    history = await run_db(
+        database.add_chat_message, file_id, "assistant", reply, tokens=tokens, cost=cost
     )
     return {"response": reply, "chat_history": history}

@@ -20,6 +20,7 @@ from fastapi.responses import FileResponse, PlainTextResponse
 from file_sorter import place_file
 from models import Metadata, FileRecord
 from .. import db as database, server
+from ..db import run_db
 from .upload import UPLOAD_DIR
 from .folders import _resolve_in_output
 from services.openrouter import OpenRouterError
@@ -59,13 +60,14 @@ def _should_rescan() -> bool:
     return False
 
 
-def _scan_output_dir() -> None:
+async def _scan_output_dir() -> None:
     """Просканировать выходную папку и добавить новые файлы в БД."""
     output_dir = Path(server.config.output_dir)
     if not output_dir.exists():
         return
 
-    existing_records = {Path(rec.path): rec.id for rec in database.list_files()}
+    records = await run_db(database.list_files)
+    existing_records = {Path(rec.path): rec.id for rec in records}
     existing_paths = set(existing_records)
 
     for file_path in output_dir.rglob("*"):
@@ -83,7 +85,14 @@ def _scan_output_dir() -> None:
                     logger.warning("Failed to load metadata for %s", file_path)
 
                 file_id = hashlib.sha1(str(doc_path).encode("utf-8")).hexdigest()
-                database.add_file(file_id, doc_path.name, metadata, str(doc_path), "missing")
+                await run_db(
+                    database.add_file,
+                    file_id,
+                    doc_path.name,
+                    metadata,
+                    str(doc_path),
+                    "missing",
+                )
                 existing_records[doc_path] = file_id
                 existing_paths.add(doc_path)
             continue
@@ -96,7 +105,7 @@ def _scan_output_dir() -> None:
                 try:
                     meta_dict = json.loads(meta_file.read_text(encoding="utf-8"))
                     metadata = Metadata(**meta_dict)
-                    database.update_file(file_id, metadata=metadata)
+                    await run_db(database.update_file, file_id, metadata=metadata)
                 except Exception:  # pragma: no cover
                     logger.warning("Failed to load metadata for %s", file_path)
             continue
@@ -110,19 +119,26 @@ def _scan_output_dir() -> None:
                 logger.warning("Failed to load metadata for %s", file_path)
 
         file_id = hashlib.sha1(file_path.read_bytes()).hexdigest()
-        database.add_file(file_id, file_path.name, metadata, str(file_path), "processed")
+        await run_db(
+            database.add_file,
+            file_id,
+            file_path.name,
+            metadata,
+            str(file_path),
+            "processed",
+        )
         existing_records[file_path] = file_id
         existing_paths.add(file_path)
 
-    for rec in database.list_files():
+    for rec in await run_db(database.list_files):
         path = Path(rec.path)
         if rec.status != "missing" and not path.exists():
-            database.delete_file(rec.id)
+            await run_db(database.delete_file, rec.id)
 
 
 @router.get("/metadata/{file_id}", response_model=Metadata)
 async def get_metadata(file_id: str):
-    record = database.get_file(file_id)
+    record = await run_db(database.get_file, file_id)
     if not record:
         raise HTTPException(status_code=404, detail="Metadata not found")
     return record.metadata
@@ -130,7 +146,7 @@ async def get_metadata(file_id: str):
 
 @router.get("/download/{file_id}")
 async def download_file(file_id: str, lang: str | None = None):
-    record = database.get_file(file_id)
+    record = await run_db(database.get_file, file_id)
     if not record:
         raise HTTPException(status_code=404, detail="File not found")
 
@@ -149,7 +165,8 @@ async def download_file(file_id: str, lang: str | None = None):
                     status_code=502,
                     detail="Translation service unavailable",
                 ) from e
-            database.update_file(
+            await run_db(
+                database.update_file,
                 file_id,
                 translated_text=text,
                 translation_lang=lang,
@@ -167,7 +184,7 @@ async def download_file(file_id: str, lang: str | None = None):
 
 @router.get("/preview/{file_id}")
 async def preview_file(file_id: str):
-    record = database.get_file(file_id)
+    record = await run_db(database.get_file, file_id)
     if not record:
         raise HTTPException(status_code=404, detail="File not found")
     path = Path(record.path)
@@ -179,7 +196,7 @@ async def preview_file(file_id: str):
 
 @router.get("/files/{file_id}/details", response_model=FileRecord)
 async def get_file_details(file_id: str, lang: str | None = None):
-    record = database.get_details(file_id)
+    record = await run_db(database.get_details, file_id)
     if not record:
         raise HTTPException(status_code=404, detail="File not found")
     if lang:
@@ -197,7 +214,8 @@ async def get_file_details(file_id: str, lang: str | None = None):
                     status_code=502,
                     detail="Translation service unavailable",
                 ) from e
-            database.update_file(
+            await run_db(
+                database.update_file,
                 file_id,
                 translated_text=text,
                 translation_lang=lang,
@@ -211,7 +229,7 @@ async def get_file_details(file_id: str, lang: str | None = None):
 
 @router.get("/files/{file_id}/text", response_class=PlainTextResponse)
 async def get_file_text(file_id: str):
-    record = database.get_file(file_id)
+    record = await run_db(database.get_file, file_id)
     if not record:
         raise HTTPException(status_code=404, detail="File not found")
     return record.metadata.extracted_text or ""
@@ -221,23 +239,23 @@ async def get_file_text(file_id: str):
 async def list_files(force: bool = False):
     global _last_scan_time, _last_upload_mtime
     if force:
-        _scan_output_dir()
+        await _scan_output_dir()
         _last_scan_time = time.time()
         _last_upload_mtime = _latest_upload_mtime()
     elif _should_rescan():
-        _scan_output_dir()
-    return database.list_files()
+        await _scan_output_dir()
+    return await run_db(database.list_files)
 
 
 @router.get("/files/search", response_model=list[FileRecord])
 async def search_files_route(q: str):
-    return database.search_files(q)
+    return await run_db(database.search_files, q)
 
 
 
 @router.patch("/files/{file_id}", response_model=FileRecord)
 async def update_file(file_id: str, data: dict = Body(...)):
-    record = database.get_file(file_id)
+    record = await run_db(database.get_file, file_id)
     if not record:
         raise HTTPException(status_code=404, detail="File not found")
     metadata_updates = data.get("metadata") or {}
@@ -284,7 +302,8 @@ async def update_file(file_id: str, data: dict = Body(...)):
         with open(dest_path.with_suffix(dest_path.suffix + ".json"), "w", encoding="utf-8") as f:
             json.dump(new_metadata_dict, f, ensure_ascii=False, indent=2)
 
-    database.update_file(
+    await run_db(
+        database.update_file,
         file_id,
         metadata=new_metadata if metadata_updates else None,
         path=str(dest_path) if (metadata_updates or path_param) else None,
@@ -295,13 +314,13 @@ async def update_file(file_id: str, data: dict = Body(...)):
         confirmed=confirmed if metadata_updates and not path_param else None,
         created_path=str(dest_path) if (metadata_updates and confirmed and not path_param) else None,
     )
-    return database.get_file(file_id)
+    return await run_db(database.get_file, file_id)
 
 
 @router.post("/files/{file_id}/finalize", response_model=FileRecord)
 async def finalize_file(file_id: str, data: dict = Body(...)):
     """Завершить обработку файла и при необходимости создать каталоги."""
-    record = database.get_file(file_id)
+    record = await run_db(database.get_file, file_id)
     if not record:
         raise HTTPException(status_code=404, detail="File not found")
 
@@ -312,8 +331,8 @@ async def finalize_file(file_id: str, data: dict = Body(...)):
     confirm = bool(data.get("confirm"))
 
     if not confirm:
-        database.update_file(file_id, missing=missing)
-        return database.get_file(file_id)
+        await run_db(database.update_file, file_id, missing=missing)
+        return await run_db(database.get_file, file_id)
 
     temp_path = record.path or str(UPLOAD_DIR / f"{file_id}_{record.filename}")
 
@@ -328,7 +347,8 @@ async def finalize_file(file_id: str, data: dict = Body(...)):
     )
     metadata = Metadata(**meta_dict)
 
-    database.update_file(
+    await run_db(
+        database.update_file,
         file_id,
         metadata,
         str(dest_path),
@@ -340,12 +360,12 @@ async def finalize_file(file_id: str, data: dict = Body(...)):
         confirmed=confirmed,
         created_path=str(dest_path) if confirmed else None,
     )
-    return database.get_file(file_id)
+    return await run_db(database.get_file, file_id)
 
 
 @router.get("/files/{file_id}/review")
 async def review_file(file_id: str):
-    record = database.get_file(file_id)
+    record = await run_db(database.get_file, file_id)
     if not record:
         raise HTTPException(status_code=404, detail="File not found")
     return {
@@ -357,7 +377,7 @@ async def review_file(file_id: str):
 
 @router.post("/files/{file_id}/rerun_ocr")
 async def rerun_ocr(file_id: str, language: str = Body(...), psm: int = Body(3)):
-    record = database.get_file(file_id)
+    record = await run_db(database.get_file, file_id)
     if not record or not record.path:
         raise HTTPException(status_code=404, detail="File not found")
     extract = getattr(ocr_pipeline, "extract_text", None)
@@ -371,17 +391,17 @@ async def rerun_ocr(file_id: str, language: str = Body(...), psm: int = Body(3))
     metadata = record.metadata
     metadata.extracted_text = text
     metadata.language = language
-    database.update_file(file_id, metadata=metadata, status="review")
+    await run_db(database.update_file, file_id, metadata=metadata, status="review")
     return {"extracted_text": text}
 
 
 @router.post("/files/{file_id}/comment", response_model=FileRecord)
 async def comment_file(file_id: str, message: str = Body(..., embed=True)):
-    record = database.get_file(file_id)
+    record = await run_db(database.get_file, file_id)
     if not record:
         raise HTTPException(status_code=404, detail="File not found")
 
-    database.add_chat_message(file_id, "user", message)
+    await run_db(database.add_chat_message, file_id, "user", message)
 
     text = (record.metadata.extracted_text or "") + "\n" + message
     try:
@@ -409,7 +429,8 @@ async def comment_file(file_id: str, message: str = Body(..., embed=True)):
     )
     metadata = Metadata(**meta_dict)
 
-    database.update_file(
+    await run_db(
+        database.update_file,
         file_id,
         metadata=metadata,
         prompt=meta_result.get("prompt"),
@@ -418,4 +439,4 @@ async def comment_file(file_id: str, message: str = Body(..., embed=True)):
         suggested_path=str(dest_path),
         review_comment=message,
     )
-    return database.get_file(file_id)
+    return await run_db(database.get_file, file_id)

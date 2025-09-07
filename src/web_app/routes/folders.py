@@ -5,6 +5,7 @@ from fastapi import APIRouter, HTTPException
 
 from file_sorter import get_folder_tree
 from .. import server, db as database
+from ..db import run_db
 
 router = APIRouter()
 
@@ -25,7 +26,8 @@ async def folder_tree() -> List[dict[str, Any]]:
 
     # Сопоставим пути файлов с их идентификаторами из БД, чтобы на фронте
     # можно было обращаться к существующим маршрутам просмотра/скачивания.
-    id_map = {Path(rec.path).resolve(): rec.id for rec in database.list_files()}
+    records = await run_db(database.list_files)
+    id_map = {Path(rec.path).resolve(): rec.id for rec in records}
 
     def attach_ids(nodes):
         for node in nodes:

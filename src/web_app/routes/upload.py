@@ -15,6 +15,7 @@ from file_utils import UnsupportedFileType
 from models import Metadata, UploadResponse
 from services.openrouter import OpenRouterError
 from .. import db as database
+from ..db import run_db
 from config import config
 
 router = APIRouter()
@@ -135,7 +136,8 @@ async def upload_file(
     final_path = dest_path if not dry_run and not missing else temp_path
     sources = [file.filename]
 
-    database.add_file(
+    await run_db(
+        database.add_file,
         file_id,
         file.filename,
         metadata,
@@ -210,7 +212,8 @@ async def upload_images(
     final_path = dest_path if not dry_run and not missing else pdf_path
     sources = [f.filename for f in sorted_files]
 
-    database.add_file(
+    await run_db(
+        database.add_file,
         file_id,
         pdf_path.name,
         metadata,
