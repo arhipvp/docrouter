@@ -8,7 +8,7 @@ import pytest
 
 sys.path.append(str(Path(__file__).resolve().parents[1] / "src"))
 
-from docrouter import process_directory
+from services.directory_processor import process_input_directory
 
 
 def test_parse_error_moves_file_and_creates_json(tmp_path):
@@ -23,7 +23,7 @@ def test_parse_error_moves_file_and_creates_json(tmp_path):
     cwd = os.getcwd()
     os.chdir(tmp_path)
     try:
-        asyncio.run(process_directory(input_dir, dest_root, dry_run=True))
+        asyncio.run(process_input_directory(input_dir, dest_root, dry_run=True))
     finally:
         os.chdir(cwd)
 

@@ -15,14 +15,13 @@ import metadata_generation
 logger = logging.getLogger(__name__)
 
 
-async def process_directory(
+async def process_input_directory(
     input_dir: str | Path, dest_root: str | Path, dry_run: bool = False
 ) -> None:
     """Асинхронно обработать все файлы из *input_dir* и разместить их под *dest_root*.
 
-    Для каждого файла вызывается конвейер ``extract_text`` →
-    ``metadata_generation.generate_metadata`` → ``place_file``. Любое исключение
-    обрабатывается функцией :func:`handle_error`.
+    Логика перенесена из прежнего CLI-модуля ``docrouter`` и предназначена
+    для использования внутри бэкенда или сервисов.
     """
 
     input_path = Path(input_dir)
@@ -55,23 +54,13 @@ async def process_directory(
             dest_base.mkdir(parents=True, exist_ok=True)
             file_id = str(uuid.uuid4())
 
-            def _confirm(missing_paths: list[str]) -> bool:
-                print("Отсутствующие каталоги:")
-                for p in missing_paths:
-                    print(f"  {p}")
-                try:
-                    answer = input("Создать их? (y/n): ").strip().lower()
-                except Exception:
-                    return False
-                return answer == "y"
-
             dest_path, missing, confirmed = place_file(
                 path,
                 meta_dict,
                 dest_base,
                 dry_run=dry_run,
                 needs_new_folder=True,
-                confirm_callback=_confirm,
+                confirm_callback=lambda _paths: False,
             )
             metadata_obj = Metadata(**meta_dict)
             if missing:
@@ -112,4 +101,3 @@ async def process_directory(
 
     tasks = [process_file(path) for path in input_path.rglob("*") if path.is_file()]
     await asyncio.gather(*tasks)
-

@@ -4,14 +4,14 @@ import asyncio
 
 sys.path.append(str(Path(__file__).resolve().parents[1] / "src"))
 
-from docrouter import process_directory
+from services.directory_processor import process_input_directory
 import metadata_generation
 from models import Metadata
 from config import GENERAL_FOLDER_NAME
 from web_app import db as database
 
 
-def test_process_directory_preserves_subdirs(tmp_path, monkeypatch):
+def test_process_input_directory_preserves_subdirs(tmp_path, monkeypatch):
     input_dir = tmp_path / "input" / "sub1" / "sub2"
     input_dir.mkdir(parents=True)
     file_path = input_dir / "data.txt"
@@ -24,7 +24,7 @@ def test_process_directory_preserves_subdirs(tmp_path, monkeypatch):
 
     dest_root = tmp_path / "Archive"
     database.init_db()
-    asyncio.run(process_directory(tmp_path / "input", dest_root))
+    asyncio.run(process_input_directory(tmp_path / "input", dest_root))
 
     expected = dest_root / GENERAL_FOLDER_NAME / "sub1" / "sub2" / "2024-01-01__data.txt"
     assert not expected.exists()
