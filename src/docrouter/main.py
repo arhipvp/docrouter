@@ -7,7 +7,7 @@ import sys
 
 import uvicorn
 
-from docrouter.config import load_config
+from docrouter.config import config
 from docrouter.logging_config import setup_logging
 from docrouter.web_app.server import app
 
@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 def main() -> None:
     """Запуск сервера FastAPI с настройками из окружения."""
-    cfg = load_config()
+    cfg = config
 
     host = os.getenv("HOST", "0.0.0.0")
     port = int(os.getenv("PORT", "8000"))
