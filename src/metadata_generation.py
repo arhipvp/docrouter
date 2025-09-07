@@ -16,8 +16,6 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any, Dict, Optional, Callable
 
-import httpx
-
 from models import Metadata
 from prompt_templates import build_metadata_prompt
 
@@ -29,7 +27,7 @@ from config import (
     OPENROUTER_SITE_URL,
 )
 
-from services.openrouter import OpenRouterError
+from services.openrouter import OpenRouterError, chat
 from file_utils.mrz import parse_mrz
 from utils.names import normalize_person_name
 
@@ -147,7 +145,6 @@ class OpenRouterAnalyzer(MetadataAnalyzer):
 
         self.model = model or OPENROUTER_MODEL or "openai/chatgpt-4o-latest"
         self.base_url = base_url or OPENROUTER_BASE_URL or "https://openrouter.ai/api/v1"
-        self.api_url = self.base_url.rstrip("/") + "/chat/completions"
         self.site_url = site_url or OPENROUTER_SITE_URL or "https://github.com/docrouter"
         self.site_name = site_name or OPENROUTER_SITE_NAME or "DocRouter Metadata Generator"
 
@@ -163,57 +160,22 @@ class OpenRouterAnalyzer(MetadataAnalyzer):
             text, folder_tree=folder_tree, folder_index=folder_index, file_info=file_info
         )
 
-        payload = {
-            "model": self.model,
-            "messages": [{"role": "user", "content": prompt}],
-            "temperature": 0.1,
-            # OpenRouter совместим с OpenAI; просим строгий JSON
-            "response_format": {"type": "json_object"},
-            "extra_body": {"response_format": {"type": "json_object"}},
-        }
-        headers = {
-            "Authorization": f"Bearer {self.api_key}",
-            "HTTP-Referer": self.site_url,
-            "X-Title": self.site_name,
-            "Content-Type": "application/json",
-            "Accept": "application/json",
-        }
+        messages = [{"role": "user", "content": prompt}]
+        logger.debug("OpenRouter messages: %s", messages)
 
-        logger.debug("OpenRouter payload: %s", payload)
-
-        try:
-            async with httpx.AsyncClient(timeout=60) as client:
-                response = await client.post(self.api_url, json=payload, headers=headers)
-            logger.debug("OpenRouter response status %s: %s", response.status_code, response.text)
-            response.raise_for_status()
-        except httpx.HTTPStatusError as exc:
-            logger.error(
-                "OpenRouter request failed: status=%s body=%s",
-                exc.response.status_code if exc.response else None,
-                exc.response.text if exc.response else None,
-            )
-            raise OpenRouterError(
-                f"OpenRouter request failed: {exc.response.status_code if exc.response else ''}"
-            ) from exc
-        except httpx.HTTPError as exc:
-            logger.error("OpenRouter request failed: %s", exc)
-            raise OpenRouterError("OpenRouter request failed") from exc
-
-        # Парсинг JSON-ответа
-        try:
-            data = response.json()
-        except ValueError:
-            logger.error("Non-JSON response from OpenRouter: %s", response.text[:800])
-            raise OpenRouterError("Invalid (non-JSON) response from OpenRouter")
-
-        try:
-            content = data["choices"][0]["message"]["content"]
-        except (KeyError, IndexError) as exc:
-            logger.error("Unexpected schema from OpenRouter: %s", data)
-            raise OpenRouterError("Unexpected response schema from OpenRouter") from exc
+        content, _, _ = await chat(
+            messages,
+            model=self.model,
+            api_key=self.api_key,
+            base_url=self.base_url,
+            site_url=self.site_url,
+            site_name=self.site_name,
+            response_format={"type": "json_object"},
+            extra_body={"response_format": {"type": "json_object"}},
+        )
 
         if not content or not content.strip():
-            logger.error("Empty content from OpenRouter: %s", response.text)
+            logger.error("Empty content from OpenRouter: %s", content)
             raise OpenRouterError("Empty response from OpenRouter")
 
         # Снимаем возможные ограды ```json

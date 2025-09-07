@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Tuple, Optional
 import logging
 
 import httpx
@@ -23,21 +23,42 @@ class OpenRouterError(RuntimeError):
     """Исключение при обращении к OpenRouter."""
 
 
-async def chat(messages: List[Dict[str, str]]) -> Tuple[str, int | None, float | None]:
+async def chat(
+    messages: List[Dict[str, str]],
+    *,
+    model: Optional[str] = None,
+    api_key: Optional[str] = None,
+    base_url: Optional[str] = None,
+    site_url: Optional[str] = None,
+    site_name: Optional[str] = None,
+    temperature: float = 0.1,
+    response_format: Optional[Dict[str, Any]] = None,
+    extra_body: Optional[Dict[str, Any]] = None,
+) -> Tuple[str, int | None, float | None]:
     """Отправить запрос в OpenRouter и вернуть ответ, количество токенов и стоимость."""
 
-    if not OPENROUTER_API_KEY:
+    api_key = api_key or OPENROUTER_API_KEY
+    if not api_key:
         raise OpenRouterError("OPENROUTER_API_KEY environment variable required")
 
-    model = OPENROUTER_MODEL or "openai/chatgpt-4o-mini"
-    base_url = OPENROUTER_BASE_URL or "https://openrouter.ai/api/v1"
+    model = model or OPENROUTER_MODEL or "openai/chatgpt-4o-mini"
+    base_url = base_url or OPENROUTER_BASE_URL or "https://openrouter.ai/api/v1"
     api_url = base_url.rstrip("/") + "/chat/completions"
 
-    payload: Dict[str, Any] = {"model": model, "messages": messages, "temperature": 0.1}
+    payload: Dict[str, Any] = {
+        "model": model,
+        "messages": messages,
+        "temperature": temperature,
+    }
+    if response_format is not None:
+        payload["response_format"] = response_format
+    if extra_body is not None:
+        payload["extra_body"] = extra_body
+
     headers = {
-        "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-        "HTTP-Referer": OPENROUTER_SITE_URL or "https://github.com/docrouter",
-        "X-Title": OPENROUTER_SITE_NAME or "DocRouter",
+        "Authorization": f"Bearer {api_key}",
+        "HTTP-Referer": site_url or OPENROUTER_SITE_URL or "https://github.com/docrouter",
+        "X-Title": site_name or OPENROUTER_SITE_NAME or "DocRouter",
     }
 
     async with httpx.AsyncClient(timeout=60) as client:
