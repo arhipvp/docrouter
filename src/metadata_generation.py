@@ -327,10 +327,3 @@ async def generate_metadata(
         "metadata": metadata_model,
     }
 
-
-# Автообнаружение плагинов (не критично, падать не будем)
-try:
-    from plugins import load_plugins as _load_plugins
-    _load_plugins()
-except Exception:  # pragma: no cover
-    logger.debug("Plugin loading skipped", exc_info=True)
