@@ -36,6 +36,13 @@ let displayLang = '';
 let lastFocused = null;
 export function setupFiles() {
     list = document.getElementById('files');
+    // Предотвращаем редактирование содержимого таблицы,
+    // но сохраняем возможность выделения и копирования текста
+    list.addEventListener('beforeinput', (e) => {
+        const target = e.target;
+        if (target.tagName === 'TD')
+            e.preventDefault();
+    });
     textPreview = document.getElementById('text-preview');
     tagLanguage = document.getElementById('tag-language');
     displayLangSelect = document.getElementById('display-lang');

@@ -117,6 +117,8 @@ async def startup() -> None:
     def _load_plugins() -> None:
         try:
             _load_file_utils().load_plugins()
+            from plugins import load_plugins as _load_plugins
+            _load_plugins()
         except Exception:  # pragma: no cover - плагины не обязательны
             logger.debug("Plugin loading skipped", exc_info=True)
 

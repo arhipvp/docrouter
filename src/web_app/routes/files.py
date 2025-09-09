@@ -77,6 +77,8 @@ async def _scan_output_dir() -> None:
         if file_path.suffix == ".json":
             doc_path = file_path.with_suffix("")
             if not doc_path.exists():
+                if doc_path in existing_paths:
+                    continue
                 metadata = Metadata()
                 try:
                     meta_dict = json.loads(file_path.read_text(encoding="utf-8"))
