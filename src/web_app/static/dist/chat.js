@@ -55,22 +55,30 @@ function renderChat(history) {
         chatHistory.appendChild(div);
     });
 }
-export function openChatModal(file) {
+export function openChatModal(fileOrId, history) {
     return __awaiter(this, void 0, void 0, function* () {
-        currentChatId = file.id;
-        const history = file.chat_history && file.chat_history.length ? file.chat_history : null;
-        if (history) {
-            renderChat(history);
-            document.dispatchEvent(new CustomEvent('chat-updated', { detail: { id: currentChatId, history } }));
+        if (typeof fileOrId === 'string') {
+            currentChatId = fileOrId;
+        }
+        else {
+            currentChatId = fileOrId.id;
+            history = fileOrId.chat_history && fileOrId.chat_history.length ? fileOrId.chat_history : history;
+        }
+        const hist = history && history.length ? history : null;
+        if (hist) {
+            renderChat(hist);
+            document.dispatchEvent(new CustomEvent('chat-updated', { detail: { id: currentChatId, history: hist } }));
             openModal(chatModal);
             return;
         }
+        if (!currentChatId)
+            return;
         try {
-            const resp = yield apiRequest(`/files/${file.id}/details`);
+            const resp = yield apiRequest(`/files/${currentChatId}/details`);
             const data = yield resp.json();
-            const hist = data.chat_history || [];
-            renderChat(hist);
-            document.dispatchEvent(new CustomEvent('chat-updated', { detail: { id: currentChatId, history: hist } }));
+            const h = data.chat_history || [];
+            renderChat(h);
+            document.dispatchEvent(new CustomEvent('chat-updated', { detail: { id: currentChatId, history: h } }));
         }
         catch (_a) {
             renderChat([]);

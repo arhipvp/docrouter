@@ -323,14 +323,31 @@ export function setupUploadForm() {
         xhr.send(data);
     });
     askAiBtn.addEventListener('click', () => {
-        if (!currentFile)
+        if (!currentId)
             return;
-        openChatModal(currentFile);
+        openChatModal(currentId, currentFile === null || currentFile === void 0 ? void 0 : currentFile.chat_history);
     });
     document.addEventListener('chat-updated', (ev) => {
         const detail = ev.detail;
         if ((detail === null || detail === void 0 ? void 0 : detail.id) === currentId && currentFile) {
             currentFile.chat_history = detail.history;
+            const last = detail.history[detail.history.length - 1];
+            if ((last === null || last === void 0 ? void 0 : last.role) === 'assistant') {
+                try {
+                    const suggested = JSON.parse(last.message);
+                    inputs.forEach((el) => {
+                        const key = fieldMap[el.id];
+                        if (key && suggested[key]) {
+                            el.value = suggested[key];
+                            currentFile.metadata = currentFile.metadata || {};
+                            currentFile.metadata[key] = suggested[key];
+                        }
+                    });
+                }
+                catch (_a) {
+                    // ответ не содержит JSON с метаданными
+                }
+            }
             renderDialog(previewDialog, undefined, undefined, detail.history, currentFile.review_comment, currentFile.created_path);
         }
     });

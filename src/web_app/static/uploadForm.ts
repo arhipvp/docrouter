@@ -321,14 +321,30 @@ export function setupUploadForm() {
     xhr.send(data);
   });
   askAiBtn.addEventListener('click', () => {
-    if (!currentFile) return;
-    openChatModal(currentFile);
+    if (!currentId) return;
+    openChatModal(currentId, currentFile?.chat_history);
   });
 
   document.addEventListener('chat-updated', (ev) => {
     const detail = (ev as CustomEvent<{ id: string; history: ChatHistory[] }>).detail;
     if (detail?.id === currentId && currentFile) {
       currentFile.chat_history = detail.history;
+      const last = detail.history[detail.history.length - 1];
+      if (last?.role === 'assistant') {
+        try {
+          const suggested = JSON.parse(last.message);
+          inputs.forEach((el) => {
+            const key = fieldMap[el.id];
+            if (key && suggested[key]) {
+              el.value = suggested[key];
+              currentFile!.metadata = currentFile!.metadata || {};
+              (currentFile!.metadata as any)[key] = suggested[key];
+            }
+          });
+        } catch {
+          // ответ не содержит JSON с метаданными
+        }
+      }
       renderDialog(
         previewDialog,
         undefined,

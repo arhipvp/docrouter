@@ -54,24 +54,33 @@ function renderChat(history: ChatHistory[]) {
   });
 }
 
-export async function openChatModal(file: FileInfo) {
-  currentChatId = file.id;
-  const history = file.chat_history && file.chat_history.length ? file.chat_history : null;
-  if (history) {
-    renderChat(history);
+export async function openChatModal(
+  fileOrId: FileInfo | string,
+  history?: ChatHistory[]
+) {
+  if (typeof fileOrId === 'string') {
+    currentChatId = fileOrId;
+  } else {
+    currentChatId = fileOrId.id;
+    history = fileOrId.chat_history && fileOrId.chat_history.length ? fileOrId.chat_history : history;
+  }
+  const hist = history && history.length ? history : null;
+  if (hist) {
+    renderChat(hist);
     document.dispatchEvent(
-      new CustomEvent('chat-updated', { detail: { id: currentChatId, history } })
+      new CustomEvent('chat-updated', { detail: { id: currentChatId, history: hist } })
     );
     openModal(chatModal);
     return;
   }
+  if (!currentChatId) return;
   try {
-    const resp = await apiRequest(`/files/${file.id}/details`);
+    const resp = await apiRequest(`/files/${currentChatId}/details`);
     const data: FileInfo = await resp.json();
-    const hist = data.chat_history || [];
-    renderChat(hist);
+    const h = data.chat_history || [];
+    renderChat(h);
     document.dispatchEvent(
-      new CustomEvent('chat-updated', { detail: { id: currentChatId, history: hist } })
+      new CustomEvent('chat-updated', { detail: { id: currentChatId, history: h } })
     );
   } catch {
     renderChat([]);
