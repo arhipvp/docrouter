@@ -18,6 +18,11 @@ let editCategory: HTMLInputElement;
 let editSubcategory: HTMLInputElement;
 let editIssuer: HTMLInputElement;
 let editDate: HTMLInputElement;
+let editPerson: HTMLInputElement | null;
+let editDocType: HTMLInputElement | null;
+let editLanguage: HTMLInputElement | null;
+let editNeedsFolder: HTMLInputElement | null;
+let editNewNameTranslit: HTMLInputElement | null;
 let editName: HTMLInputElement;
 let editDescription: HTMLTextAreaElement;
 let editSummary: HTMLTextAreaElement;
@@ -50,6 +55,11 @@ export function setupFiles() {
   editSubcategory = document.getElementById('edit-subcategory') as HTMLInputElement;
   editIssuer = document.getElementById('edit-issuer') as HTMLInputElement;
   editDate = document.getElementById('edit-date') as HTMLInputElement;
+  editPerson = document.getElementById('edit-person') as HTMLInputElement | null;
+  editDocType = document.getElementById('edit-doc-type') as HTMLInputElement | null;
+  editLanguage = document.getElementById('edit-language') as HTMLInputElement | null;
+  editNeedsFolder = document.getElementById('edit-needs-new-folder') as HTMLInputElement | null;
+  editNewNameTranslit = document.getElementById('edit-new-name-translit') as HTMLInputElement | null;
   editName = document.getElementById('edit-name') as HTMLInputElement;
   editDescription = document.getElementById('edit-description') as HTMLTextAreaElement;
   editSummary = document.getElementById('edit-summary') as HTMLTextAreaElement;
@@ -75,6 +85,11 @@ export function setupFiles() {
         subcategory: editSubcategory.value.trim(),
         issuer: editIssuer.value.trim(),
         date: editDate.value,
+        person: editPerson?.value.trim(),
+        doc_type: editDocType?.value.trim(),
+        language: editLanguage?.value.trim(),
+        new_name_translit: editNewNameTranslit?.value.trim(),
+        needs_new_folder: editNeedsFolder?.checked ? true : undefined,
         suggested_name: editName.value.trim(),
         description: editDescription.value.trim(),
       },
@@ -307,6 +322,11 @@ function populateMetadataForm(file: FileInfo) {
   editCategory.value = m.category || '';
   editSubcategory.value = m.subcategory || '';
   editIssuer.value = m.issuer || '';
+  editPerson && (editPerson.value = m.person || '');
+  editDocType && (editDocType.value = m.doc_type || '');
+  editLanguage && (editLanguage.value = m.language || '');
+  editNeedsFolder && (editNeedsFolder.checked = m.needs_new_folder || false);
+  editNewNameTranslit && (editNewNameTranslit.value = m.new_name_translit || '');
   editDate.value = m.date || '';
   const orig = m.suggested_name || '';
   const latin = m.suggested_name_translit || orig;

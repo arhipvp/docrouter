@@ -9,14 +9,29 @@ export interface FileMetadata {
   category?: string;
   subcategory?: string;
   issuer?: string;
+  person?: string;
+  doc_type?: string;
   date?: string;
+  date_of_birth?: string;
+  expiration_date?: string;
+  passport_number?: string;
+  amount?: string;
+  counterparty?: string;
+  document_number?: string;
+  due_date?: string;
+  currency?: string;
+  tags?: string[];
   tags_ru?: string[];
   tags_en?: string[];
+  suggested_filename?: string;
   suggested_name?: string;
   suggested_name_translit?: string;
-  description?: string;
   summary?: string;
+  description?: string;
+  needs_new_folder?: boolean;
   extracted_text?: string;
+  language?: string;
+  new_name_translit?: string;
 }
 
 export interface FileInfo {

@@ -25,6 +25,11 @@ let editCategory;
 let editSubcategory;
 let editIssuer;
 let editDate;
+let editPerson;
+let editDocType;
+let editLanguage;
+let editNeedsFolder;
+let editNewNameTranslit;
 let editName;
 let editDescription;
 let editSummary;
@@ -57,6 +62,11 @@ export function setupFiles() {
     editSubcategory = document.getElementById('edit-subcategory');
     editIssuer = document.getElementById('edit-issuer');
     editDate = document.getElementById('edit-date');
+    editPerson = document.getElementById('edit-person');
+    editDocType = document.getElementById('edit-doc-type');
+    editLanguage = document.getElementById('edit-language');
+    editNeedsFolder = document.getElementById('edit-needs-new-folder');
+    editNewNameTranslit = document.getElementById('edit-new-name-translit');
     editName = document.getElementById('edit-name');
     editDescription = document.getElementById('edit-description');
     editSummary = document.getElementById('edit-summary');
@@ -80,6 +90,11 @@ export function setupFiles() {
                 subcategory: editSubcategory.value.trim(),
                 issuer: editIssuer.value.trim(),
                 date: editDate.value,
+                person: editPerson === null || editPerson === void 0 ? void 0 : editPerson.value.trim(),
+                doc_type: editDocType === null || editDocType === void 0 ? void 0 : editDocType.value.trim(),
+                language: editLanguage === null || editLanguage === void 0 ? void 0 : editLanguage.value.trim(),
+                new_name_translit: editNewNameTranslit === null || editNewNameTranslit === void 0 ? void 0 : editNewNameTranslit.value.trim(),
+                needs_new_folder: (editNeedsFolder === null || editNeedsFolder === void 0 ? void 0 : editNeedsFolder.checked) ? true : undefined,
                 suggested_name: editName.value.trim(),
                 description: editDescription.value.trim(),
             },
@@ -230,7 +245,8 @@ export function refreshFiles() {
                 descTd.classList.add('description');
                 tr.appendChild(descTd);
                 const statusTd = document.createElement('td');
-                statusTd.textContent = f.status;
+                const status = f.status;
+                statusTd.textContent = status || '';
                 tr.appendChild(statusTd);
                 const actionsTd = document.createElement('td');
                 const langParam = displayLang ? `?lang=${encodeURIComponent(displayLang)}` : '';
@@ -300,6 +316,11 @@ function populateMetadataForm(file) {
     editCategory.value = m.category || '';
     editSubcategory.value = m.subcategory || '';
     editIssuer.value = m.issuer || '';
+    editPerson && (editPerson.value = m.person || '');
+    editDocType && (editDocType.value = m.doc_type || '');
+    editLanguage && (editLanguage.value = m.language || '');
+    editNeedsFolder && (editNeedsFolder.checked = m.needs_new_folder || false);
+    editNewNameTranslit && (editNewNameTranslit.value = m.new_name_translit || '');
     editDate.value = m.date || '';
     const orig = m.suggested_name || '';
     const latin = m.suggested_name_translit || orig;

@@ -30,6 +30,11 @@ const fieldMap: Record<string, string> = {
   'edit-name': 'suggested_name',
   'edit-description': 'description',
   'edit-summary': 'summary',
+  'edit-person': 'person',
+  'edit-doc-type': 'doc_type',
+  'edit-language': 'language',
+  'edit-new-name-translit': 'new_name_translit',
+  'edit-needs-new-folder': 'needs_new_folder',
 };
 
 function updateStep(step: number) {
@@ -245,10 +250,14 @@ export function setupUploadForm() {
 
   finalizeConfirm.addEventListener('click', async () => {
     if (!currentId) return;
-    const meta: Record<string, string> = {};
+    const meta: Record<string, string | boolean> = {};
     inputs.forEach((el) => {
       const key = fieldMap[el.id];
       if (!key || key === 'summary') return;
+      if (el instanceof HTMLInputElement && el.type === 'checkbox') {
+        if (el.checked) meta[key] = true;
+        return;
+      }
       const v = el.value.trim();
       if (v) meta[key] = v;
     });
@@ -362,8 +371,12 @@ export function setupUploadForm() {
           const suggested = JSON.parse(last.message);
           inputs.forEach((el) => {
             const key = fieldMap[el.id];
-            if (key && suggested[key]) {
-              el.value = suggested[key];
+            if (key && suggested[key] !== undefined) {
+              if (el instanceof HTMLInputElement && el.type === 'checkbox') {
+                el.checked = Boolean(suggested[key]);
+              } else {
+                el.value = suggested[key];
+              }
               currentFile!.metadata = currentFile!.metadata || {};
               (currentFile!.metadata as any)[key] = suggested[key];
             }
