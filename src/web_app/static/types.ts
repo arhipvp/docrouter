@@ -14,6 +14,7 @@ export interface FileMetadata {
   suggested_name_translit?: string;
   description?: string;
   summary?: string;
+  extracted_text?: string;
 }
 
 export interface FileInfo {
@@ -23,8 +24,12 @@ export interface FileInfo {
   status?: string;
   extracted_text?: string;
   chat_history?: ChatHistory[];
+  missing?: string[];
+  suggested_path?: string;
+  review_comment?: string;
   prompt?: string;
   raw_response?: string;
+  created_path?: string;
 }
 
 export interface UploadPendingResponse {
@@ -32,14 +37,23 @@ export interface UploadPendingResponse {
   id: string;
   suggested_path?: string;
   missing?: string[];
+  review_comment?: string;
   prompt?: string;
   raw_response?: string;
+  created_path?: string;
+  chat_history?: ChatHistory[];
 }
 
 export interface UploadFinalResponse {
   status: string;
+  id: string;
+  missing?: string[];
+  suggested_path?: string;
+  review_comment?: string;
   prompt?: string;
   raw_response?: string;
+  created_path?: string;
+  chat_history?: ChatHistory[];
 }
 
 export type UploadResponse = UploadPendingResponse | UploadFinalResponse;

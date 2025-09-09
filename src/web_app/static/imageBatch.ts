@@ -2,6 +2,7 @@ import { refreshFiles } from './files.js';
 import { refreshFolderTree } from './folders.js';
 import { openImageEditModal } from './imageEditor.js';
 import { aiExchange, renderDialog } from './uploadForm.js';
+import type { UploadResponse } from './types.js';
 
 export let currentImageIndex = -1;
 export let imageFiles: Array<{ blob: Blob; name: string }> = [];
@@ -64,8 +65,15 @@ export async function uploadEditedImages() {
   });
   const resp = await fetch('/upload/images', { method: 'POST', body: data });
   if (resp.ok) {
-    const result = await resp.json();
-    renderDialog(aiExchange, result.prompt, result.raw_response);
+    const result: UploadResponse = await resp.json();
+    renderDialog(
+      aiExchange,
+      result.prompt,
+      result.raw_response,
+      result.chat_history,
+      result.review_comment,
+      result.created_path
+    );
     imageFiles = [];
     currentImageIndex = -1;
     fileInput.value = '';

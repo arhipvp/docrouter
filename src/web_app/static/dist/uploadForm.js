@@ -7,7 +7,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
-import { refreshFiles, openMetadataModal, closeModal } from './files.js';
+import { refreshFiles, openMetadataModal, openModal, closeModal } from './files.js';
 import { refreshFolderTree } from './folders.js';
 import { openChatModal } from './chat.js';
 export let aiExchange;
@@ -21,7 +21,13 @@ let editBtn;
 let finalizeBtn;
 let askAiBtn;
 let currentId = null;
+let currentFile = null;
 let inputs;
+let stepIndicator;
+let finalizeModal;
+let finalizeConfirm;
+let finalizeCancel;
+let currentStep = 1;
 const fieldMap = {
     'edit-category': 'category',
     'edit-subcategory': 'subcategory',
@@ -31,7 +37,18 @@ const fieldMap = {
     'edit-description': 'description',
     'edit-summary': 'summary',
 };
-export function renderDialog(container, prompt, response, history) {
+function updateStep(step) {
+    currentStep = step;
+    if (!stepIndicator)
+        return;
+    const steps = stepIndicator.querySelectorAll('.step');
+    steps.forEach((el) => {
+        const s = Number(el.dataset.step || '0');
+        el.classList.toggle('active', s === step);
+        el.classList.toggle('completed', s < step);
+    });
+}
+export function renderDialog(container, prompt, response, history, reviewComment, createdPath) {
     container.innerHTML = '';
     if (history && history.length) {
         history.forEach((msg) => {
@@ -40,6 +57,18 @@ export function renderDialog(container, prompt, response, history) {
             div.textContent = msg.message;
             container.appendChild(div);
         });
+        if (reviewComment) {
+            const commentDiv = document.createElement('div');
+            commentDiv.className = 'ai-message reviewer';
+            commentDiv.textContent = reviewComment;
+            container.appendChild(commentDiv);
+        }
+        if (createdPath) {
+            const pathDiv = document.createElement('div');
+            pathDiv.className = 'ai-message system';
+            pathDiv.textContent = createdPath;
+            container.appendChild(pathDiv);
+        }
         return;
     }
     if (prompt) {
@@ -54,11 +83,38 @@ export function renderDialog(container, prompt, response, history) {
         aiDiv.textContent = response;
         container.appendChild(aiDiv);
     }
+    if (reviewComment) {
+        const commentDiv = document.createElement('div');
+        commentDiv.className = 'ai-message reviewer';
+        commentDiv.textContent = reviewComment;
+        container.appendChild(commentDiv);
+    }
+    if (createdPath) {
+        const pathDiv = document.createElement('div');
+        pathDiv.className = 'ai-message system';
+        pathDiv.textContent = createdPath;
+        container.appendChild(pathDiv);
+    }
 }
 export function setupUploadForm() {
+    var _a;
     const form = document.querySelector('form');
     const progress = document.getElementById('upload-progress');
     aiExchange = document.getElementById('ai-exchange');
+    const container = (document.querySelector('.app__container') || document.querySelector('.container'));
+    if (container) {
+        stepIndicator = document.createElement('div');
+        stepIndicator.className = 'step-indicator';
+        ['Выбор файлов', 'Предпросмотр', 'Финализация'].forEach((t, i) => {
+            const el = document.createElement('div');
+            el.className = 'step';
+            el.dataset.step = String(i + 1);
+            el.textContent = `${i + 1}. ${t}`;
+            stepIndicator.appendChild(el);
+        });
+        container.insertBefore(stepIndicator, form);
+        updateStep(1);
+    }
     const missingModal = document.getElementById('missing-modal');
     const missingList = document.getElementById('missing-list');
     const missingConfirm = document.getElementById('missing-confirm');
@@ -67,6 +123,21 @@ export function setupUploadForm() {
     const suggestedPath = document.getElementById('suggested-path');
     metadataModal = document.getElementById('metadata-modal');
     editForm = document.getElementById('edit-form');
+    finalizeModal = document.createElement('div');
+    finalizeModal.id = 'finalize-modal';
+    finalizeModal.className = 'modal confirm-modal';
+    finalizeModal.innerHTML = `
+    <div class="modal__content">
+      <p>Финализировать документ?</p>
+      <div class="modal__buttons">
+        <button id="finalize-confirm">Да</button>
+        <button id="finalize-cancel" type="button">Отмена</button>
+      </div>
+    </div>`;
+    (_a = (document.body || container)) === null || _a === void 0 ? void 0 : _a.appendChild(finalizeModal);
+    finalizeConfirm = finalizeModal.querySelector('#finalize-confirm');
+    finalizeCancel = finalizeModal.querySelector('#finalize-cancel');
+    finalizeCancel.addEventListener('click', () => closeModal(finalizeModal));
     const modalContent = metadataModal.querySelector('.modal__content');
     previewDialog = document.createElement('div');
     previewDialog.className = 'ai-dialog';
@@ -105,9 +176,13 @@ export function setupUploadForm() {
         saveBtn.style.display = '';
         inputs.forEach((el) => (el.disabled = false));
         currentId = null;
+        currentFile = null;
     };
     const metadataClose = metadataModal.querySelector('.modal__close');
-    metadataClose.addEventListener('click', hidePreview);
+    metadataClose.addEventListener('click', () => {
+        hidePreview();
+        updateStep(1);
+    });
     regenerateBtn.addEventListener('click', () => __awaiter(this, void 0, void 0, function* () {
         if (!currentId)
             return;
@@ -132,7 +207,12 @@ export function setupUploadForm() {
                 el.disabled = !disabled;
         });
     });
-    finalizeBtn.addEventListener('click', () => __awaiter(this, void 0, void 0, function* () {
+    finalizeBtn.addEventListener('click', () => {
+        if (!currentId)
+            return;
+        openModal(finalizeModal);
+    });
+    finalizeConfirm.addEventListener('click', () => __awaiter(this, void 0, void 0, function* () {
         if (!currentId)
             return;
         const meta = {};
@@ -152,12 +232,15 @@ export function setupUploadForm() {
             });
             if (!resp.ok)
                 throw new Error();
+            closeModal(finalizeModal);
             closeModal(metadataModal);
             hidePreview();
             form.reset();
             progress.value = 0;
             refreshFiles();
             refreshFolderTree();
+            updateStep(3);
+            setTimeout(() => updateStep(1), 500);
         }
         catch (_a) {
             alert('Ошибка финализации');
@@ -193,8 +276,9 @@ export function setupUploadForm() {
                         li.textContent = path;
                         missingList.appendChild(li);
                     });
-                    renderDialog(missingDialog, result.prompt, result.raw_response);
+                    renderDialog(missingDialog, result.prompt, result.raw_response, result.chat_history, result.review_comment, result.created_path);
                     missingModal.style.display = 'flex';
+                    updateStep(2);
                     missingConfirm.onclick = () => __awaiter(this, void 0, void 0, function* () {
                         try {
                             const resp = yield fetch(`/files/${result.id}/finalize`, {
@@ -225,6 +309,7 @@ export function setupUploadForm() {
                         }
                         missingModal.style.display = 'none';
                         refreshFiles();
+                        updateStep(1);
                     });
                 }
                 else {
@@ -238,30 +323,34 @@ export function setupUploadForm() {
         xhr.send(data);
     });
     askAiBtn.addEventListener('click', () => {
-        if (!currentId)
+        if (!currentFile)
             return;
-        openChatModal({ id: currentId });
+        openChatModal(currentFile);
     });
     document.addEventListener('chat-updated', (ev) => {
         const detail = ev.detail;
-        if ((detail === null || detail === void 0 ? void 0 : detail.id) === currentId) {
-            renderDialog(previewDialog, undefined, undefined, detail.history);
+        if ((detail === null || detail === void 0 ? void 0 : detail.id) === currentId && currentFile) {
+            currentFile.chat_history = detail.history;
+            renderDialog(previewDialog, undefined, undefined, detail.history, currentFile.review_comment, currentFile.created_path);
         }
     });
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape' && missingModal.style.display === 'flex') {
             missingModal.style.display = 'none';
+            updateStep(1);
         }
     });
 }
 function openPreviewModal(result) {
     var _a;
+    currentFile = result;
     currentId = result.id;
-    openMetadataModal({ id: result.id, metadata: result.metadata });
+    openMetadataModal(result);
     previewDialog.style.display = 'block';
     textPreview.style.display = 'block';
     buttonsWrap.style.display = 'flex';
-    renderDialog(previewDialog, result.prompt, result.raw_response, result.chat_history);
+    updateStep(2);
+    renderDialog(previewDialog, result.prompt, result.raw_response, result.chat_history, result.review_comment, result.created_path);
     textPreview.value = ((_a = result.metadata) === null || _a === void 0 ? void 0 : _a.extracted_text) || '';
     const saveBtn = editForm.querySelector('button[type="submit"]');
     saveBtn.style.display = 'none';

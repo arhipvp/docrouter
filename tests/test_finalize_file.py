@@ -46,6 +46,15 @@ def test_finalize_file_moves_and_creates_metadata(tmp_path, monkeypatch):
         temp_path = Path(resp.json()["path"])
         assert temp_path.exists()
 
+        regen_resp = client.post(f"/files/{file_id}/regenerate")
+        assert regen_resp.status_code == 200
+        regen_data = regen_resp.json()
+        assert regen_data["metadata"]["person"] == "Иван"
+        assert regen_data["prompt"] == ""
+        assert regen_data["raw_response"] == ""
+        assert isinstance(regen_data["missing"], list)
+        assert isinstance(regen_data.get("suggested_path"), str)
+
         finalize_resp = client.post(
             f"/files/{file_id}/finalize", json={"confirm": True}
         )

@@ -35,7 +35,14 @@ document.addEventListener('DOMContentLoaded', () => {
         });
       }
       if (dialogEl) {
-        renderDialog(dialogEl, data.prompt, data.raw_response);
+        renderDialog(
+          dialogEl,
+          data.prompt,
+          data.raw_response,
+          data.chat_history,
+          data.review_comment,
+          data.created_path
+        );
       }
     } catch {
       // ignore
@@ -70,7 +77,14 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!resp.ok) return;
       const data = await resp.json();
       if (dialogEl) {
-        renderDialog(dialogEl, data.prompt, data.raw_response);
+        renderDialog(
+          dialogEl,
+          data.prompt,
+          data.raw_response,
+          data.chat_history,
+          data.review_comment,
+          data.created_path
+        );
       }
       if (commentEl) {
         commentEl.value = '';
