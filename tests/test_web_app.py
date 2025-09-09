@@ -113,6 +113,9 @@ def test_upload_retrieve_and_download(tmp_path, monkeypatch):
     monkeypatch.setattr(
         "metadata_generation.generate_metadata", _mock_generate_metadata
     )
+    monkeypatch.setattr(
+        server.metadata_generation, "generate_metadata", _mock_generate_metadata
+    )
     asyncio.run(server.database.run_db(server.database.init_db))
     server.config.output_dir = str(tmp_path)
     (tmp_path / "John Doe").mkdir()
@@ -155,6 +158,9 @@ def test_upload_retrieve_and_download(tmp_path, monkeypatch):
         assert data["metadata"]["expiration_date"] == "2030-01-02"
 
         monkeypatch.setattr("metadata_generation.generate_metadata", _mock_generate_metadata)
+        monkeypatch.setattr(
+            server.metadata_generation, "generate_metadata", _mock_generate_metadata
+        )
         regen = client.post(f"/files/{file_id}/regenerate")
         assert regen.status_code == 200
         regen_data = regen.json()
@@ -191,6 +197,9 @@ def test_upload_retrieve_and_download(tmp_path, monkeypatch):
 
         comment_msg = "Привет"
         monkeypatch.setattr("metadata_generation.generate_metadata", _mock_generate_metadata)
+        monkeypatch.setattr(
+            server.metadata_generation, "generate_metadata", _mock_generate_metadata
+        )
         comment = client.post(
             f"/files/{file_id}/comment", json={"message": comment_msg}
         )
@@ -217,14 +226,14 @@ def test_upload_retrieve_and_download(tmp_path, monkeypatch):
         finalize = client.post(f"/files/{file_id}/finalize", json={"confirm": True})
         assert finalize.status_code == 200
         final_data = finalize.json()
-        assert final_data["status"] == "processed"
+        assert final_data["status"] == "finalized"
         assert final_data["metadata"]["person"] == "John Doe"
 
         record = server.database.get_file(file_id)
         assert record.person == "John Doe"
         assert record.date_of_birth == "1990-01-02"
         assert record.expiration_date == "2030-01-02"
-        assert record.status == "processed"
+        assert record.status == "finalized"
 
 
 def test_translation_error_returns_502(tmp_path, monkeypatch):
@@ -236,6 +245,9 @@ def test_translation_error_returns_502(tmp_path, monkeypatch):
 
     monkeypatch.setattr(server, "extract_text", _mock_extract_text)
     monkeypatch.setattr("metadata_generation.generate_metadata", _mock_generate_metadata)
+    monkeypatch.setattr(
+        server.metadata_generation, "generate_metadata", _mock_generate_metadata
+    )
     server.config.output_dir = str(tmp_path)
     (tmp_path / "John Doe").mkdir()
 
@@ -278,6 +290,9 @@ def test_upload_images_returns_sources(tmp_path, monkeypatch):
     monkeypatch.setattr("file_utils.extract_text", _mock_extract_text)
     monkeypatch.setattr(
         "metadata_generation.generate_metadata", _mock_generate_metadata
+    )
+    monkeypatch.setattr(
+        server.metadata_generation, "generate_metadata", _mock_generate_metadata
     )
     asyncio.run(server.database.run_db(server.database.init_db))
     server.config.output_dir = str(tmp_path)
@@ -325,6 +340,7 @@ def test_upload_images_download_and_metadata(tmp_path, monkeypatch):
     monkeypatch.setattr("file_utils.merge_images_to_pdf", _mock_merge)
     monkeypatch.setattr("web_app.server.extract_text", _mock_extract_text)
     monkeypatch.setattr("file_utils.extract_text", _mock_extract_text)
+    monkeypatch.setattr("metadata_generation.generate_metadata", _mock_generate_metadata)
     monkeypatch.setattr(
         server.metadata_generation, "generate_metadata", _mock_generate_metadata
     )
@@ -376,6 +392,9 @@ def test_details_endpoint_returns_full_record(tmp_path, monkeypatch):
 
     monkeypatch.setattr(server, "extract_text", _mock_extract_text)
     monkeypatch.setattr("metadata_generation.generate_metadata", _mock_generate_metadata)
+    monkeypatch.setattr(
+        server.metadata_generation, "generate_metadata", _mock_generate_metadata
+    )
     server.config.output_dir = str(tmp_path)
     (tmp_path / "John Doe").mkdir()
     (tmp_path / "Shared").mkdir()
