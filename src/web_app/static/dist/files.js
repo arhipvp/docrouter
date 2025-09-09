@@ -246,6 +246,21 @@ export function refreshFiles() {
                     openChatModal(f);
                 });
                 actionsTd.appendChild(chatBtn);
+                const regenBtn = document.createElement('button');
+                regenBtn.type = 'button';
+                regenBtn.textContent = 'Перегенерировать';
+                regenBtn.addEventListener('click', (ev) => __awaiter(this, void 0, void 0, function* () {
+                    ev.stopPropagation();
+                    try {
+                        yield apiRequest(`/files/${f.id}/regenerate`, { method: 'POST' });
+                        showNotification('Метаданные обновлены');
+                        yield refreshFiles();
+                    }
+                    catch (_a) {
+                        showNotification('Ошибка генерации');
+                    }
+                }));
+                actionsTd.appendChild(regenBtn);
                 tr.appendChild(actionsTd);
                 list.appendChild(tr);
             });

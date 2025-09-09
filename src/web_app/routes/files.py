@@ -398,6 +398,40 @@ async def rerun_ocr(file_id: str, language: str = Body(...), psm: int = Body(3))
     return {"extracted_text": text}
 
 
+@router.post("/files/{file_id}/regenerate", response_model=FileRecord)
+async def regenerate_file(file_id: str, message: str | None = Body(None, embed=True)):
+    record = await run_db(database.get_file, file_id)
+    if not record:
+        raise HTTPException(status_code=404, detail="File not found")
+
+    text = record.metadata.extracted_text or ""
+    if message:
+        text += "\n" + message
+
+    try:
+        meta_result = await server.metadata_generation.generate_metadata(text)
+    except OpenRouterError as exc:
+        logger.exception("Metadata regeneration failed")
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    except Exception as exc:  # pragma: no cover - сеть может быть недоступна
+        logger.exception("Metadata regeneration failed")
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    raw_meta = meta_result.get("metadata")
+    metadata = raw_meta if isinstance(raw_meta, Metadata) else Metadata(**raw_meta)
+    metadata.extracted_text = record.metadata.extracted_text
+    metadata.language = record.metadata.language
+
+    await run_db(
+        database.update_file,
+        file_id,
+        metadata=metadata,
+        prompt=meta_result.get("prompt"),
+        raw_response=meta_result.get("raw_response"),
+    )
+    return await run_db(database.get_file, file_id)
+
+
 @router.post("/files/{file_id}/comment", response_model=FileRecord)
 async def comment_file(file_id: str, message: str = Body(..., embed=True)):
     record = await run_db(database.get_file, file_id)
