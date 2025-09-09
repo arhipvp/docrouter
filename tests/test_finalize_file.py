@@ -167,6 +167,38 @@ def test_comment_persists_after_finalize(tmp_path, monkeypatch):
         assert data["review_comment"] == comment_msg
 
 
+def test_delete_draft_file_removes_temp_and_json(tmp_path, monkeypatch):
+    asyncio.run(server.database.run_db(server.database.init_db))
+    server.config.output_dir = str(tmp_path / "archive")
+    upload_dir = tmp_path / "uploads"
+    upload_dir.mkdir()
+    monkeypatch.setattr(upload, "UPLOAD_DIR", upload_dir)
+    monkeypatch.setattr(upload, "OCR_AVAILABLE", True)
+
+    monkeypatch.setattr(server, "extract_text", lambda path, language="eng": "")
+    monkeypatch.setattr(
+        server.metadata_generation, "generate_metadata", _mock_generate_metadata
+    )
+
+    with TestClient(app) as client:
+        resp = client.post("/upload", files={"file": ("test.pdf", b"data")})
+        assert resp.status_code == 200
+        upload_data = resp.json()
+        file_id = upload_data["id"]
+        temp_path = Path(upload_data["path"])
+        json_path = temp_path.with_suffix(temp_path.suffix + ".json")
+        json_path.write_text("{}", encoding="utf-8")
+        assert temp_path.exists() and json_path.exists()
+
+        del_resp = client.delete(f"/files/{file_id}")
+        assert del_resp.status_code == 200
+        file_resp = client.get(f"/files/{file_id}")
+        assert file_resp.status_code == 404
+
+    assert not temp_path.exists()
+    assert not json_path.exists()
+
+
 def test_delete_file(tmp_path, monkeypatch):
     asyncio.run(server.database.run_db(server.database.init_db))
     server.config.output_dir = str(tmp_path / "archive")
