@@ -19,3 +19,4 @@ def test_server_import_has_no_side_effects(monkeypatch):
     importlib.import_module("web_app.server")
 
     assert not called
+    sys.modules.pop("web_app.server", None)

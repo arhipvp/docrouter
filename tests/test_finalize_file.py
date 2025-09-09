@@ -67,4 +67,4 @@ def test_finalize_file_moves_and_creates_metadata(tmp_path, monkeypatch):
     assert dest_path.with_suffix(dest_path.suffix + ".json").exists()
 
     assert record is not None
-    assert record.status == "processed"
+    assert record.status == "finalized"

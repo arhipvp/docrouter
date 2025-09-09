@@ -131,9 +131,8 @@ async def upload_file(
             dest.write(chunk)
 
     metadata, dest_path, missing, meta_result = await process_uploaded(
-        temp_path, language, dry_run
+        temp_path, language, True
     )
-    final_path = dest_path if not dry_run and not missing else temp_path
     sources = [file.filename]
 
     await run_db(
@@ -141,8 +140,8 @@ async def upload_file(
         file_id,
         file.filename,
         metadata,
-        str(final_path),
-        "review",
+        str(temp_path),
+        "draft",
         meta_result.get("prompt"),
         meta_result.get("raw_response"),
         missing,
@@ -156,8 +155,8 @@ async def upload_file(
         metadata=metadata,
         tags_ru=metadata.tags_ru,
         tags_en=metadata.tags_en,
-        path=str(final_path),
-        status="review",
+        path=str(temp_path),
+        status="draft",
         missing=missing,
         sources=sources,
         prompt=meta_result.get("prompt"),
@@ -207,9 +206,8 @@ async def upload_images(
     shutil.rmtree(temp_dir, ignore_errors=True)
 
     metadata, dest_path, missing, meta_result = await process_uploaded(
-        pdf_path, language, dry_run
+        pdf_path, language, True
     )
-    final_path = dest_path if not dry_run and not missing else pdf_path
     sources = [f.filename for f in sorted_files]
 
     await run_db(
@@ -217,8 +215,8 @@ async def upload_images(
         file_id,
         pdf_path.name,
         metadata,
-        str(final_path),
-        "review",
+        str(pdf_path),
+        "draft",
         meta_result.get("prompt"),
         meta_result.get("raw_response"),
         missing,
@@ -232,8 +230,8 @@ async def upload_images(
         metadata=metadata,
         tags_ru=metadata.tags_ru,
         tags_en=metadata.tags_en,
-        path=str(final_path),
-        status="review",
+        path=str(pdf_path),
+        status="draft",
         missing=missing,
         sources=sources,
         prompt=meta_result.get("prompt"),

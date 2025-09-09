@@ -127,7 +127,7 @@ async def _scan_output_dir() -> None:
             file_path.name,
             metadata,
             str(file_path),
-            "processed",
+            "finalized",
         )
         existing_records[file_path] = file_id
         existing_paths.add(file_path)
@@ -321,27 +321,22 @@ async def update_file(file_id: str, data: dict = Body(...)):
 
 
 @router.post("/files/{file_id}/finalize", response_model=FileRecord)
-async def finalize_file(file_id: str, data: dict = Body(...)):
-    """Завершить обработку файла и при необходимости создать каталоги."""
+async def finalize_file(file_id: str, data: dict | None = Body(None)):
+    """Переместить файл из черновиков и записать финальные метаданные."""
     record = await run_db(database.get_file, file_id)
     if not record:
         raise HTTPException(status_code=404, detail="File not found")
 
-    if record.status not in {"pending", "review"}:
+    if record.status not in {"draft", "pending"}:
         return record
 
-    missing = data.get("missing") or []
-    confirm = bool(data.get("confirm"))
-
-    if not confirm:
-        await run_db(database.update_file, file_id, missing=missing)
-        return await run_db(database.get_file, file_id)
-
-    temp_path = record.path or str(UPLOAD_DIR / f"{file_id}_{record.filename}")
-
+    metadata_updates = (data or {}).get("metadata") or {}
     meta_dict = record.metadata.model_dump()
-    dest_path, still_missing, confirmed = place_file(
-        str(temp_path),
+    if metadata_updates:
+        meta_dict.update(metadata_updates)
+
+    dest_path, missing, confirmed = place_file(
+        record.path,
         meta_dict,
         server.config.output_dir,
         dry_run=False,
@@ -353,12 +348,10 @@ async def finalize_file(file_id: str, data: dict = Body(...)):
     await run_db(
         database.update_file,
         file_id,
-        metadata,
-        str(dest_path),
-        "processed",
-        record.prompt,
-        record.raw_response,
-        still_missing,
+        metadata=metadata,
+        path=str(dest_path),
+        status="finalized",
+        missing=missing,
         suggested_path=str(dest_path),
         confirmed=confirmed,
         created_path=str(dest_path) if confirmed else None,
@@ -394,7 +387,7 @@ async def rerun_ocr(file_id: str, language: str = Body(...), psm: int = Body(3))
     metadata = record.metadata
     metadata.extracted_text = text
     metadata.language = language
-    await run_db(database.update_file, file_id, metadata=metadata, status="review")
+    await run_db(database.update_file, file_id, metadata=metadata, status="draft")
     return {"extracted_text": text}
 
 

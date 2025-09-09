@@ -67,7 +67,7 @@ def init_db(force_reset: bool | None = None) -> None:
                     expiration_date TEXT,
                     passport_number TEXT,
                     path TEXT NOT NULL,
-                    status TEXT NOT NULL DEFAULT 'review',
+                    status TEXT NOT NULL DEFAULT 'draft',
                     prompt TEXT,
                     raw_response TEXT,
                     missing TEXT,
@@ -132,10 +132,10 @@ def _row_to_record(row: sqlite3.Row) -> FileRecord:
         metadata=Metadata(**metadata_dict),
         tags_ru=json.loads(row["tags_ru"]) if row["tags_ru"] else [],
         tags_en=json.loads(row["tags_en"]) if row["tags_en"] else [],
-        person=row["person"],
-        date_of_birth=row["date_of_birth"],
-        expiration_date=row["expiration_date"],
-        passport_number=row["passport_number"],
+        person=row["person"] or metadata_dict.get("person"),
+        date_of_birth=row["date_of_birth"] or metadata_dict.get("date_of_birth"),
+        expiration_date=row["expiration_date"] or metadata_dict.get("expiration_date"),
+        passport_number=row["passport_number"] or metadata_dict.get("passport_number"),
         path=row["path"],
         status=row["status"],
         prompt=json.loads(row["prompt"]) if row["prompt"] else None,
@@ -169,7 +169,7 @@ def add_file(
     filename: str,
     metadata: Metadata,
     path: str,
-    status: str = "review",
+    status: str = "draft",
     prompt: Any | None = None,
     raw_response: Any | None = None,
     missing: Optional[List[str]] = None,
@@ -244,13 +244,18 @@ def update_file(
     if record is None:
         return
     if metadata:
-        record.metadata = record.metadata.model_copy(update=metadata.model_dump(exclude_unset=True))
+        updates = metadata.model_dump(exclude_unset=True)
+        record.metadata = record.metadata.model_copy(update=updates)
         record.tags_ru = record.metadata.tags_ru
         record.tags_en = record.metadata.tags_en
-        record.person = record.metadata.person
-        record.date_of_birth = record.metadata.date_of_birth
-        record.expiration_date = record.metadata.expiration_date
-        record.passport_number = record.metadata.passport_number
+        if "person" in updates:
+            record.person = record.metadata.person
+        if "date_of_birth" in updates:
+            record.date_of_birth = record.metadata.date_of_birth
+        if "expiration_date" in updates:
+            record.expiration_date = record.metadata.expiration_date
+        if "passport_number" in updates:
+            record.passport_number = record.metadata.passport_number
     if path is not None:
         record.path = path
     if status is not None:
@@ -277,6 +282,14 @@ def update_file(
         record.chat_history = chat_history
     if review_comment is not None:
         record.review_comment = review_comment
+    if record.person is None and record.metadata.person is not None:
+        record.person = record.metadata.person
+    if record.date_of_birth is None and record.metadata.date_of_birth is not None:
+        record.date_of_birth = record.metadata.date_of_birth
+    if record.expiration_date is None and record.metadata.expiration_date is not None:
+        record.expiration_date = record.metadata.expiration_date
+    if record.passport_number is None and record.metadata.passport_number is not None:
+        record.passport_number = record.metadata.passport_number
     with _lock:
         _upsert(record)
 
