@@ -1,4 +1,4 @@
-import { refreshFiles, openMetadataModal, closeModal } from './files.js';
+import { refreshFiles, openMetadataModal, openModal, closeModal } from './files.js';
 import { refreshFolderTree } from './folders.js';
 import { openChatModal } from './chat.js';
 import type { FileInfo, ChatHistory, UploadResponse } from './types.js';
@@ -16,6 +16,11 @@ let askAiBtn: HTMLButtonElement;
 let currentId: string | null = null;
 let currentFile: FileInfo | null = null;
 let inputs: NodeListOf<HTMLInputElement | HTMLTextAreaElement>;
+let stepIndicator: HTMLElement;
+let finalizeModal: HTMLElement;
+let finalizeConfirm: HTMLButtonElement;
+let finalizeCancel: HTMLButtonElement;
+let currentStep = 1;
 const fieldMap: Record<string, string> = {
   'edit-category': 'category',
   'edit-subcategory': 'subcategory',
@@ -25,6 +30,17 @@ const fieldMap: Record<string, string> = {
   'edit-description': 'description',
   'edit-summary': 'summary',
 };
+
+function updateStep(step: number) {
+  currentStep = step;
+  if (!stepIndicator) return;
+  const steps = stepIndicator.querySelectorAll<HTMLElement>('.step');
+  steps.forEach((el) => {
+    const s = Number(el.dataset.step || '0');
+    el.classList.toggle('active', s === step);
+    el.classList.toggle('completed', s < step);
+  });
+}
 
 export function renderDialog(
   container: HTMLElement,
@@ -86,6 +102,21 @@ export function setupUploadForm() {
   const form = document.querySelector('form') as HTMLFormElement;
   const progress = document.getElementById('upload-progress') as HTMLProgressElement;
   aiExchange = document.getElementById('ai-exchange')!;
+  const container =
+    (document.querySelector('.app__container') || document.querySelector('.container')) as HTMLElement;
+  if (container) {
+    stepIndicator = document.createElement('div');
+    stepIndicator.className = 'step-indicator';
+    ['Выбор файлов', 'Предпросмотр', 'Финализация'].forEach((t, i) => {
+      const el = document.createElement('div');
+      el.className = 'step';
+      el.dataset.step = String(i + 1);
+      el.textContent = `${i + 1}. ${t}`;
+      stepIndicator.appendChild(el);
+    });
+    container.insertBefore(stepIndicator, form);
+    updateStep(1);
+  }
   const missingModal = document.getElementById('missing-modal')!;
   const missingList = document.getElementById('missing-list')!;
   const missingConfirm = document.getElementById('missing-confirm')!;
@@ -94,6 +125,21 @@ export function setupUploadForm() {
   const suggestedPath = document.getElementById('suggested-path')!;
   metadataModal = document.getElementById('metadata-modal')!;
   editForm = document.getElementById('edit-form') as HTMLFormElement;
+  finalizeModal = document.createElement('div');
+  finalizeModal.id = 'finalize-modal';
+  finalizeModal.className = 'modal confirm-modal';
+  finalizeModal.innerHTML = `
+    <div class="modal__content">
+      <p>Финализировать документ?</p>
+      <div class="modal__buttons">
+        <button id="finalize-confirm">Да</button>
+        <button id="finalize-cancel" type="button">Отмена</button>
+      </div>
+    </div>`;
+  (document.body || container)?.appendChild(finalizeModal);
+  finalizeConfirm = finalizeModal.querySelector('#finalize-confirm') as HTMLButtonElement;
+  finalizeCancel = finalizeModal.querySelector('#finalize-cancel') as HTMLButtonElement;
+  finalizeCancel.addEventListener('click', () => closeModal(finalizeModal));
   const modalContent = metadataModal.querySelector('.modal__content')!;
   previewDialog = document.createElement('div');
   previewDialog.className = 'ai-dialog';
@@ -136,7 +182,10 @@ export function setupUploadForm() {
     currentFile = null;
   };
   const metadataClose = metadataModal.querySelector('.modal__close') as HTMLElement;
-  metadataClose.addEventListener('click', hidePreview);
+  metadataClose.addEventListener('click', () => {
+    hidePreview();
+    updateStep(1);
+  });
 
   regenerateBtn.addEventListener('click', async () => {
     if (!currentId) return;
@@ -159,7 +208,12 @@ export function setupUploadForm() {
     });
   });
 
-  finalizeBtn.addEventListener('click', async () => {
+  finalizeBtn.addEventListener('click', () => {
+    if (!currentId) return;
+    openModal(finalizeModal);
+  });
+
+  finalizeConfirm.addEventListener('click', async () => {
     if (!currentId) return;
     const meta: Record<string, string> = {};
     inputs.forEach((el) => {
@@ -175,12 +229,15 @@ export function setupUploadForm() {
         body: JSON.stringify({ metadata: meta, confirm: true }),
       });
       if (!resp.ok) throw new Error();
+      closeModal(finalizeModal);
       closeModal(metadataModal);
       hidePreview();
       form.reset();
       progress.value = 0;
       refreshFiles();
       refreshFolderTree();
+      updateStep(3);
+      setTimeout(() => updateStep(1), 500);
     } catch {
       alert('Ошибка финализации');
     }
@@ -224,6 +281,7 @@ export function setupUploadForm() {
             result.created_path
           );
           missingModal.style.display = 'flex';
+          updateStep(2);
           missingConfirm.onclick = async () => {
             try {
               const resp = await fetch(`/files/${result.id}/finalize`, {
@@ -251,6 +309,7 @@ export function setupUploadForm() {
             }
             missingModal.style.display = 'none';
             refreshFiles();
+            updateStep(1);
           };
         } else {
           openPreviewModal(result as FileInfo);
@@ -284,6 +343,7 @@ export function setupUploadForm() {
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && missingModal.style.display === 'flex') {
       missingModal.style.display = 'none';
+      updateStep(1);
     }
   });
 }
@@ -295,6 +355,7 @@ function openPreviewModal(result: FileInfo) {
   previewDialog.style.display = 'block';
   textPreview.style.display = 'block';
   buttonsWrap.style.display = 'flex';
+  updateStep(2);
   renderDialog(
     previewDialog,
     result.prompt,
