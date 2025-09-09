@@ -6,6 +6,7 @@ import { setupImageBatch } from './imageBatch.js';
 import { setupImageEditor } from './imageEditor.js';
 import { apiRequest } from './http.js';
 import { showNotification } from './notify.js';
+import type { FileInfo } from './types.js';
 
 /**
  * Точка входа инициализации загрузки/редактирования.
@@ -37,7 +38,7 @@ export function setupUpload() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ language, psm }),
         });
-        const data = await resp.json();
+        const data: FileInfo = await resp.json();
         textPreview.textContent = data.extracted_text || '';
       } catch {
         showNotification('Ошибка пересканирования');

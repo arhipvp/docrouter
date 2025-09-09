@@ -58,14 +58,19 @@ function renderChat(history) {
 export function openChatModal(file) {
     return __awaiter(this, void 0, void 0, function* () {
         currentChatId = file.id;
+        const history = file.chat_history && file.chat_history.length ? file.chat_history : null;
+        if (history) {
+            renderChat(history);
+            document.dispatchEvent(new CustomEvent('chat-updated', { detail: { id: currentChatId, history } }));
+            openModal(chatModal);
+            return;
+        }
         try {
             const resp = yield apiRequest(`/files/${file.id}/details`);
-            const data = (yield resp.json());
-            const history = (data === null || data === void 0 ? void 0 : data.chat_history) || [];
-            renderChat(history);
-            document.dispatchEvent(new CustomEvent('chat-updated', {
-                detail: { id: currentChatId, history },
-            }));
+            const data = yield resp.json();
+            const hist = data.chat_history || [];
+            renderChat(hist);
+            document.dispatchEvent(new CustomEvent('chat-updated', { detail: { id: currentChatId, history: hist } }));
         }
         catch (_a) {
             renderChat([]);
