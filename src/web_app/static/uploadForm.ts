@@ -303,7 +303,7 @@ export function setupUploadForm() {
     xhr.onload = () => {
       if (xhr.status === 200) {
         const result: UploadResponse = JSON.parse(xhr.responseText);
-        if (result.status === 'pending') {
+        if (result.status === 'pending' || result.status === 'missing') {
           suggestedPath.textContent = result.suggested_path || '';
           missingList.innerHTML = '';
           (result.missing || []).forEach((path: string) => {

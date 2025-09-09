@@ -3,7 +3,7 @@ export interface ChatHistory {
   message: string;
 }
 
-export type FileStatus = 'draft' | 'pending' | 'finalized' | 'rejected';
+export type FileStatus = 'draft' | 'pending' | 'finalized' | 'rejected' | 'missing';
 
 export interface FileMetadata {
   category?: string;
