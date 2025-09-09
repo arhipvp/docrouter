@@ -9,6 +9,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 import { refreshFiles, openMetadataModal, closeModal } from './files.js';
 import { refreshFolderTree } from './folders.js';
+import { openChatModal } from './chat.js';
 export let aiExchange;
 let metadataModal;
 let editForm;
@@ -18,6 +19,7 @@ let buttonsWrap;
 let regenerateBtn;
 let editBtn;
 let finalizeBtn;
+let askAiBtn;
 let currentId = null;
 let inputs;
 const fieldMap = {
@@ -29,8 +31,17 @@ const fieldMap = {
     'edit-description': 'description',
     'edit-summary': 'summary',
 };
-export function renderDialog(container, prompt, response) {
+export function renderDialog(container, prompt, response, history) {
     container.innerHTML = '';
+    if (history && history.length) {
+        history.forEach((msg) => {
+            const div = document.createElement('div');
+            div.className = `ai-message ${msg.role === 'user' ? 'user' : 'assistant'}`;
+            div.textContent = msg.message;
+            container.appendChild(div);
+        });
+        return;
+    }
     if (prompt) {
         const userDiv = document.createElement('div');
         userDiv.className = 'ai-message user';
@@ -69,6 +80,10 @@ export function setupUploadForm() {
     buttonsWrap.className = 'modal__buttons';
     buttonsWrap.style.display = 'none';
     modalContent.appendChild(buttonsWrap);
+    askAiBtn = document.createElement('button');
+    askAiBtn.type = 'button';
+    askAiBtn.textContent = 'Спросить ИИ';
+    buttonsWrap.appendChild(askAiBtn);
     regenerateBtn = document.createElement('button');
     regenerateBtn.type = 'button';
     regenerateBtn.textContent = 'Перегенерировать';
@@ -224,6 +239,17 @@ export function setupUploadForm() {
         };
         xhr.send(data);
     });
+    askAiBtn.addEventListener('click', () => {
+        if (!currentId)
+            return;
+        openChatModal({ id: currentId });
+    });
+    document.addEventListener('chat-updated', (ev) => {
+        const detail = ev.detail;
+        if ((detail === null || detail === void 0 ? void 0 : detail.id) === currentId) {
+            renderDialog(previewDialog, undefined, undefined, detail.history);
+        }
+    });
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape' && missingModal.style.display === 'flex') {
             missingModal.style.display = 'none';
@@ -237,7 +263,7 @@ function openPreviewModal(result) {
     previewDialog.style.display = 'block';
     textPreview.style.display = 'block';
     buttonsWrap.style.display = 'flex';
-    renderDialog(previewDialog, result.prompt, result.raw_response);
+    renderDialog(previewDialog, result.prompt, result.raw_response, result.chat_history);
     textPreview.value = ((_a = result.metadata) === null || _a === void 0 ? void 0 : _a.extracted_text) || '';
     const saveBtn = editForm.querySelector('button[type="submit"]');
     saveBtn.style.display = 'none';
