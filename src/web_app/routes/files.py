@@ -263,6 +263,23 @@ async def search_files_route(q: str):
     return await run_db(database.search_files, q)
 
 
+@router.delete("/files/{file_id}")
+async def delete_file(file_id: str):
+    record = await run_db(database.get_file, file_id)
+    if not record:
+        raise HTTPException(status_code=404, detail="File not found")
+    path = Path(record.path)
+    json_path = path.with_suffix(path.suffix + ".json")
+    try:
+        if path.exists():
+            path.unlink()
+        if json_path.exists():
+            json_path.unlink()
+    except Exception:  # pragma: no cover - логгирование не критично
+        logger.warning("Failed to delete files for %s", file_id)
+    await run_db(database.delete_file, file_id)
+    return {"status": "deleted"}
+
 
 @router.patch("/files/{file_id}", response_model=FileRecord)
 async def update_file(file_id: str, data: dict = Body(...)):
