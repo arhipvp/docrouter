@@ -11,6 +11,7 @@ import { openChatModal } from './chat.js';
 import { apiRequest } from './http.js';
 import { showNotification } from './notify.js';
 import { refreshFolderTree } from './folders.js';
+import { aiExchange, renderDialog } from './uploadForm.js';
 let list;
 let textPreview;
 let tagLanguage;
@@ -31,6 +32,7 @@ let nameOriginalRadio;
 let nameLatinRadio;
 let nameOriginalLabel;
 let nameLatinLabel;
+let clarifyBtn;
 let currentEditId = null;
 let displayLang = '';
 let lastFocused = null;
@@ -62,6 +64,7 @@ export function setupFiles() {
     nameLatinRadio = document.getElementById('name-latin');
     nameOriginalLabel = document.getElementById('name-original-label');
     nameLatinLabel = document.getElementById('name-latin-label');
+    clarifyBtn = document.getElementById('clarify-btn');
     const refreshBtn = document.getElementById('refresh-btn');
     displayLangSelect === null || displayLangSelect === void 0 ? void 0 : displayLangSelect.addEventListener('change', () => {
         displayLang = displayLangSelect.value;
@@ -93,12 +96,34 @@ export function setupFiles() {
             });
             if (!resp.ok)
                 throw new Error();
+            const data = yield resp.json();
+            renderDialog(aiExchange, data.prompt, data.raw_response);
             closeModal(metadataModal);
             currentEditId = null;
             yield refreshFiles();
         }
         catch (_a) {
             showNotification('Ошибка обновления');
+        }
+    }));
+    clarifyBtn === null || clarifyBtn === void 0 ? void 0 : clarifyBtn.addEventListener('click', () => __awaiter(this, void 0, void 0, function* () {
+        if (!currentEditId)
+            return;
+        const message = editDescription.value.trim();
+        try {
+            const resp = yield apiRequest(`/files/${currentEditId}/comment`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message }),
+            });
+            if (!resp.ok)
+                throw new Error();
+            const data = yield resp.json();
+            populateMetadataForm(data);
+            renderDialog(aiExchange, data.prompt, data.raw_response);
+        }
+        catch (_a) {
+            showNotification('Ошибка запроса');
         }
     }));
     list.addEventListener('click', (e) => __awaiter(this, void 0, void 0, function* () {
@@ -270,8 +295,7 @@ export function refreshFiles() {
         }
     });
 }
-export function openMetadataModal(file) {
-    currentEditId = file.id;
+function populateMetadataForm(file) {
     const m = file.metadata || {};
     editCategory.value = m.category || '';
     editSubcategory.value = m.subcategory || '';
@@ -294,6 +318,10 @@ export function openMetadataModal(file) {
         nameOriginalLabel.textContent = orig;
     if (nameLatinLabel)
         nameLatinLabel.textContent = latin;
+}
+export function openMetadataModal(file) {
+    currentEditId = file.id;
+    populateMetadataForm(file);
     openModal(metadataModal);
 }
 export function openModal(modal) {

@@ -2,6 +2,7 @@ import { openChatModal } from './chat.js';
 import { apiRequest } from './http.js';
 import { showNotification } from './notify.js';
 import { refreshFolderTree } from './folders.js';
+import { aiExchange, renderDialog } from './uploadForm.js';
 import type { FileInfo, FileMetadata } from './types.js';
 
 let list: HTMLElement;
@@ -24,6 +25,7 @@ let nameOriginalRadio: HTMLInputElement | null;
 let nameLatinRadio: HTMLInputElement | null;
 let nameOriginalLabel: HTMLElement | null;
 let nameLatinLabel: HTMLElement | null;
+let clarifyBtn: HTMLButtonElement | null;
 let currentEditId: string | null = null;
 let displayLang = '';
 let lastFocused: HTMLElement | null = null;
@@ -55,6 +57,7 @@ export function setupFiles() {
   nameLatinRadio = document.getElementById('name-latin') as HTMLInputElement;
   nameOriginalLabel = document.getElementById('name-original-label');
   nameLatinLabel = document.getElementById('name-latin-label');
+  clarifyBtn = document.getElementById('clarify-btn') as HTMLButtonElement;
   const refreshBtn = document.getElementById('refresh-btn');
 
   displayLangSelect?.addEventListener('change', () => {
@@ -87,11 +90,31 @@ export function setupFiles() {
         body: JSON.stringify(payload),
       });
       if (!resp.ok) throw new Error();
+      const data: FileInfo = await resp.json();
+      renderDialog(aiExchange, data.prompt, data.raw_response);
       closeModal(metadataModal);
       currentEditId = null;
       await refreshFiles();
     } catch {
       showNotification('Ошибка обновления');
+    }
+  });
+
+  clarifyBtn?.addEventListener('click', async () => {
+    if (!currentEditId) return;
+    const message = editDescription.value.trim();
+    try {
+      const resp = await apiRequest(`/files/${currentEditId}/comment`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message }),
+      });
+      if (!resp.ok) throw new Error();
+      const data: FileInfo = await resp.json();
+      populateMetadataForm(data);
+      renderDialog(aiExchange, data.prompt, data.raw_response);
+    } catch {
+      showNotification('Ошибка запроса');
     }
   });
 
@@ -278,8 +301,7 @@ export async function refreshFiles(force = false, q = '') {
   }
 }
 
-export function openMetadataModal(file: FileInfo) {
-  currentEditId = file.id;
+function populateMetadataForm(file: FileInfo) {
   const m: FileMetadata = file.metadata || {};
   editCategory.value = m.category || '';
   editSubcategory.value = m.subcategory || '';
@@ -301,7 +323,11 @@ export function openMetadataModal(file: FileInfo) {
   }
   if (nameOriginalLabel) nameOriginalLabel.textContent = orig;
   if (nameLatinLabel) nameLatinLabel.textContent = latin;
+}
 
+export function openMetadataModal(file: FileInfo) {
+  currentEditId = file.id;
+  populateMetadataForm(file);
   openModal(metadataModal);
 }
 

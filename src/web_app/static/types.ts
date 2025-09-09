@@ -23,6 +23,8 @@ export interface FileInfo {
   status?: string;
   extracted_text?: string;
   chat_history?: ChatHistory[];
+  prompt?: string;
+  raw_response?: string;
 }
 
 export interface UploadPendingResponse {
