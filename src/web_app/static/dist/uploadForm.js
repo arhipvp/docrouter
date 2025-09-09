@@ -97,10 +97,8 @@ export function setupUploadForm() {
         if (!currentId)
             return;
         try {
-            const resp = yield fetch(`/files/${currentId}/comment`, {
+            const resp = yield fetch(`/files/${currentId}/regenerate`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ message: '' }),
             });
             if (!resp.ok)
                 throw new Error();

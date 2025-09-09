@@ -97,10 +97,8 @@ export function setupUploadForm() {
   regenerateBtn.addEventListener('click', async () => {
     if (!currentId) return;
     try {
-      const resp = await fetch(`/files/${currentId}/comment`, {
+      const resp = await fetch(`/files/${currentId}/regenerate`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: '' }),
       });
       if (!resp.ok) throw new Error();
       const data = await resp.json();

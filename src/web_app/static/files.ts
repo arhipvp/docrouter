@@ -255,6 +255,21 @@ export async function refreshFiles(force = false, q = '') {
       });
       actionsTd.appendChild(chatBtn);
 
+      const regenBtn = document.createElement('button');
+      regenBtn.type = 'button';
+      regenBtn.textContent = 'Перегенерировать';
+      regenBtn.addEventListener('click', async (ev) => {
+        ev.stopPropagation();
+        try {
+          await apiRequest(`/files/${f.id}/regenerate`, { method: 'POST' });
+          showNotification('Метаданные обновлены');
+          await refreshFiles();
+        } catch {
+          showNotification('Ошибка генерации');
+        }
+      });
+      actionsTd.appendChild(regenBtn);
+
       tr.appendChild(actionsTd);
       list.appendChild(tr);
     });
