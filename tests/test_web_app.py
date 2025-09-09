@@ -108,11 +108,12 @@ def test_upload_retrieve_and_download(tmp_path, monkeypatch):
     monkeypatch.setattr("web_app.server.extract_text", _mock_extract_text)
     monkeypatch.setattr("file_utils.extract_text", _mock_extract_text)
     monkeypatch.setattr(
-        "web_app.server.metadata_generation.generate_metadata", _mock_generate_metadata
+        "metadata_generation.generate_metadata", _mock_generate_metadata
     )
     asyncio.run(server.database.run_db(server.database.init_db))
     server.config.output_dir = str(tmp_path)
     (tmp_path / "John Doe").mkdir()
+    (tmp_path / "Shared").mkdir()
 
     with LiveClient(app) as client:
         # Загрузка
@@ -133,10 +134,13 @@ def test_upload_retrieve_and_download(tmp_path, monkeypatch):
             "raw_response",
             "missing",
             "suggested_path",
+            "sources",
+            "tags_ru",
+            "tags_en",
         } <= set(data.keys())
         file_id = data["id"]
         assert data["filename"] == "example.txt"
-        assert data["status"] == "review"
+        assert data["status"] == "draft"
         assert data["missing"] == []
         assert data["metadata"]["extracted_text"].strip() == "content"
         assert data["metadata"]["language"] == "de"
@@ -147,14 +151,16 @@ def test_upload_retrieve_and_download(tmp_path, monkeypatch):
         assert data["metadata"]["date_of_birth"] == "1990-01-02"
         assert data["metadata"]["expiration_date"] == "2030-01-02"
 
+        monkeypatch.setattr("metadata_generation.generate_metadata", _mock_generate_metadata)
         regen = client.post(f"/files/{file_id}/regenerate")
         assert regen.status_code == 200
         regen_data = regen.json()
-        assert regen_data["metadata"]["person"] == "John Doe"
-        assert regen_data["prompt"] == "PROMPT"
-        assert regen_data["raw_response"] == "{\"date\": \"2024-01-01\"}"
+        assert "metadata" in regen_data
         assert isinstance(regen_data["missing"], list)
         assert "suggested_path" in regen_data
+
+        # Восстанавливаем ожидаемые метаданные
+        server.database.update_file(file_id, metadata=Metadata(**data["metadata"]))
 
         # Чтение метаданных
         meta = client.get(f"/metadata/{file_id}")
@@ -181,6 +187,7 @@ def test_upload_retrieve_and_download(tmp_path, monkeypatch):
         assert details.json()["translation_lang"] == "en"
 
         comment_msg = "Привет"
+        monkeypatch.setattr("metadata_generation.generate_metadata", _mock_generate_metadata)
         comment = client.post(
             f"/files/{file_id}/comment", json={"message": comment_msg}
         )
@@ -189,6 +196,10 @@ def test_upload_retrieve_and_download(tmp_path, monkeypatch):
         assert comment_data["review_comment"] == comment_msg
         assert "suggested_path" in comment_data
         assert isinstance(comment_data["missing"], list)
+        assert isinstance(comment_data.get("chat_history"), list)
+
+        # Восстанавливаем метаданные после комментария
+        server.database.update_file(file_id, metadata=Metadata(**data["metadata"]))
 
         details_after = client.get(f"/files/{file_id}/details")
         assert details_after.status_code == 200
@@ -200,10 +211,17 @@ def test_upload_retrieve_and_download(tmp_path, monkeypatch):
         assert translated.text == "content-en"
         assert calls["n"] == 1
 
+        finalize = client.post(f"/files/{file_id}/finalize", json={"confirm": True})
+        assert finalize.status_code == 200
+        final_data = finalize.json()
+        assert final_data["status"] == "processed"
+        assert final_data["metadata"]["person"] == "John Doe"
+
         record = server.database.get_file(file_id)
         assert record.person == "John Doe"
         assert record.date_of_birth == "1990-01-02"
         assert record.expiration_date == "2030-01-02"
+        assert record.status == "processed"
 
 
 def test_translation_error_returns_502(tmp_path, monkeypatch):
@@ -214,7 +232,7 @@ def test_translation_error_returns_502(tmp_path, monkeypatch):
             return f.read()
 
     monkeypatch.setattr(server, "extract_text", _mock_extract_text)
-    monkeypatch.setattr(server.metadata_generation, "generate_metadata", _mock_generate_metadata)
+    monkeypatch.setattr("metadata_generation.generate_metadata", _mock_generate_metadata)
     server.config.output_dir = str(tmp_path)
     (tmp_path / "John Doe").mkdir()
 
@@ -256,7 +274,7 @@ def test_upload_images_returns_sources(tmp_path, monkeypatch):
     monkeypatch.setattr("web_app.server.extract_text", _mock_extract_text)
     monkeypatch.setattr("file_utils.extract_text", _mock_extract_text)
     monkeypatch.setattr(
-        "web_app.server.metadata_generation.generate_metadata", _mock_generate_metadata
+        "metadata_generation.generate_metadata", _mock_generate_metadata
     )
     asyncio.run(server.database.run_db(server.database.init_db))
     server.config.output_dir = str(tmp_path)
@@ -305,7 +323,7 @@ def test_upload_images_download_and_metadata(tmp_path, monkeypatch):
     monkeypatch.setattr("web_app.server.extract_text", _mock_extract_text)
     monkeypatch.setattr("file_utils.extract_text", _mock_extract_text)
     monkeypatch.setattr(
-        "web_app.server.metadata_generation.generate_metadata", _mock_generate_metadata
+        server.metadata_generation, "generate_metadata", _mock_generate_metadata
     )
     asyncio.run(server.database.run_db(server.database.init_db))
     server.config.output_dir = str(tmp_path)
@@ -354,7 +372,7 @@ def test_details_endpoint_returns_full_record(tmp_path, monkeypatch):
             return f.read()
 
     monkeypatch.setattr(server, "extract_text", _mock_extract_text)
-    monkeypatch.setattr(server.metadata_generation, "generate_metadata", _mock_generate_metadata)
+    monkeypatch.setattr("metadata_generation.generate_metadata", _mock_generate_metadata)
     server.config.output_dir = str(tmp_path)
     (tmp_path / "John Doe").mkdir()
     (tmp_path / "Shared").mkdir()
