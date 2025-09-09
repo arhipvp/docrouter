@@ -3,6 +3,8 @@ export interface ChatHistory {
   message: string;
 }
 
+export type FileStatus = 'draft' | 'pending' | 'finalized' | 'rejected';
+
 export interface FileMetadata {
   category?: string;
   subcategory?: string;
@@ -21,7 +23,7 @@ export interface FileInfo {
   id: string;
   path?: string;
   metadata?: FileMetadata;
-  status?: string;
+  status?: FileStatus;
   extracted_text?: string;
   chat_history?: ChatHistory[];
   missing?: string[];
@@ -33,7 +35,7 @@ export interface FileInfo {
 }
 
 export interface UploadPendingResponse {
-  status: 'pending';
+  status: FileStatus;
   id: string;
   suggested_path?: string;
   missing?: string[];
@@ -45,7 +47,7 @@ export interface UploadPendingResponse {
 }
 
 export interface UploadFinalResponse {
-  status: string;
+  status: FileStatus;
   id: string;
   missing?: string[];
   suggested_path?: string;
