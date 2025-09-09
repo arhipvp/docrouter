@@ -132,6 +132,7 @@ def test_upload_retrieve_and_download(tmp_path, monkeypatch):
             "prompt",
             "raw_response",
             "missing",
+            "suggested_path",
         } <= set(data.keys())
         file_id = data["id"]
         assert data["filename"] == "example.txt"
@@ -145,6 +146,15 @@ def test_upload_retrieve_and_download(tmp_path, monkeypatch):
         assert data["metadata"]["person"] == "John Doe"
         assert data["metadata"]["date_of_birth"] == "1990-01-02"
         assert data["metadata"]["expiration_date"] == "2030-01-02"
+
+        regen = client.post(f"/files/{file_id}/regenerate")
+        assert regen.status_code == 200
+        regen_data = regen.json()
+        assert regen_data["metadata"]["person"] == "John Doe"
+        assert regen_data["prompt"] == "PROMPT"
+        assert regen_data["raw_response"] == "{\"date\": \"2024-01-01\"}"
+        assert isinstance(regen_data["missing"], list)
+        assert "suggested_path" in regen_data
 
         # Чтение метаданных
         meta = client.get(f"/metadata/{file_id}")
@@ -169,6 +179,21 @@ def test_upload_retrieve_and_download(tmp_path, monkeypatch):
         assert details.status_code == 200
         assert details.json()["translated_text"] == "content-en"
         assert details.json()["translation_lang"] == "en"
+
+        comment_msg = "Привет"
+        comment = client.post(
+            f"/files/{file_id}/comment", json={"message": comment_msg}
+        )
+        assert comment.status_code == 200
+        comment_data = comment.json()
+        assert comment_data["review_comment"] == comment_msg
+        assert "suggested_path" in comment_data
+        assert isinstance(comment_data["missing"], list)
+
+        details_after = client.get(f"/files/{file_id}/details")
+        assert details_after.status_code == 200
+        history = details_after.json()["chat_history"]
+        assert history and history[-1]["message"] == comment_msg
 
         translated = client.get(f"/download/{file_id}?lang=en")
         assert translated.status_code == 200
