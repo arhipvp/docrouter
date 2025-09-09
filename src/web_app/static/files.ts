@@ -3,7 +3,7 @@ import { apiRequest } from './http.js';
 import { showNotification } from './notify.js';
 import { refreshFolderTree } from './folders.js';
 import { aiExchange, renderDialog } from './uploadForm.js';
-import type { FileInfo, FileMetadata } from './types.js';
+import type { FileInfo, FileMetadata, FileStatus } from './types.js';
 
 let list: HTMLElement;
 let textPreview: HTMLElement;
@@ -230,7 +230,8 @@ export async function refreshFiles(force = false, q = '') {
       tr.appendChild(descTd);
 
       const statusTd = document.createElement('td');
-      statusTd.textContent = f.status;
+      const status: FileStatus | undefined = f.status;
+      statusTd.textContent = status || '';
       tr.appendChild(statusTd);
 
       const actionsTd = document.createElement('td');

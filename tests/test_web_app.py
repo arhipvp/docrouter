@@ -217,14 +217,14 @@ def test_upload_retrieve_and_download(tmp_path, monkeypatch):
         finalize = client.post(f"/files/{file_id}/finalize", json={"confirm": True})
         assert finalize.status_code == 200
         final_data = finalize.json()
-        assert final_data["status"] == "processed"
+        assert final_data["status"] == "finalized"
         assert final_data["metadata"]["person"] == "John Doe"
 
         record = server.database.get_file(file_id)
         assert record.person == "John Doe"
         assert record.date_of_birth == "1990-01-02"
         assert record.expiration_date == "2030-01-02"
-        assert record.status == "processed"
+        assert record.status == "finalized"
 
 
 def test_translation_error_returns_502(tmp_path, monkeypatch):

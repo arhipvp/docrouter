@@ -1,6 +1,6 @@
 import { apiRequest } from './http.js';
 import { showNotification } from './notify.js';
-import type { ChatHistory, FileInfo } from './types.js';
+import type { ChatHistory, FileInfo, FileStatus } from './types.js';
 
 let chatModal: HTMLElement;
 let chatHistory: HTMLElement;
@@ -62,6 +62,8 @@ export async function openChatModal(
     currentChatId = fileOrId;
   } else {
     currentChatId = fileOrId.id;
+    const fileStatus: FileStatus | undefined = fileOrId.status;
+    void fileStatus;
     history = fileOrId.chat_history && fileOrId.chat_history.length ? fileOrId.chat_history : history;
   }
   const hist = history && history.length ? history : null;

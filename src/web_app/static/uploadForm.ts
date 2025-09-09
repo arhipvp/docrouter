@@ -1,7 +1,7 @@
 import { refreshFiles, openMetadataModal, openModal, closeModal } from './files.js';
 import { refreshFolderTree } from './folders.js';
 import { openChatModal } from './chat.js';
-import type { FileInfo, ChatHistory, UploadResponse } from './types.js';
+import type { FileInfo, ChatHistory, UploadResponse, FileStatus } from './types.js';
 
 export let aiExchange: HTMLElement;
 let metadataModal: HTMLElement;
@@ -302,7 +302,7 @@ export function setupUploadForm() {
               await fetch(`/files/${result.id}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ status: 'rejected' }),
+                body: JSON.stringify({ status: 'rejected' as FileStatus }),
               });
             } catch {
               // ignore errors, просто закрываем модалку
