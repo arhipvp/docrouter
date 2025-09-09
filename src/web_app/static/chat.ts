@@ -56,15 +56,22 @@ function renderChat(history: ChatHistory[]) {
 
 export async function openChatModal(file: FileInfo) {
   currentChatId = file.id;
-  try {
-    const resp = await apiRequest(`/files/${file.id}/details`);
-    const data = (await resp.json()) as FileInfo;
-    const history = (data as any)?.chat_history || [];
+  const history = file.chat_history && file.chat_history.length ? file.chat_history : null;
+  if (history) {
     renderChat(history);
     document.dispatchEvent(
-      new CustomEvent('chat-updated', {
-        detail: { id: currentChatId, history },
-      })
+      new CustomEvent('chat-updated', { detail: { id: currentChatId, history } })
+    );
+    openModal(chatModal);
+    return;
+  }
+  try {
+    const resp = await apiRequest(`/files/${file.id}/details`);
+    const data: FileInfo = await resp.json();
+    const hist = data.chat_history || [];
+    renderChat(hist);
+    document.dispatchEvent(
+      new CustomEvent('chat-updated', { detail: { id: currentChatId, history: hist } })
     );
   } catch {
     renderChat([]);

@@ -21,6 +21,7 @@ let editBtn;
 let finalizeBtn;
 let askAiBtn;
 let currentId = null;
+let currentFile = null;
 let inputs;
 const fieldMap = {
     'edit-category': 'category',
@@ -31,7 +32,7 @@ const fieldMap = {
     'edit-description': 'description',
     'edit-summary': 'summary',
 };
-export function renderDialog(container, prompt, response, history) {
+export function renderDialog(container, prompt, response, history, reviewComment, createdPath) {
     container.innerHTML = '';
     if (history && history.length) {
         history.forEach((msg) => {
@@ -40,6 +41,18 @@ export function renderDialog(container, prompt, response, history) {
             div.textContent = msg.message;
             container.appendChild(div);
         });
+        if (reviewComment) {
+            const commentDiv = document.createElement('div');
+            commentDiv.className = 'ai-message reviewer';
+            commentDiv.textContent = reviewComment;
+            container.appendChild(commentDiv);
+        }
+        if (createdPath) {
+            const pathDiv = document.createElement('div');
+            pathDiv.className = 'ai-message system';
+            pathDiv.textContent = createdPath;
+            container.appendChild(pathDiv);
+        }
         return;
     }
     if (prompt) {
@@ -53,6 +66,18 @@ export function renderDialog(container, prompt, response, history) {
         aiDiv.className = 'ai-message assistant';
         aiDiv.textContent = response;
         container.appendChild(aiDiv);
+    }
+    if (reviewComment) {
+        const commentDiv = document.createElement('div');
+        commentDiv.className = 'ai-message reviewer';
+        commentDiv.textContent = reviewComment;
+        container.appendChild(commentDiv);
+    }
+    if (createdPath) {
+        const pathDiv = document.createElement('div');
+        pathDiv.className = 'ai-message system';
+        pathDiv.textContent = createdPath;
+        container.appendChild(pathDiv);
     }
 }
 export function setupUploadForm() {
@@ -105,6 +130,7 @@ export function setupUploadForm() {
         saveBtn.style.display = '';
         inputs.forEach((el) => (el.disabled = false));
         currentId = null;
+        currentFile = null;
     };
     const metadataClose = metadataModal.querySelector('.modal__close');
     metadataClose.addEventListener('click', hidePreview);
@@ -193,7 +219,7 @@ export function setupUploadForm() {
                         li.textContent = path;
                         missingList.appendChild(li);
                     });
-                    renderDialog(missingDialog, result.prompt, result.raw_response);
+                    renderDialog(missingDialog, result.prompt, result.raw_response, result.chat_history, result.review_comment, result.created_path);
                     missingModal.style.display = 'flex';
                     missingConfirm.onclick = () => __awaiter(this, void 0, void 0, function* () {
                         try {
@@ -238,14 +264,15 @@ export function setupUploadForm() {
         xhr.send(data);
     });
     askAiBtn.addEventListener('click', () => {
-        if (!currentId)
+        if (!currentFile)
             return;
-        openChatModal({ id: currentId });
+        openChatModal(currentFile);
     });
     document.addEventListener('chat-updated', (ev) => {
         const detail = ev.detail;
-        if ((detail === null || detail === void 0 ? void 0 : detail.id) === currentId) {
-            renderDialog(previewDialog, undefined, undefined, detail.history);
+        if ((detail === null || detail === void 0 ? void 0 : detail.id) === currentId && currentFile) {
+            currentFile.chat_history = detail.history;
+            renderDialog(previewDialog, undefined, undefined, detail.history, currentFile.review_comment, currentFile.created_path);
         }
     });
     document.addEventListener('keydown', (e) => {
@@ -256,12 +283,13 @@ export function setupUploadForm() {
 }
 function openPreviewModal(result) {
     var _a;
+    currentFile = result;
     currentId = result.id;
-    openMetadataModal({ id: result.id, metadata: result.metadata });
+    openMetadataModal(result);
     previewDialog.style.display = 'block';
     textPreview.style.display = 'block';
     buttonsWrap.style.display = 'flex';
-    renderDialog(previewDialog, result.prompt, result.raw_response, result.chat_history);
+    renderDialog(previewDialog, result.prompt, result.raw_response, result.chat_history, result.review_comment, result.created_path);
     textPreview.value = ((_a = result.metadata) === null || _a === void 0 ? void 0 : _a.extracted_text) || '';
     const saveBtn = editForm.querySelector('button[type="submit"]');
     saveBtn.style.display = 'none';

@@ -70,7 +70,7 @@ export function uploadEditedImages() {
         const resp = yield fetch('/upload/images', { method: 'POST', body: data });
         if (resp.ok) {
             const result = yield resp.json();
-            renderDialog(aiExchange, result.prompt, result.raw_response);
+            renderDialog(aiExchange, result.prompt, result.raw_response, result.chat_history, result.review_comment, result.created_path);
             imageFiles = [];
             currentImageIndex = -1;
             fileInput.value = '';

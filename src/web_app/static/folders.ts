@@ -55,6 +55,10 @@ function renderNodes(container: HTMLElement, nodes: FolderNode[]): void {
   });
 }
 
+export function renderTree(container: HTMLElement, tree: FolderNode[]): void {
+  renderNodes(container, tree);
+}
+
 export async function refreshFolderTree() {
   folderTree = document.getElementById('folder-tree')!;
   try {

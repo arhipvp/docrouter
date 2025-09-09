@@ -1,7 +1,7 @@
 import { refreshFiles, openMetadataModal, closeModal } from './files.js';
 import { refreshFolderTree } from './folders.js';
 import { openChatModal } from './chat.js';
-import type { FileInfo, ChatHistory } from './types.js';
+import type { FileInfo, ChatHistory, UploadResponse } from './types.js';
 
 export let aiExchange: HTMLElement;
 let metadataModal: HTMLElement;
@@ -14,6 +14,7 @@ let editBtn: HTMLButtonElement;
 let finalizeBtn: HTMLButtonElement;
 let askAiBtn: HTMLButtonElement;
 let currentId: string | null = null;
+let currentFile: FileInfo | null = null;
 let inputs: NodeListOf<HTMLInputElement | HTMLTextAreaElement>;
 const fieldMap: Record<string, string> = {
   'edit-category': 'category',
@@ -29,7 +30,9 @@ export function renderDialog(
   container: HTMLElement,
   prompt?: string,
   response?: string,
-  history?: ChatHistory[]
+  history?: ChatHistory[],
+  reviewComment?: string,
+  createdPath?: string
 ) {
   container.innerHTML = '';
   if (history && history.length) {
@@ -39,6 +42,18 @@ export function renderDialog(
       div.textContent = msg.message;
       container.appendChild(div);
     });
+    if (reviewComment) {
+      const commentDiv = document.createElement('div');
+      commentDiv.className = 'ai-message reviewer';
+      commentDiv.textContent = reviewComment;
+      container.appendChild(commentDiv);
+    }
+    if (createdPath) {
+      const pathDiv = document.createElement('div');
+      pathDiv.className = 'ai-message system';
+      pathDiv.textContent = createdPath;
+      container.appendChild(pathDiv);
+    }
     return;
   }
   if (prompt) {
@@ -52,6 +67,18 @@ export function renderDialog(
     aiDiv.className = 'ai-message assistant';
     aiDiv.textContent = response;
     container.appendChild(aiDiv);
+  }
+  if (reviewComment) {
+    const commentDiv = document.createElement('div');
+    commentDiv.className = 'ai-message reviewer';
+    commentDiv.textContent = reviewComment;
+    container.appendChild(commentDiv);
+  }
+  if (createdPath) {
+    const pathDiv = document.createElement('div');
+    pathDiv.className = 'ai-message system';
+    pathDiv.textContent = createdPath;
+    container.appendChild(pathDiv);
   }
 }
 
@@ -106,6 +133,7 @@ export function setupUploadForm() {
     saveBtn.style.display = '';
     inputs.forEach((el) => (el.disabled = false));
     currentId = null;
+    currentFile = null;
   };
   const metadataClose = metadataModal.querySelector('.modal__close') as HTMLElement;
   metadataClose.addEventListener('click', hidePreview);
@@ -117,7 +145,7 @@ export function setupUploadForm() {
         method: 'POST',
       });
       if (!resp.ok) throw new Error();
-      const data = await resp.json();
+      const data: FileInfo = await resp.json();
       openPreviewModal(data);
     } catch {
       alert('Ошибка генерации');
@@ -178,7 +206,7 @@ export function setupUploadForm() {
     });
     xhr.onload = () => {
       if (xhr.status === 200) {
-        const result = JSON.parse(xhr.responseText);
+        const result: UploadResponse = JSON.parse(xhr.responseText);
         if (result.status === 'pending') {
           suggestedPath.textContent = result.suggested_path || '';
           missingList.innerHTML = '';
@@ -187,7 +215,14 @@ export function setupUploadForm() {
             li.textContent = path;
             missingList.appendChild(li);
           });
-          renderDialog(missingDialog, result.prompt, result.raw_response);
+          renderDialog(
+            missingDialog,
+            result.prompt,
+            result.raw_response,
+            result.chat_history,
+            result.review_comment,
+            result.created_path
+          );
           missingModal.style.display = 'flex';
           missingConfirm.onclick = async () => {
             try {
@@ -197,7 +232,7 @@ export function setupUploadForm() {
                 body: JSON.stringify({ missing: result.missing || [], confirm: true }),
               });
               if (!resp.ok) throw new Error();
-              const finalData = await resp.json();
+              const finalData: FileInfo = await resp.json();
               missingModal.style.display = 'none';
               openPreviewModal(finalData);
             } catch {
@@ -218,7 +253,7 @@ export function setupUploadForm() {
             refreshFiles();
           };
         } else {
-          openPreviewModal(result);
+          openPreviewModal(result as FileInfo);
         }
       } else {
         alert('Ошибка загрузки');
@@ -227,14 +262,22 @@ export function setupUploadForm() {
     xhr.send(data);
   });
   askAiBtn.addEventListener('click', () => {
-    if (!currentId) return;
-    openChatModal({ id: currentId } as FileInfo);
+    if (!currentFile) return;
+    openChatModal(currentFile);
   });
 
   document.addEventListener('chat-updated', (ev) => {
     const detail = (ev as CustomEvent<{ id: string; history: ChatHistory[] }>).detail;
-    if (detail?.id === currentId) {
-      renderDialog(previewDialog, undefined, undefined, detail.history);
+    if (detail?.id === currentId && currentFile) {
+      currentFile.chat_history = detail.history;
+      renderDialog(
+        previewDialog,
+        undefined,
+        undefined,
+        detail.history,
+        currentFile.review_comment,
+        currentFile.created_path
+      );
     }
   });
 
@@ -245,13 +288,21 @@ export function setupUploadForm() {
   });
 }
 
-function openPreviewModal(result: any) {
+function openPreviewModal(result: FileInfo) {
+  currentFile = result;
   currentId = result.id;
-  openMetadataModal({ id: result.id, metadata: result.metadata } as FileInfo);
+  openMetadataModal(result);
   previewDialog.style.display = 'block';
   textPreview.style.display = 'block';
   buttonsWrap.style.display = 'flex';
-  renderDialog(previewDialog, result.prompt, result.raw_response, result.chat_history);
+  renderDialog(
+    previewDialog,
+    result.prompt,
+    result.raw_response,
+    result.chat_history,
+    result.review_comment,
+    result.created_path
+  );
   textPreview.value = result.metadata?.extracted_text || '';
   const saveBtn = editForm.querySelector('button[type="submit"]') as HTMLButtonElement;
   saveBtn.style.display = 'none';
