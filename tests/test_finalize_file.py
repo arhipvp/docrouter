@@ -42,8 +42,10 @@ def test_finalize_file_moves_and_creates_metadata(tmp_path, monkeypatch):
     with TestClient(app) as client:
         resp = client.post("/upload", files={"file": ("test.pdf", b"data")})
         assert resp.status_code == 200
-        file_id = resp.json()["id"]
-        temp_path = Path(resp.json()["path"])
+        upload_data = resp.json()
+        assert upload_data["status"] == "draft"
+        file_id = upload_data["id"]
+        temp_path = Path(upload_data["path"])
         assert temp_path.exists()
 
         regen_resp = client.post(f"/files/{file_id}/regenerate")
@@ -68,3 +70,41 @@ def test_finalize_file_moves_and_creates_metadata(tmp_path, monkeypatch):
 
     assert record is not None
     assert record.status == "processed"
+
+
+def test_comment_persists_after_finalize(tmp_path, monkeypatch):
+    asyncio.run(server.database.run_db(server.database.init_db))
+    server.config.output_dir = str(tmp_path / "archive")
+    upload_dir = tmp_path / "uploads"
+    upload_dir.mkdir()
+    monkeypatch.setattr(upload, "UPLOAD_DIR", upload_dir)
+    monkeypatch.setattr(upload, "OCR_AVAILABLE", True)
+
+    monkeypatch.setattr(server, "extract_text", lambda path, language="eng": "")
+    monkeypatch.setattr(
+        server.metadata_generation, "generate_metadata", _mock_generate_metadata
+    )
+
+    with TestClient(app) as client:
+        resp = client.post("/upload", files={"file": ("test.pdf", b"data")})
+        assert resp.status_code == 200
+        upload_data = resp.json()
+        assert upload_data["status"] == "draft"
+        file_id = upload_data["id"]
+
+        comment_msg = "Важно"
+        comment_resp = client.post(
+            f"/files/{file_id}/comment", json={"message": comment_msg}
+        )
+        assert comment_resp.status_code == 200
+
+        finalize_resp = client.post(
+            f"/files/{file_id}/finalize", json={"confirm": True}
+        )
+        assert finalize_resp.status_code == 200
+
+        file_resp = client.get(f"/files/{file_id}")
+        assert file_resp.status_code == 200
+        data = file_resp.json()
+        assert data["chat_history"][-1]["message"] == comment_msg
+        assert data["review_comment"] == comment_msg

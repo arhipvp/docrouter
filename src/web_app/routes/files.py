@@ -196,6 +196,14 @@ async def preview_file(file_id: str):
     return FileResponse(path, media_type=content_type or "application/octet-stream")
 
 
+@router.get("/files/{file_id}", response_model=FileRecord)
+async def get_file(file_id: str):
+    record = await run_db(database.get_file, file_id)
+    if not record:
+        raise HTTPException(status_code=404, detail="File not found")
+    return record
+
+
 @router.get("/files/{file_id}/details", response_model=FileRecord)
 async def get_file_details(file_id: str, lang: str | None = None):
     record = await run_db(database.get_details, file_id)
@@ -327,7 +335,7 @@ async def finalize_file(file_id: str, data: dict = Body(...)):
     if not record:
         raise HTTPException(status_code=404, detail="File not found")
 
-    if record.status not in {"pending", "review"}:
+    if record.status not in {"pending", "draft"}:
         return record
 
     missing = data.get("missing") or []
@@ -394,7 +402,7 @@ async def rerun_ocr(file_id: str, language: str = Body(...), psm: int = Body(3))
     metadata = record.metadata
     metadata.extracted_text = text
     metadata.language = language
-    await run_db(database.update_file, file_id, metadata=metadata, status="review")
+    await run_db(database.update_file, file_id, metadata=metadata, status="draft")
     return {"extracted_text": text}
 
 
