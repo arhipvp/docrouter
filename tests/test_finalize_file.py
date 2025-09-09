@@ -2,6 +2,7 @@ import os
 import sys
 from pathlib import Path
 import asyncio
+import uuid
 
 import pytest
 from fastapi.testclient import TestClient
@@ -14,6 +15,7 @@ os.environ["DB_URL"] = ":memory:"
 from web_app import server  # noqa: E402
 from web_app.routes import upload  # noqa: E402
 from models import Metadata  # noqa: E402
+from file_sorter import place_file  # noqa: E402
 
 app = server.app
 
@@ -69,6 +71,61 @@ def test_finalize_file_moves_and_creates_metadata(tmp_path, monkeypatch):
     assert dest_path.with_suffix(dest_path.suffix + ".json").exists()
 
     assert record is not None
+    assert record.status == "finalized"
+
+
+def test_finalize_pending_file_creates_dirs(tmp_path):
+    asyncio.run(server.database.run_db(server.database.init_db))
+    server.config.output_dir = str(tmp_path / "archive")
+    upload_dir = tmp_path / "uploads"
+    upload_dir.mkdir()
+
+    src = upload_dir / "pending.pdf"
+    src.write_bytes(b"data")
+
+    metadata = Metadata(
+        person="Иван",
+        category="Счета",
+        subcategory="Интернет",
+        date="2024-05-01",
+        needs_new_folder=True,
+    )
+    meta_dict = metadata.model_dump()
+    dest_path, missing, _ = place_file(
+        src, meta_dict, server.config.output_dir, dry_run=True, needs_new_folder=True
+    )
+    metadata = Metadata(**meta_dict)
+    file_id = str(uuid.uuid4())
+    asyncio.run(
+        server.database.run_db(
+            server.database.add_file,
+            file_id,
+            src.name,
+            metadata,
+            str(src),
+            "pending",
+            missing=missing,
+            suggested_path=str(dest_path),
+        )
+    )
+
+    with TestClient(app) as client:
+        get_resp = client.get(f"/files/{file_id}")
+        assert get_resp.status_code == 200
+        data = get_resp.json()
+        assert data["status"] == "pending"
+        assert data["missing"] == missing
+
+        finalize_resp = client.post(f"/files/{file_id}/finalize")
+        assert finalize_resp.status_code == 200
+        final_data = finalize_resp.json()
+        new_path = Path(final_data["path"])
+        record = server.database.get_file(file_id)
+
+    assert new_path.exists()
+    assert not src.exists()
+    for rel in missing:
+        assert (Path(server.config.output_dir) / rel).exists()
     assert record.status == "finalized"
 
 
