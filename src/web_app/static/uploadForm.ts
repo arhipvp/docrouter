@@ -1,7 +1,27 @@
-import { refreshFiles } from './files.js';
+import { refreshFiles, openMetadataModal, closeModal } from './files.js';
 import { refreshFolderTree } from './folders.js';
+import type { FileInfo } from './types.js';
 
 export let aiExchange: HTMLElement;
+let metadataModal: HTMLElement;
+let editForm: HTMLFormElement;
+let previewDialog: HTMLElement;
+let textPreview: HTMLTextAreaElement;
+let buttonsWrap: HTMLElement;
+let regenerateBtn: HTMLButtonElement;
+let editBtn: HTMLButtonElement;
+let finalizeBtn: HTMLButtonElement;
+let currentId: string | null = null;
+let inputs: NodeListOf<HTMLInputElement | HTMLTextAreaElement>;
+const fieldMap: Record<string, string> = {
+  'edit-category': 'category',
+  'edit-subcategory': 'subcategory',
+  'edit-issuer': 'issuer',
+  'edit-date': 'date',
+  'edit-name': 'suggested_name',
+  'edit-description': 'description',
+  'edit-summary': 'summary',
+};
 
 export function renderDialog(
   container: HTMLElement,
@@ -33,6 +53,96 @@ export function setupUploadForm() {
   const missingCancel = document.getElementById('missing-cancel')!;
   const missingDialog = document.getElementById('missing-dialog')!;
   const suggestedPath = document.getElementById('suggested-path')!;
+  metadataModal = document.getElementById('metadata-modal')!;
+  editForm = document.getElementById('edit-form') as HTMLFormElement;
+  const modalContent = metadataModal.querySelector('.modal__content')!;
+  previewDialog = document.createElement('div');
+  previewDialog.className = 'ai-dialog';
+  previewDialog.style.display = 'none';
+  modalContent.insertBefore(previewDialog, editForm);
+  textPreview = document.createElement('textarea');
+  textPreview.readOnly = true;
+  textPreview.style.display = 'none';
+  modalContent.insertBefore(textPreview, editForm);
+  buttonsWrap = document.createElement('div');
+  buttonsWrap.className = 'modal__buttons';
+  buttonsWrap.style.display = 'none';
+  modalContent.appendChild(buttonsWrap);
+  regenerateBtn = document.createElement('button');
+  regenerateBtn.type = 'button';
+  regenerateBtn.textContent = 'Перегенерировать';
+  buttonsWrap.appendChild(regenerateBtn);
+  editBtn = document.createElement('button');
+  editBtn.type = 'button';
+  editBtn.textContent = 'Редактировать';
+  buttonsWrap.appendChild(editBtn);
+  finalizeBtn = document.createElement('button');
+  finalizeBtn.type = 'button';
+  finalizeBtn.textContent = 'Финализировать';
+  buttonsWrap.appendChild(finalizeBtn);
+  inputs = editForm.querySelectorAll('input, textarea');
+
+  const saveBtn = editForm.querySelector('button[type="submit"]') as HTMLButtonElement;
+  const hidePreview = () => {
+    previewDialog.style.display = 'none';
+    textPreview.style.display = 'none';
+    buttonsWrap.style.display = 'none';
+    saveBtn.style.display = '';
+    inputs.forEach((el) => (el.disabled = false));
+    currentId = null;
+  };
+  const metadataClose = metadataModal.querySelector('.modal__close') as HTMLElement;
+  metadataClose.addEventListener('click', hidePreview);
+
+  regenerateBtn.addEventListener('click', async () => {
+    if (!currentId) return;
+    try {
+      const resp = await fetch(`/files/${currentId}/comment`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: '' }),
+      });
+      if (!resp.ok) throw new Error();
+      const data = await resp.json();
+      openPreviewModal(data);
+    } catch {
+      alert('Ошибка генерации');
+    }
+  });
+
+  editBtn.addEventListener('click', () => {
+    const disabled = inputs[0]?.disabled;
+    inputs.forEach((el) => {
+      if (!(el.id === 'edit-summary')) el.disabled = !disabled;
+    });
+  });
+
+  finalizeBtn.addEventListener('click', async () => {
+    if (!currentId) return;
+    const meta: Record<string, string> = {};
+    inputs.forEach((el) => {
+      const key = fieldMap[el.id];
+      if (!key || key === 'summary') return;
+      const v = el.value.trim();
+      if (v) meta[key] = v;
+    });
+    try {
+      const resp = await fetch(`/files/${currentId}/finalize`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ metadata: meta, confirm: true }),
+      });
+      if (!resp.ok) throw new Error();
+      closeModal(metadataModal);
+      hidePreview();
+      form.reset();
+      progress.value = 0;
+      refreshFiles();
+      refreshFolderTree();
+    } catch {
+      alert('Ошибка финализации');
+    }
+  });
 
   form.addEventListener('submit', (e) => {
     e.preventDefault();
@@ -75,11 +185,7 @@ export function setupUploadForm() {
               if (!resp.ok) throw new Error();
               const finalData = await resp.json();
               missingModal.style.display = 'none';
-              renderDialog(aiExchange, finalData.prompt, finalData.raw_response);
-              form.reset();
-              progress.value = 0;
-              refreshFiles();
-              refreshFolderTree();
+              openPreviewModal(finalData);
             } catch {
               alert('Ошибка обработки');
             }
@@ -98,11 +204,7 @@ export function setupUploadForm() {
             refreshFiles();
           };
         } else {
-          renderDialog(aiExchange, result.prompt, result.raw_response);
-          form.reset();
-          progress.value = 0;
-          refreshFiles();
-          refreshFolderTree();
+          openPreviewModal(result);
         }
       } else {
         alert('Ошибка загрузки');
@@ -116,4 +218,17 @@ export function setupUploadForm() {
       missingModal.style.display = 'none';
     }
   });
+}
+
+function openPreviewModal(result: any) {
+  currentId = result.id;
+  openMetadataModal({ id: result.id, metadata: result.metadata } as FileInfo);
+  previewDialog.style.display = 'block';
+  textPreview.style.display = 'block';
+  buttonsWrap.style.display = 'flex';
+  renderDialog(previewDialog, result.prompt, result.raw_response);
+  textPreview.value = result.metadata?.extracted_text || '';
+  const saveBtn = editForm.querySelector('button[type="submit"]') as HTMLButtonElement;
+  saveBtn.style.display = 'none';
+  inputs.forEach((el) => (el.disabled = true));
 }

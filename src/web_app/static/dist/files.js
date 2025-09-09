@@ -255,7 +255,7 @@ export function refreshFiles() {
         }
     });
 }
-function openMetadataModal(file) {
+export function openMetadataModal(file) {
     currentEditId = file.id;
     const m = file.metadata || {};
     editCategory.value = m.category || '';
@@ -281,7 +281,7 @@ function openMetadataModal(file) {
         nameLatinLabel.textContent = latin;
     openModal(metadataModal);
 }
-function openModal(modal) {
+export function openModal(modal) {
     lastFocused = document.activeElement;
     modal.style.display = 'flex';
     const focusable = modal.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
@@ -315,7 +315,7 @@ function openModal(modal) {
     modal.addEventListener('keydown', handleKeydown);
     modal._handleKeydown = handleKeydown;
 }
-function closeModal(modal) {
+export function closeModal(modal) {
     modal.style.display = 'none';
     const handler = modal._handleKeydown;
     if (handler && typeof modal.removeEventListener === 'function') {

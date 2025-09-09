@@ -263,7 +263,7 @@ export async function refreshFiles(force = false, q = '') {
   }
 }
 
-function openMetadataModal(file: FileInfo) {
+export function openMetadataModal(file: FileInfo) {
   currentEditId = file.id;
   const m: FileMetadata = file.metadata || {};
   editCategory.value = m.category || '';
@@ -290,7 +290,7 @@ function openMetadataModal(file: FileInfo) {
   openModal(metadataModal);
 }
 
-function openModal(modal: HTMLElement) {
+export function openModal(modal: HTMLElement) {
   lastFocused = document.activeElement as HTMLElement;
   modal.style.display = 'flex';
   const focusable = modal.querySelectorAll<HTMLElement>(
@@ -325,7 +325,7 @@ function openModal(modal: HTMLElement) {
   (modal as any)._handleKeydown = handleKeydown;
 }
 
-function closeModal(modal: HTMLElement) {
+export function closeModal(modal: HTMLElement) {
   modal.style.display = 'none';
   const handler = (modal as any)._handleKeydown;
   if (handler && typeof (modal as any).removeEventListener === 'function') {
