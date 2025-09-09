@@ -17,6 +17,9 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "..", "src"))
 # Настраиваем окружение ДО импорта сервера
 os.environ["DB_URL"] = ":memory:"             # in-memory БД для тестов
 
+# Обеспечиваем свежий импорт сервера (другие тесты могут его перезагружать)
+sys.modules.pop("web_app.server", None)
+
 # Импортируем сервер
 from web_app import server  # noqa: E402
 from models import Metadata  # noqa: E402

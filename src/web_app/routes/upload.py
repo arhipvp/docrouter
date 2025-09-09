@@ -52,6 +52,7 @@ def _check_tesseract() -> bool:
     logger.warning("Бинарник tesseract не найден. OCR будет недоступен")
     return False
 
+
 # Вычисляем доступность OCR при загрузке модуля
 OCR_AVAILABLE = _check_tesseract()
 
@@ -131,9 +132,8 @@ async def upload_file(
             dest.write(chunk)
 
     metadata, dest_path, missing, meta_result = await process_uploaded(
-        temp_path, language, dry_run
+        temp_path, language, True
     )
-    final_path = dest_path if not dry_run and not missing else temp_path
     sources = [file.filename]
 
     await run_db(
@@ -141,7 +141,7 @@ async def upload_file(
         file_id,
         file.filename,
         metadata,
-        str(final_path),
+        str(temp_path),
         "draft",
         meta_result.get("prompt"),
         meta_result.get("raw_response"),
@@ -156,7 +156,7 @@ async def upload_file(
         metadata=metadata,
         tags_ru=metadata.tags_ru,
         tags_en=metadata.tags_en,
-        path=str(final_path),
+        path=str(temp_path),
         status="draft",
         missing=missing,
         sources=sources,
@@ -207,9 +207,8 @@ async def upload_images(
     shutil.rmtree(temp_dir, ignore_errors=True)
 
     metadata, dest_path, missing, meta_result = await process_uploaded(
-        pdf_path, language, dry_run
+        pdf_path, language, True
     )
-    final_path = dest_path if not dry_run and not missing else pdf_path
     sources = [f.filename for f in sorted_files]
 
     await run_db(
@@ -217,7 +216,7 @@ async def upload_images(
         file_id,
         pdf_path.name,
         metadata,
-        str(final_path),
+        str(pdf_path),
         "draft",
         meta_result.get("prompt"),
         meta_result.get("raw_response"),
@@ -232,7 +231,7 @@ async def upload_images(
         metadata=metadata,
         tags_ru=metadata.tags_ru,
         tags_en=metadata.tags_en,
-        path=str(final_path),
+        path=str(pdf_path),
         status="draft",
         missing=missing,
         sources=sources,
