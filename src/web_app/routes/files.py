@@ -196,6 +196,14 @@ async def preview_file(file_id: str):
     return FileResponse(path, media_type=content_type or "application/octet-stream")
 
 
+@router.get("/files/{file_id}", response_model=FileRecord)
+async def get_file(file_id: str):
+    record = await run_db(database.get_file, file_id)
+    if not record:
+        raise HTTPException(status_code=404, detail="File not found")
+    return record
+
+
 @router.get("/files/{file_id}/details", response_model=FileRecord)
 async def get_file_details(file_id: str, lang: str | None = None):
     record = await run_db(database.get_details, file_id)
@@ -327,7 +335,7 @@ async def finalize_file(file_id: str, data: dict | None = Body(None)):
     if not record:
         raise HTTPException(status_code=404, detail="File not found")
 
-    if record.status not in {"draft", "pending"}:
+    if record.status not in {"pending", "draft"}:
         return record
 
     metadata_updates = (data or {}).get("metadata") or {}
@@ -411,9 +419,33 @@ async def regenerate_file(file_id: str, message: str | None = Body(None, embed=T
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
     raw_meta = meta_result.get("metadata")
-    metadata = raw_meta if isinstance(raw_meta, Metadata) else Metadata(**raw_meta)
+    new_meta = raw_meta if isinstance(raw_meta, Metadata) else Metadata(**raw_meta)
+    # Сохраняем уже известные поля, если модель ничего не вернула
+    base_meta = record.metadata.model_dump()
+    base_meta.update(
+        {k: v for k, v in new_meta.model_dump(exclude_unset=True).items() if v is not None}
+    )
+    metadata = Metadata(**base_meta)
     metadata.extracted_text = record.metadata.extracted_text
     metadata.language = record.metadata.language
+    meta_dict = metadata.model_dump()
+    dest_path_tmp, missing, _ = place_file(
+        record.path,
+        meta_dict,
+        server.config.output_dir,
+        dry_run=True,
+        needs_new_folder=metadata.needs_new_folder,
+        confirm_callback=lambda _paths: False,
+    )
+    metadata = Metadata(**meta_dict)
+    orig_path = Path(record.path)
+    if dest_path_tmp.parent == orig_path.parent and dest_path_tmp.stem.startswith(
+        orig_path.stem + "_"
+    ):
+        dest_path = orig_path
+        metadata.new_name_translit = record.metadata.new_name_translit
+    else:
+        dest_path = dest_path_tmp
 
     await run_db(
         database.update_file,
@@ -421,6 +453,8 @@ async def regenerate_file(file_id: str, message: str | None = Body(None, embed=T
         metadata=metadata,
         prompt=meta_result.get("prompt"),
         raw_response=meta_result.get("raw_response"),
+        missing=missing,
+        suggested_path=str(dest_path),
     )
     return await run_db(database.get_file, file_id)
 
@@ -444,12 +478,17 @@ async def comment_file(file_id: str, message: str = Body(..., embed=True)):
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
     raw_meta = meta_result.get("metadata")
-    metadata = raw_meta if isinstance(raw_meta, Metadata) else Metadata(**raw_meta)
+    new_meta = raw_meta if isinstance(raw_meta, Metadata) else Metadata(**raw_meta)
+    base_meta = record.metadata.model_dump()
+    base_meta.update(
+        {k: v for k, v in new_meta.model_dump(exclude_unset=True).items() if v is not None}
+    )
+    metadata = Metadata(**base_meta)
     metadata.extracted_text = record.metadata.extracted_text
     metadata.language = record.metadata.language
 
     meta_dict = metadata.model_dump()
-    dest_path, missing, _ = place_file(
+    dest_path_tmp, missing, _ = place_file(
         record.path,
         meta_dict,
         server.config.output_dir,
@@ -458,6 +497,14 @@ async def comment_file(file_id: str, message: str = Body(..., embed=True)):
         confirm_callback=lambda _paths: False,
     )
     metadata = Metadata(**meta_dict)
+    orig_path = Path(record.path)
+    if dest_path_tmp.parent == orig_path.parent and dest_path_tmp.stem.startswith(
+        orig_path.stem + "_"
+    ):
+        dest_path = orig_path
+        metadata.new_name_translit = record.metadata.new_name_translit
+    else:
+        dest_path = dest_path_tmp
 
     await run_db(
         database.update_file,

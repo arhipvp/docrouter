@@ -52,6 +52,7 @@ def _check_tesseract() -> bool:
     logger.warning("Бинарник tesseract не найден. OCR будет недоступен")
     return False
 
+
 # Вычисляем доступность OCR при загрузке модуля
 OCR_AVAILABLE = _check_tesseract()
 
