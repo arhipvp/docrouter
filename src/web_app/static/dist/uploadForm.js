@@ -297,17 +297,15 @@ export function setupUploadForm() {
                         }
                     });
                     missingCancel.onclick = () => __awaiter(this, void 0, void 0, function* () {
+                        var _a;
                         try {
-                            yield fetch(`/files/${result.id}`, {
-                                method: 'PATCH',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ status: 'rejected' }),
-                            });
+                            yield fetch(`/files/${result.id}`, { method: 'DELETE' });
                         }
-                        catch (_a) {
+                        catch (_b) {
                             // ignore errors, просто закрываем модалку
                         }
                         missingModal.style.display = 'none';
+                        (_a = document.querySelector(`#files tr[data-id="${result.id}"]`)) === null || _a === void 0 ? void 0 : _a.remove();
                         refreshFiles();
                         updateStep(1);
                     });
