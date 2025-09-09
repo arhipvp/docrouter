@@ -34,6 +34,11 @@ export function setupChat() {
       const data = (await resp.json()) as { chat_history: ChatHistory[] };
       renderChat(data.chat_history);
       chatInput.value = '';
+      document.dispatchEvent(
+        new CustomEvent('chat-updated', {
+          detail: { id: currentChatId, history: data.chat_history },
+        })
+      );
     } catch {
       showNotification('Ошибка отправки сообщения');
     }
@@ -54,7 +59,13 @@ export async function openChatModal(file: FileInfo) {
   try {
     const resp = await apiRequest(`/files/${file.id}/details`);
     const data = (await resp.json()) as FileInfo;
-    renderChat((data as any)?.chat_history || []);
+    const history = (data as any)?.chat_history || [];
+    renderChat(history);
+    document.dispatchEvent(
+      new CustomEvent('chat-updated', {
+        detail: { id: currentChatId, history },
+      })
+    );
   } catch {
     renderChat([]);
     showNotification('Не удалось загрузить чат');

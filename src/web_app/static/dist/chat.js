@@ -38,6 +38,9 @@ export function setupChat() {
             const data = (yield resp.json());
             renderChat(data.chat_history);
             chatInput.value = '';
+            document.dispatchEvent(new CustomEvent('chat-updated', {
+                detail: { id: currentChatId, history: data.chat_history },
+            }));
         }
         catch (_a) {
             showNotification('Ошибка отправки сообщения');
@@ -58,7 +61,11 @@ export function openChatModal(file) {
         try {
             const resp = yield apiRequest(`/files/${file.id}/details`);
             const data = (yield resp.json());
-            renderChat((data === null || data === void 0 ? void 0 : data.chat_history) || []);
+            const history = (data === null || data === void 0 ? void 0 : data.chat_history) || [];
+            renderChat(history);
+            document.dispatchEvent(new CustomEvent('chat-updated', {
+                detail: { id: currentChatId, history },
+            }));
         }
         catch (_a) {
             renderChat([]);
