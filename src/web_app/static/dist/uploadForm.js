@@ -16,6 +16,7 @@ let editForm;
 let previewDialog;
 let textPreview;
 let buttonsWrap;
+let rerunOcrBtn;
 let regenerateBtn;
 let editBtn;
 let finalizeBtn;
@@ -147,6 +148,11 @@ export function setupUploadForm() {
     textPreview.readOnly = true;
     textPreview.style.display = 'none';
     modalContent.insertBefore(textPreview, editForm);
+    rerunOcrBtn = document.createElement('button');
+    rerunOcrBtn.type = 'button';
+    rerunOcrBtn.textContent = 'Пересканировать';
+    rerunOcrBtn.style.display = 'none';
+    modalContent.insertBefore(rerunOcrBtn, editForm);
     buttonsWrap = document.createElement('div');
     buttonsWrap.className = 'modal__buttons';
     buttonsWrap.style.display = 'none';
@@ -172,6 +178,7 @@ export function setupUploadForm() {
     const hidePreview = () => {
         previewDialog.style.display = 'none';
         textPreview.style.display = 'none';
+        rerunOcrBtn.style.display = 'none';
         buttonsWrap.style.display = 'none';
         saveBtn.style.display = '';
         inputs.forEach((el) => (el.disabled = false));
@@ -197,6 +204,31 @@ export function setupUploadForm() {
         }
         catch (_a) {
             alert('Ошибка генерации');
+        }
+    }));
+    rerunOcrBtn.addEventListener('click', () => __awaiter(this, void 0, void 0, function* () {
+        if (!currentId)
+            return;
+        const langSelect = document.getElementById('language');
+        const psmInput = document.getElementById('psm');
+        const language = (langSelect === null || langSelect === void 0 ? void 0 : langSelect.value) || 'eng';
+        const psm = parseInt((psmInput === null || psmInput === void 0 ? void 0 : psmInput.value) || '3', 10);
+        try {
+            const resp = yield fetch(`/files/${currentId}/rerun_ocr`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ language, psm }),
+            });
+            if (!resp.ok)
+                throw new Error();
+            const data = yield resp.json();
+            textPreview.value = data.extracted_text || '';
+            if (currentFile === null || currentFile === void 0 ? void 0 : currentFile.metadata) {
+                currentFile.metadata.extracted_text = data.extracted_text;
+            }
+        }
+        catch (_a) {
+            alert('Ошибка пересканирования');
         }
     }));
     editBtn.addEventListener('click', () => {
@@ -363,6 +395,7 @@ function openPreviewModal(result) {
     openMetadataModal(result);
     previewDialog.style.display = 'block';
     textPreview.style.display = 'block';
+    rerunOcrBtn.style.display = 'inline-block';
     buttonsWrap.style.display = 'flex';
     updateStep(2);
     renderDialog(previewDialog, result.prompt, result.raw_response, result.chat_history, result.review_comment, result.created_path);

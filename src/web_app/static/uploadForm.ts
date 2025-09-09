@@ -9,6 +9,7 @@ let editForm: HTMLFormElement;
 let previewDialog: HTMLElement;
 let textPreview: HTMLTextAreaElement;
 let buttonsWrap: HTMLElement;
+let rerunOcrBtn: HTMLButtonElement;
 let regenerateBtn: HTMLButtonElement;
 let editBtn: HTMLButtonElement;
 let finalizeBtn: HTMLButtonElement;
@@ -149,6 +150,11 @@ export function setupUploadForm() {
   textPreview.readOnly = true;
   textPreview.style.display = 'none';
   modalContent.insertBefore(textPreview, editForm);
+  rerunOcrBtn = document.createElement('button');
+  rerunOcrBtn.type = 'button';
+  rerunOcrBtn.textContent = 'Пересканировать';
+  rerunOcrBtn.style.display = 'none';
+  modalContent.insertBefore(rerunOcrBtn, editForm);
   buttonsWrap = document.createElement('div');
   buttonsWrap.className = 'modal__buttons';
   buttonsWrap.style.display = 'none';
@@ -175,6 +181,7 @@ export function setupUploadForm() {
   const hidePreview = () => {
     previewDialog.style.display = 'none';
     textPreview.style.display = 'none';
+    rerunOcrBtn.style.display = 'none';
     buttonsWrap.style.display = 'none';
     saveBtn.style.display = '';
     inputs.forEach((el) => (el.disabled = false));
@@ -198,6 +205,29 @@ export function setupUploadForm() {
       openPreviewModal(data);
     } catch {
       alert('Ошибка генерации');
+    }
+  });
+
+  rerunOcrBtn.addEventListener('click', async () => {
+    if (!currentId) return;
+    const langSelect = document.getElementById('language') as HTMLSelectElement | null;
+    const psmInput = document.getElementById('psm') as HTMLInputElement | null;
+    const language = langSelect?.value || 'eng';
+    const psm = parseInt(psmInput?.value || '3', 10);
+    try {
+      const resp = await fetch(`/files/${currentId}/rerun_ocr`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ language, psm }),
+      });
+      if (!resp.ok) throw new Error();
+      const data: { extracted_text?: string } = await resp.json();
+      textPreview.value = data.extracted_text || '';
+      if (currentFile?.metadata) {
+        currentFile.metadata.extracted_text = data.extracted_text;
+      }
+    } catch {
+      alert('Ошибка пересканирования');
     }
   });
 
@@ -367,6 +397,7 @@ function openPreviewModal(result: FileInfo) {
   openMetadataModal(result);
   previewDialog.style.display = 'block';
   textPreview.style.display = 'block';
+  rerunOcrBtn.style.display = 'inline-block';
   buttonsWrap.style.display = 'flex';
   updateStep(2);
   renderDialog(
