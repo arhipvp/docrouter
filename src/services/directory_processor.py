@@ -81,7 +81,7 @@ async def process_input_directory(
                 logger.warning("Pending %s due to missing %s", path, missing)
                 return
 
-            status = "dry_run" if dry_run else "processed"
+            status = "dry_run" if dry_run else "finalized"
             await asyncio.to_thread(
                 database.add_file,
                 file_id,
