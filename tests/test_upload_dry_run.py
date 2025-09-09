@@ -29,6 +29,7 @@ def test_upload_dry_run_keeps_file(tmp_path, monkeypatch):
     asyncio.run(server.database.run_db(server.database.init_db))
     out_dir = tmp_path / "out"
     (out_dir / "John Doe").mkdir(parents=True)
+    (out_dir / "Shared").mkdir(parents=True)
     server.config.output_dir = str(out_dir)
 
     upload_dir = tmp_path / "uploads"

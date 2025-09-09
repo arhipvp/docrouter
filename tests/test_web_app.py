@@ -332,6 +332,7 @@ def test_details_endpoint_returns_full_record(tmp_path, monkeypatch):
     monkeypatch.setattr(server.metadata_generation, "generate_metadata", _mock_generate_metadata)
     server.config.output_dir = str(tmp_path)
     (tmp_path / "John Doe").mkdir()
+    (tmp_path / "Shared").mkdir()
 
     with LiveClient(app) as client:
         resp = client.post(
@@ -360,5 +361,5 @@ def test_details_endpoint_returns_full_record(tmp_path, monkeypatch):
         expected["confirmed"] = False
         expected["created_path"] = None
         expected["review_comment"] = None
-        expected["sources"] = data["sources"]
+        expected["sources"] = None
     assert details_json == expected

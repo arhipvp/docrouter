@@ -127,6 +127,19 @@ class MetadataAnalyzer(ABC):
         """Analyze *text* and return a dict with keys ``prompt``, ``raw_response`` and ``metadata``."""
 
 
+class NoOpAnalyzer(MetadataAnalyzer):
+    """Analyzer that returns empty metadata without external calls."""
+
+    async def analyze(
+        self,
+        text: str,
+        folder_tree: Optional[Dict[str, Any]] = None,
+        folder_index: Optional[Dict[str, Any]] = None,
+        file_info: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        return {"prompt": None, "raw_response": None, "metadata": {}}
+
+
 @register_analyzer("openrouter")
 class OpenRouterAnalyzer(MetadataAnalyzer):
     """Analyzer that delegates to an OpenRouter-hosted LLM."""
@@ -216,7 +229,11 @@ async def generate_metadata(
     ``tags_en``, ``suggested_filename``, ``description``, ``summary``, ``needs_new_folder``.
     """
     if analyzer is None:
-        analyzer = OpenRouterAnalyzer()
+        if not OPENROUTER_API_KEY:
+            logger.warning("OPENROUTER_API_KEY not set; metadata generation skipped")
+            analyzer = NoOpAnalyzer()
+        else:
+            analyzer = OpenRouterAnalyzer()
 
     result = await analyzer.analyze(
         text, folder_tree=folder_tree, folder_index=folder_index, file_info=file_info

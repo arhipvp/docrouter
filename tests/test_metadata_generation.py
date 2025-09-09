@@ -6,7 +6,6 @@ import pytest
 
 from metadata_generation import generate_metadata, MetadataAnalyzer
 from file_sorter import build_folder_index
-from services.openrouter import OpenRouterError
 from models import Metadata
 
 
@@ -23,8 +22,10 @@ class DummyAnalyzer(MetadataAnalyzer):
 
 def test_generate_metadata_without_api_key(monkeypatch):
     monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
-    with pytest.raises(OpenRouterError):
-        asyncio.run(generate_metadata("text"))
+    monkeypatch.setattr("metadata_generation.OPENROUTER_API_KEY", None, raising=False)
+    result = asyncio.run(generate_metadata("text"))
+    meta: Metadata = result["metadata"]
+    assert meta.category is None
 
 
 def test_prompt_includes_context(monkeypatch):
