@@ -2,11 +2,10 @@ import os
 import sys
 import threading
 import time
-
+import asyncio
 import pytest
 import uvicorn
 import httpx
-import asyncio
 
 # Add src to sys.path and configure server output dir before importing server
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", "src"))
@@ -43,10 +42,6 @@ class LiveClient:
 
     def get(self, path, **kwargs):
         return self.session.get(self.base_url + path, **kwargs)
-
-
-import threading
-import time
 
 
 def test_folder_tree_includes_files(tmp_path):
