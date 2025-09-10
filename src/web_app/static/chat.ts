@@ -52,9 +52,15 @@ function renderChat(
   confirmed?: boolean
 ) {
   chatHistory.innerHTML = '';
+  const roleLabels: Record<ChatHistory['role'], string> = {
+    user: 'user',
+    assistant: 'assistant',
+    reviewer: 'reviewer',
+    system: 'system',
+  };
   history.forEach((msg: ChatHistory) => {
     const div = document.createElement('div');
-    div.textContent = `${msg.role}: ${msg.message}`;
+    div.textContent = `${roleLabels[msg.role]}: ${msg.message}`;
     chatHistory.appendChild(div);
   });
   if (translatedText) {

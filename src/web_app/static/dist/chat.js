@@ -47,16 +47,38 @@ export function setupChat() {
         }
     }));
 }
-function renderChat(history) {
+function renderChat(history, translatedText, translationLang, confirmed) {
     chatHistory.innerHTML = '';
+    const roleLabels = {
+        user: 'user',
+        assistant: 'assistant',
+        reviewer: 'reviewer',
+        system: 'system',
+    };
     history.forEach((msg) => {
         const div = document.createElement('div');
-        div.textContent = `${msg.role}: ${msg.message}`;
+        div.textContent = `${roleLabels[msg.role]}: ${msg.message}`;
         chatHistory.appendChild(div);
     });
+    if (translatedText) {
+        const transDiv = document.createElement('div');
+        transDiv.className = 'chat-translation';
+        const langLabel = translationLang ? ` (${translationLang})` : '';
+        transDiv.textContent = `Перевод${langLabel}: ${translatedText}`;
+        chatHistory.appendChild(transDiv);
+    }
+    if (typeof confirmed === 'boolean') {
+        const confDiv = document.createElement('div');
+        confDiv.className = 'chat-confirmed';
+        confDiv.textContent = confirmed ? 'Путь подтверждён' : 'Путь не подтверждён';
+        chatHistory.appendChild(confDiv);
+    }
 }
 export function openChatModal(fileOrId, history) {
     return __awaiter(this, void 0, void 0, function* () {
+        let translatedText;
+        let translationLang;
+        let confirmed;
         if (typeof fileOrId === 'string') {
             currentChatId = fileOrId;
         }
@@ -68,10 +90,13 @@ export function openChatModal(fileOrId, history) {
                 return;
             }
             history = fileOrId.chat_history && fileOrId.chat_history.length ? fileOrId.chat_history : history;
+            translatedText = fileOrId.translated_text;
+            translationLang = fileOrId.translation_lang;
+            confirmed = fileOrId.confirmed;
         }
         const hist = history && history.length ? history : null;
         if (hist) {
-            renderChat(hist);
+            renderChat(hist, translatedText, translationLang, confirmed);
             document.dispatchEvent(new CustomEvent('chat-updated', { detail: { id: currentChatId, history: hist } }));
             openModal(chatModal);
             return;
@@ -86,7 +111,7 @@ export function openChatModal(fileOrId, history) {
                 return;
             }
             const h = data.chat_history || [];
-            renderChat(h);
+            renderChat(h, data.translated_text, data.translation_lang, data.confirmed);
             document.dispatchEvent(new CustomEvent('chat-updated', { detail: { id: currentChatId, history: h } }));
         }
         catch (_a) {

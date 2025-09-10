@@ -54,12 +54,18 @@ function updateStep(step) {
         el.classList.toggle('completed', s < step);
     });
 }
-export function renderDialog(container, prompt, response, history, reviewComment, createdPath) {
+export function renderDialog(container, prompt, response, history, reviewComment, createdPath, confirmed) {
     container.innerHTML = '';
     if (history && history.length) {
+        const roleClassMap = {
+            user: 'user',
+            assistant: 'assistant',
+            reviewer: 'reviewer',
+            system: 'system',
+        };
         history.forEach((msg) => {
             const div = document.createElement('div');
-            div.className = `ai-message ${msg.role === 'user' ? 'user' : 'assistant'}`;
+            div.className = `ai-message ${roleClassMap[msg.role]}`;
             div.textContent = msg.message;
             container.appendChild(div);
         });
@@ -74,6 +80,12 @@ export function renderDialog(container, prompt, response, history, reviewComment
             pathDiv.className = 'ai-message system';
             pathDiv.textContent = createdPath;
             container.appendChild(pathDiv);
+        }
+        if (typeof confirmed === 'boolean') {
+            const confDiv = document.createElement('div');
+            confDiv.className = 'ai-message system';
+            confDiv.textContent = confirmed ? 'Путь подтверждён' : 'Путь не подтверждён';
+            container.appendChild(confDiv);
         }
         return;
     }
@@ -100,6 +112,12 @@ export function renderDialog(container, prompt, response, history, reviewComment
         pathDiv.className = 'ai-message system';
         pathDiv.textContent = createdPath;
         container.appendChild(pathDiv);
+    }
+    if (typeof confirmed === 'boolean') {
+        const confDiv = document.createElement('div');
+        confDiv.className = 'ai-message system';
+        confDiv.textContent = confirmed ? 'Путь подтверждён' : 'Путь не подтверждён';
+        container.appendChild(confDiv);
     }
 }
 export function setupUploadForm() {
@@ -318,7 +336,7 @@ export function setupUploadForm() {
                         li.textContent = path;
                         missingList.appendChild(li);
                     });
-                    renderDialog(missingDialog, result.prompt, result.raw_response, result.chat_history, result.review_comment, result.created_path);
+                    renderDialog(missingDialog, result.prompt, result.raw_response, result.chat_history, result.review_comment, result.created_path, result.confirmed);
                     missingModal.style.display = 'flex';
                     updateStep(2);
                     missingConfirm.onclick = () => __awaiter(this, void 0, void 0, function* () {
@@ -393,7 +411,7 @@ export function setupUploadForm() {
                     // ответ не содержит JSON с метаданными
                 }
             }
-            renderDialog(previewDialog, undefined, undefined, detail.history, currentFile.review_comment, currentFile.created_path);
+            renderDialog(previewDialog, undefined, undefined, detail.history, currentFile.review_comment, currentFile.created_path, currentFile.confirmed);
         }
     });
     document.addEventListener('keydown', (e) => {
@@ -413,8 +431,8 @@ function openPreviewModal(result) {
     rerunOcrBtn.style.display = 'inline-block';
     buttonsWrap.style.display = 'flex';
     updateStep(2);
-    renderDialog(previewDialog, result.prompt, result.raw_response, result.chat_history, result.review_comment, result.created_path);
-    textPreview.value = ((_a = result.metadata) === null || _a === void 0 ? void 0 : _a.extracted_text) || '';
+    renderDialog(previewDialog, result.prompt, result.raw_response, result.chat_history, result.review_comment, result.created_path, result.confirmed);
+    textPreview.value = result.translated_text || ((_a = result.metadata) === null || _a === void 0 ? void 0 : _a.extracted_text) || '';
     const saveBtn = editForm.querySelector('button[type="submit"]');
     saveBtn.style.display = 'none';
     inputs.forEach((el) => (el.disabled = true));
