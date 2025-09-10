@@ -368,7 +368,7 @@ async def finalize_file(file_id: str, data: dict | None = Body(None)):
             meta_dict,
             server.config.output_dir,
             dry_run=True,
-            needs_new_folder=True,
+            needs_new_folder=meta_dict.get("needs_new_folder", False),
         )
         return {"missing": missing}
 
@@ -377,7 +377,7 @@ async def finalize_file(file_id: str, data: dict | None = Body(None)):
         meta_dict,
         server.config.output_dir,
         dry_run=False,
-        needs_new_folder=True,
+        needs_new_folder=meta_dict.get("needs_new_folder", False),
         confirm_callback=lambda _: True,
     )
     metadata = Metadata(**meta_dict)
