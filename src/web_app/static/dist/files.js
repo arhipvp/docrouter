@@ -319,11 +319,13 @@ export function refreshFiles() {
     });
 }
 function populateMetadataForm(file) {
+    var _a;
     const m = file.metadata || {};
     editCategory.value = m.category || '';
     editSubcategory.value = m.subcategory || '';
     editIssuer.value = m.issuer || '';
-    editPerson && (editPerson.value = m.person || '');
+    const person = (_a = file.person) !== null && _a !== void 0 ? _a : m.person;
+    editPerson && (editPerson.value = person || '');
     editDocType && (editDocType.value = m.doc_type || '');
     editLanguage && (editLanguage.value = m.language || '');
     editNeedsFolder && (editNeedsFolder.checked = m.needs_new_folder || false);

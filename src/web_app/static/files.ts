@@ -346,7 +346,8 @@ function populateMetadataForm(file: FileInfo) {
   editCategory.value = m.category || '';
   editSubcategory.value = m.subcategory || '';
   editIssuer.value = m.issuer || '';
-  editPerson && (editPerson.value = m.person || '');
+  const person = file.person ?? m.person;
+  editPerson && (editPerson.value = person || '');
   editDocType && (editDocType.value = m.doc_type || '');
   editLanguage && (editLanguage.value = m.language || '');
   editNeedsFolder && (editNeedsFolder.checked = m.needs_new_folder || false);

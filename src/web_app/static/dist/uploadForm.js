@@ -44,6 +44,7 @@ const fieldMap = {
     'edit-new-name-translit': 'new_name_translit',
     'edit-needs-new-folder': 'needs_new_folder',
 };
+const topLevelFields = ['person', 'date_of_birth', 'expiration_date', 'passport_number'];
 export function updateStep(step) {
     currentStep = step;
     if (!stepIndicator)
@@ -459,6 +460,9 @@ export function setupUploadForm() {
                             }
                             currentFile.metadata = currentFile.metadata || {};
                             currentFile.metadata[key] = suggested[key];
+                            if (topLevelFields.indexOf(key) !== -1) {
+                                currentFile[key] = suggested[key];
+                            }
                         }
                     });
                 }
