@@ -60,7 +60,8 @@ def test_finalize_file_moves_and_creates_metadata(tmp_path, monkeypatch):
         assert isinstance(regen_data.get("suggested_path"), str)
 
         finalize_resp = client.post(
-            f"/files/{file_id}/finalize", json={"confirm": True}
+            f"/files/{file_id}/finalize",
+            json={"confirm": True, "metadata": {"needs_new_folder": True}},
         )
         assert finalize_resp.status_code == 200
         dest_path = Path(finalize_resp.json()["path"])
@@ -135,6 +136,37 @@ def test_finalize_pending_file_creates_dirs(tmp_path):
     for rel in missing:
         assert (Path(server.config.output_dir) / rel).exists()
     assert record.status == "finalized"
+
+
+def test_finalize_without_creating_dirs(tmp_path, monkeypatch):
+    asyncio.run(server.database.run_db(server.database.init_db))
+    server.config.output_dir = str(tmp_path / "archive")
+    upload_dir = tmp_path / "uploads"
+    upload_dir.mkdir()
+    monkeypatch.setattr(upload, "UPLOAD_DIR", upload_dir)
+    monkeypatch.setattr(upload, "OCR_AVAILABLE", True)
+
+    monkeypatch.setattr(server, "extract_text", lambda path, language="eng": "")
+    monkeypatch.setattr(
+        server.metadata_generation, "generate_metadata", _mock_generate_metadata
+    )
+
+    with TestClient(app) as client:
+        resp = client.post("/upload", files={"file": ("test.pdf", b"data")})
+        assert resp.status_code == 200
+        upload_data = resp.json()
+        file_id = upload_data["id"]
+        temp_path = Path(upload_data["path"])
+
+        finalize_resp = client.post(
+            f"/files/{file_id}/finalize", json={"confirm": True}
+        )
+        assert finalize_resp.status_code == 200
+        dest_path = Path(finalize_resp.json()["path"])
+
+    assert temp_path.exists()
+    assert not dest_path.exists()
+    assert not dest_path.parent.exists()
 
 
 def test_comment_persists_after_finalize(tmp_path, monkeypatch):
@@ -227,7 +259,8 @@ def test_delete_file(tmp_path, monkeypatch):
         file_id = upload_data["id"]
 
         finalize_resp = client.post(
-            f"/files/{file_id}/finalize", json={"confirm": True}
+            f"/files/{file_id}/finalize",
+            json={"confirm": True, "metadata": {"needs_new_folder": True}},
         )
         assert finalize_resp.status_code == 200
         dest_path = Path(finalize_resp.json()["path"])
