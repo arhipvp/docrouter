@@ -72,3 +72,7 @@ class UploadResponse(BaseModel):
     raw_response: Any | None = None
     sources: Optional[List[str]] = None
     suggested_path: Optional[str] = None
+    chat_history: list[dict[str, Any]] = Field(default_factory=list)
+    review_comment: str | None = None
+    created_path: str | None = None
+    confirmed: bool | None = None
