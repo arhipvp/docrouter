@@ -116,7 +116,15 @@ def test_finalize_pending_file_creates_dirs(tmp_path):
         assert data["status"] == "pending"
         assert data["missing"] == missing
 
-        finalize_resp = client.post(f"/files/{file_id}/finalize")
+        preview_resp = client.post(
+            f"/files/{file_id}/finalize", json={"confirm": False}
+        )
+        assert preview_resp.status_code == 200
+        assert preview_resp.json()["missing"] == missing
+
+        finalize_resp = client.post(
+            f"/files/{file_id}/finalize", json={"confirm": True}
+        )
         assert finalize_resp.status_code == 200
         final_data = finalize_resp.json()
         new_path = Path(final_data["path"])

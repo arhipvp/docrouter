@@ -345,7 +345,7 @@ async def update_file(file_id: str, data: dict = Body(...)):
     return await run_db(database.get_file, file_id)
 
 
-@router.post("/files/{file_id}/finalize", response_model=FileRecord)
+@router.post("/files/{file_id}/finalize", response_model=FileRecord | dict[str, list[str]])
 async def finalize_file(file_id: str, data: dict | None = Body(None)):
     """Переместить файл из черновиков и записать финальные метаданные."""
     record = await run_db(database.get_file, file_id)
@@ -356,9 +356,21 @@ async def finalize_file(file_id: str, data: dict | None = Body(None)):
         return record
 
     metadata_updates = (data or {}).get("metadata") or {}
+    confirm = bool((data or {}).get("confirm"))
     meta_dict = record.metadata.model_dump()
     if metadata_updates:
         meta_dict.update(metadata_updates)
+
+    if not confirm:
+        # Предварительный расчёт без перемещения и записи в БД
+        _, missing, _ = place_file(
+            record.path,
+            meta_dict,
+            server.config.output_dir,
+            dry_run=True,
+            needs_new_folder=True,
+        )
+        return {"missing": missing}
 
     dest_path, missing, confirmed = place_file(
         record.path,
