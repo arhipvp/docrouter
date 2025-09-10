@@ -38,6 +38,8 @@ const fieldMap: Record<string, string> = {
   'edit-needs-new-folder': 'needs_new_folder',
 };
 
+const topLevelFields = ['person', 'date_of_birth', 'expiration_date', 'passport_number'];
+
 export function updateStep(step: number) {
   currentStep = step;
   if (!stepIndicator) return;
@@ -460,6 +462,9 @@ export function setupUploadForm() {
               }
               currentFile!.metadata = currentFile!.metadata || {};
               (currentFile!.metadata as any)[key] = suggested[key];
+              if (topLevelFields.indexOf(key) !== -1) {
+                (currentFile as any)[key] = suggested[key];
+              }
             }
           });
         } catch {

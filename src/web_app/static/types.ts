@@ -39,6 +39,10 @@ export interface FileInfo {
   filename?: string;
   path?: string;
   metadata?: FileMetadata;
+  person?: string;
+  date_of_birth?: string;
+  expiration_date?: string;
+  passport_number?: string;
   tags_ru?: string[];
   tags_en?: string[];
   sources?: string[];
