@@ -112,7 +112,7 @@ export function setupFiles() {
             if (!resp.ok)
                 throw new Error();
             const data = yield resp.json();
-            renderDialog(aiExchange, data.prompt, data.raw_response);
+            renderDialog(aiExchange, data.prompt, data.raw_response, undefined, undefined, undefined, data.confirmed);
             closeModal(metadataModal);
             currentEditId = null;
             yield refreshFiles();
@@ -135,7 +135,7 @@ export function setupFiles() {
                 throw new Error();
             const data = yield resp.json();
             populateMetadataForm(data);
-            renderDialog(aiExchange, data.prompt, data.raw_response);
+            renderDialog(aiExchange, data.prompt, data.raw_response, undefined, undefined, undefined, data.confirmed);
         }
         catch (_a) {
             showNotification('Ошибка запроса');
@@ -160,7 +160,10 @@ export function setupFiles() {
             if (!resp.ok)
                 throw new Error();
             const data = yield resp.json();
-            textPreview.textContent = data.extracted_text || '';
+            const text = displayLang && data.translation_lang === displayLang && data.translated_text
+                ? data.translated_text
+                : data.extracted_text || '';
+            textPreview.textContent = text;
             textPreview.dataset.id = id;
         }
         catch (_a) {
@@ -246,7 +249,11 @@ export function refreshFiles() {
                 tr.appendChild(descTd);
                 const statusTd = document.createElement('td');
                 const status = f.status;
-                statusTd.textContent = status || '';
+                let statusText = status || '';
+                if (typeof f.confirmed === 'boolean') {
+                    statusText += f.confirmed ? ' (подтв.)' : ' (не подтв.)';
+                }
+                statusTd.textContent = statusText;
                 tr.appendChild(statusTd);
                 const actionsTd = document.createElement('td');
                 const langParam = displayLang ? `?lang=${encodeURIComponent(displayLang)}` : '';

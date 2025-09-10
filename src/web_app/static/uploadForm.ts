@@ -19,6 +19,10 @@ let currentFile: FileInfo | null = null;
 let inputs: NodeListOf<HTMLInputElement | HTMLTextAreaElement>;
 let stepIndicator: HTMLElement;
 let currentStep = 1;
+let fileQueue: File[] = [];
+let totalFiles = 0;
+let fileCounter: HTMLElement;
+let uploading = false;
 const fieldMap: Record<string, string> = {
   'edit-category': 'category',
   'edit-subcategory': 'subcategory',
@@ -137,6 +141,9 @@ export function setupUploadForm() {
       stepIndicator.appendChild(el);
     });
     container.insertBefore(stepIndicator, form);
+    fileCounter = document.createElement('div');
+    fileCounter.className = 'file-counter';
+    container.insertBefore(fileCounter, form);
     updateStep(1);
   }
   const missingModal = document.getElementById('missing-modal')!;
@@ -244,6 +251,110 @@ export function setupUploadForm() {
     });
   });
 
+  function updateFileCounter() {
+    if (!fileCounter) return;
+    if (totalFiles > 0 && totalFiles - fileQueue.length > 0) {
+      fileCounter.textContent = `Файл ${totalFiles - fileQueue.length} из ${totalFiles}`;
+    } else {
+      fileCounter.textContent = '';
+    }
+  }
+
+  function finalizeCleanup() {
+    closeModal(metadataModal);
+    hidePreview();
+    form.reset();
+    progress.value = 0;
+    refreshFiles();
+    refreshFolderTree();
+    updateStep(3);
+    setTimeout(() => updateStep(1), 500);
+    uploading = false;
+    processNextFile();
+  }
+
+  function processNextFile() {
+    if (uploading || currentId) return;
+    const next = fileQueue.shift();
+    if (!next) {
+      totalFiles = 0;
+      updateFileCounter();
+      return;
+    }
+    updateFileCounter();
+    const data = new FormData();
+    data.append('file', next, next.name);
+    progress.value = 0;
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', '/upload');
+    uploading = true;
+    xhr.upload.addEventListener('progress', (ev) => {
+      if (ev.lengthComputable) {
+        progress.max = ev.total;
+        progress.value = ev.loaded;
+      }
+    });
+    xhr.onload = () => {
+      uploading = false;
+      if (xhr.status === 200) {
+        const result: UploadResponse = JSON.parse(xhr.responseText);
+        if (result.status === 'pending' || result.status === 'missing') {
+          suggestedPath.textContent = result.suggested_path || '';
+          missingList.innerHTML = '';
+          (result.missing || []).forEach((path: string) => {
+            const li = document.createElement('li');
+            li.textContent = path;
+            missingList.appendChild(li);
+          });
+          renderDialog(
+            missingDialog,
+            result.prompt,
+            result.raw_response,
+            result.chat_history,
+            result.review_comment,
+            result.created_path,
+            result.confirmed
+          );
+          missingModal.style.display = 'flex';
+          updateStep(2);
+          missingConfirm.onclick = async () => {
+            try {
+              const resp = await fetch(`/files/${result.id}/finalize`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ missing: result.missing || [], confirm: true }),
+              });
+              if (!resp.ok) throw new Error();
+              await resp.json();
+              missingModal.style.display = 'none';
+              finalizeCleanup();
+            } catch {
+              alert('Ошибка обработки');
+            }
+          };
+          missingCancel.onclick = async () => {
+            try {
+              await fetch(`/files/${result.id}`, { method: 'DELETE' });
+            } catch {
+              // ignore errors, просто закрываем модалку
+            }
+            missingModal.style.display = 'none';
+            document.querySelector(`#files tr[data-id="${result.id}"]`)?.remove();
+            refreshFiles();
+            updateStep(1);
+            processNextFile();
+          };
+        } else {
+          openPreviewModal(result as FileInfo);
+        }
+      } else {
+        alert('Ошибка загрузки');
+        processNextFile();
+      }
+    };
+    xhr.send(data);
+  }
+
   finalizeBtn.addEventListener('click', async () => {
     if (!currentId) return;
     const meta: Record<string, string | boolean> = {};
@@ -291,43 +402,18 @@ export function setupUploadForm() {
               body: JSON.stringify({ metadata: meta, missing: data.missing, confirm: true }),
             });
             if (!resp2.ok) throw new Error();
-            const finalData: FileInfo = await resp2.json();
+            await resp2.json();
             missingModal.style.display = 'none';
-            closeModal(metadataModal);
-            hidePreview();
-            form.reset();
-            progress.value = 0;
-            refreshFiles();
-            refreshFolderTree();
-            if (finalData.status === 'finalized' || finalData.status === 'rejected') {
-              finalizeBtn.style.display = 'none';
-              regenerateBtn.disabled = true;
-              rerunOcrBtn.disabled = true;
-              updateStep(3);
-              setTimeout(() => updateStep(1), 500);
-            }
+            finalizeCleanup();
           } catch {
             alert('Ошибка финализации');
           }
         };
         missingCancel.onclick = () => {
           missingModal.style.display = 'none';
-          if (currentFile?.status === 'finalized' || currentFile?.status === 'rejected') {
-            finalizeBtn.style.display = 'none';
-            regenerateBtn.disabled = true;
-            rerunOcrBtn.disabled = true;
-            updateStep(3);
-          }
         };
       } else {
-        closeModal(metadataModal);
-        hidePreview();
-        form.reset();
-        progress.value = 0;
-        refreshFiles();
-        refreshFolderTree();
-        updateStep(3);
-        setTimeout(() => updateStep(1), 500);
+        finalizeCleanup();
       }
     } catch {
       alert('Ошибка финализации');
@@ -337,90 +423,19 @@ export function setupUploadForm() {
   form.addEventListener('submit', (e) => {
     e.preventDefault();
     const fileInput = form.querySelector('input[type="file"]') as HTMLInputElement;
-    const file = fileInput?.files?.[0];
-    if (!file || !file.name) {
+    const files = Array.from(fileInput?.files || []);
+    if (!files.length || files.some((f) => !f.name)) {
       alert('Файл должен иметь имя');
       return;
     }
-    const data = new FormData(form);
-    progress.value = 0;
-    const xhr = new XMLHttpRequest();
-    xhr.open('POST', '/upload');
-    xhr.upload.addEventListener('progress', (ev) => {
-      if (ev.lengthComputable) {
-        progress.max = ev.total;
-        progress.value = ev.loaded;
-      }
-    });
-    xhr.onload = () => {
-      if (xhr.status === 200) {
-        const result: UploadResponse = JSON.parse(xhr.responseText);
-        if (result.status === 'pending' || result.status === 'missing') {
-          suggestedPath.textContent = result.suggested_path || '';
-          missingList.innerHTML = '';
-          (result.missing || []).forEach((path: string) => {
-            const li = document.createElement('li');
-            li.textContent = path;
-            missingList.appendChild(li);
-          });
-          renderDialog(
-            missingDialog,
-            result.prompt,
-            result.raw_response,
-            result.chat_history,
-            result.review_comment,
-            result.created_path,
-            result.confirmed
-          );
-          missingModal.style.display = 'flex';
-          updateStep(2);
-          missingConfirm.onclick = async () => {
-            try {
-              const resp = await fetch(`/files/${result.id}/finalize`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ missing: result.missing || [], confirm: true }),
-              });
-              if (!resp.ok) throw new Error();
-              const finalData: FileInfo = await resp.json();
-              missingModal.style.display = 'none';
-              openPreviewModal(finalData);
-              if (finalData.status === 'finalized' || finalData.status === 'rejected') {
-                finalizeBtn.style.display = 'none';
-                regenerateBtn.disabled = true;
-                rerunOcrBtn.disabled = true;
-                updateStep(3);
-              }
-            } catch {
-              alert('Ошибка обработки');
-            }
-          };
-          missingCancel.onclick = async () => {
-            try {
-              await fetch(`/files/${result.id}`, { method: 'DELETE' });
-            } catch {
-              // ignore errors, просто закрываем модалку
-            }
-            missingModal.style.display = 'none';
-            document.querySelector(`#files tr[data-id="${result.id}"]`)?.remove();
-            refreshFiles();
-            if (currentFile?.status === 'finalized' || currentFile?.status === 'rejected') {
-              finalizeBtn.style.display = 'none';
-              regenerateBtn.disabled = true;
-              rerunOcrBtn.disabled = true;
-              updateStep(3);
-            } else {
-              updateStep(1);
-            }
-          };
-        } else {
-          openPreviewModal(result as FileInfo);
-        }
-      } else {
-        alert('Ошибка загрузки');
-      }
-    };
-    xhr.send(data);
+    fileQueue.push(...files);
+    totalFiles += files.length;
+    fileInput.value = '';
+    if (!uploading && !currentId) {
+      processNextFile();
+    } else {
+      updateFileCounter();
+    }
   });
   askAiBtn.addEventListener('click', () => {
     if (!currentId) return;
