@@ -7,7 +7,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
-import { refreshFiles, openMetadataModal, openModal, closeModal } from './files.js';
+import { refreshFiles, openMetadataModal, closeModal } from './files.js';
 import { refreshFolderTree } from './folders.js';
 import { openChatModal } from './chat.js';
 export let aiExchange;
@@ -25,9 +25,6 @@ let currentId = null;
 let currentFile = null;
 let inputs;
 let stepIndicator;
-let finalizeModal;
-let finalizeConfirm;
-let finalizeCancel;
 let currentStep = 1;
 const fieldMap = {
     'edit-category': 'category',
@@ -121,7 +118,6 @@ export function renderDialog(container, prompt, response, history, reviewComment
     }
 }
 export function setupUploadForm() {
-    var _a;
     const form = document.querySelector('form');
     const progress = document.getElementById('upload-progress');
     aiExchange = document.getElementById('ai-exchange');
@@ -147,21 +143,6 @@ export function setupUploadForm() {
     const suggestedPath = document.getElementById('suggested-path');
     metadataModal = document.getElementById('metadata-modal');
     editForm = document.getElementById('edit-form');
-    finalizeModal = document.createElement('div');
-    finalizeModal.id = 'finalize-modal';
-    finalizeModal.className = 'modal confirm-modal';
-    finalizeModal.innerHTML = `
-    <div class="modal__content">
-      <p>Финализировать документ?</p>
-      <div class="modal__buttons">
-        <button id="finalize-confirm">Да</button>
-        <button id="finalize-cancel" type="button">Отмена</button>
-      </div>
-    </div>`;
-    (_a = (document.body || container)) === null || _a === void 0 ? void 0 : _a.appendChild(finalizeModal);
-    finalizeConfirm = finalizeModal.querySelector('#finalize-confirm');
-    finalizeCancel = finalizeModal.querySelector('#finalize-cancel');
-    finalizeCancel.addEventListener('click', () => closeModal(finalizeModal));
     const modalContent = metadataModal.querySelector('.modal__content');
     previewDialog = document.createElement('div');
     previewDialog.className = 'ai-dialog';
@@ -262,12 +243,7 @@ export function setupUploadForm() {
                 el.disabled = !disabled;
         });
     });
-    finalizeBtn.addEventListener('click', () => {
-        if (!currentId)
-            return;
-        openModal(finalizeModal);
-    });
-    finalizeConfirm.addEventListener('click', () => __awaiter(this, void 0, void 0, function* () {
+    finalizeBtn.addEventListener('click', () => __awaiter(this, void 0, void 0, function* () {
         if (!currentId)
             return;
         const meta = {};
@@ -288,19 +264,70 @@ export function setupUploadForm() {
             const resp = yield fetch(`/files/${currentId}/finalize`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ metadata: meta, confirm: true }),
+                body: JSON.stringify({ metadata: meta, confirm: false }),
             });
             if (!resp.ok)
                 throw new Error();
-            closeModal(finalizeModal);
-            closeModal(metadataModal);
-            hidePreview();
-            form.reset();
-            progress.value = 0;
-            refreshFiles();
-            refreshFolderTree();
-            updateStep(3);
-            setTimeout(() => updateStep(1), 500);
+            const data = yield resp.json();
+            if (data.missing && data.missing.length) {
+                suggestedPath.textContent = data.suggested_path || '';
+                missingList.innerHTML = '';
+                data.missing.forEach((path) => {
+                    const li = document.createElement('li');
+                    li.textContent = path;
+                    missingList.appendChild(li);
+                });
+                renderDialog(missingDialog, data.prompt, data.raw_response, data.chat_history, data.review_comment, data.created_path, data.confirmed);
+                missingModal.style.display = 'flex';
+                missingConfirm.onclick = () => __awaiter(this, void 0, void 0, function* () {
+                    try {
+                        const resp2 = yield fetch(`/files/${currentId}/finalize`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ metadata: meta, missing: data.missing, confirm: true }),
+                        });
+                        if (!resp2.ok)
+                            throw new Error();
+                        const finalData = yield resp2.json();
+                        missingModal.style.display = 'none';
+                        closeModal(metadataModal);
+                        hidePreview();
+                        form.reset();
+                        progress.value = 0;
+                        refreshFiles();
+                        refreshFolderTree();
+                        if (finalData.status === 'finalized' || finalData.status === 'rejected') {
+                            finalizeBtn.style.display = 'none';
+                            regenerateBtn.disabled = true;
+                            rerunOcrBtn.disabled = true;
+                            updateStep(3);
+                            setTimeout(() => updateStep(1), 500);
+                        }
+                    }
+                    catch (_a) {
+                        alert('Ошибка финализации');
+                    }
+                });
+                missingCancel.onclick = () => {
+                    missingModal.style.display = 'none';
+                    if ((currentFile === null || currentFile === void 0 ? void 0 : currentFile.status) === 'finalized' || (currentFile === null || currentFile === void 0 ? void 0 : currentFile.status) === 'rejected') {
+                        finalizeBtn.style.display = 'none';
+                        regenerateBtn.disabled = true;
+                        rerunOcrBtn.disabled = true;
+                        updateStep(3);
+                    }
+                };
+            }
+            else {
+                closeModal(metadataModal);
+                hidePreview();
+                form.reset();
+                progress.value = 0;
+                refreshFiles();
+                refreshFolderTree();
+                updateStep(3);
+                setTimeout(() => updateStep(1), 500);
+            }
         }
         catch (_a) {
             alert('Ошибка финализации');
@@ -351,6 +378,12 @@ export function setupUploadForm() {
                             const finalData = yield resp.json();
                             missingModal.style.display = 'none';
                             openPreviewModal(finalData);
+                            if (finalData.status === 'finalized' || finalData.status === 'rejected') {
+                                finalizeBtn.style.display = 'none';
+                                regenerateBtn.disabled = true;
+                                rerunOcrBtn.disabled = true;
+                                updateStep(3);
+                            }
                         }
                         catch (_a) {
                             alert('Ошибка обработки');
@@ -367,7 +400,15 @@ export function setupUploadForm() {
                         missingModal.style.display = 'none';
                         (_a = document.querySelector(`#files tr[data-id="${result.id}"]`)) === null || _a === void 0 ? void 0 : _a.remove();
                         refreshFiles();
-                        updateStep(1);
+                        if ((currentFile === null || currentFile === void 0 ? void 0 : currentFile.status) === 'finalized' || (currentFile === null || currentFile === void 0 ? void 0 : currentFile.status) === 'rejected') {
+                            finalizeBtn.style.display = 'none';
+                            regenerateBtn.disabled = true;
+                            rerunOcrBtn.disabled = true;
+                            updateStep(3);
+                        }
+                        else {
+                            updateStep(1);
+                        }
                     });
                 }
                 else {
@@ -430,7 +471,18 @@ function openPreviewModal(result) {
     textPreview.style.display = 'block';
     rerunOcrBtn.style.display = 'inline-block';
     buttonsWrap.style.display = 'flex';
-    updateStep(2);
+    if (result.status === 'finalized' || result.status === 'rejected') {
+        finalizeBtn.style.display = 'none';
+        regenerateBtn.disabled = true;
+        rerunOcrBtn.disabled = true;
+        updateStep(3);
+    }
+    else {
+        finalizeBtn.style.display = '';
+        regenerateBtn.disabled = false;
+        rerunOcrBtn.disabled = false;
+        updateStep(2);
+    }
     renderDialog(previewDialog, result.prompt, result.raw_response, result.chat_history, result.review_comment, result.created_path, result.confirmed);
     textPreview.value = result.translated_text || ((_a = result.metadata) === null || _a === void 0 ? void 0 : _a.extracted_text) || '';
     const saveBtn = editForm.querySelector('button[type="submit"]');
