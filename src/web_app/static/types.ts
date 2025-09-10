@@ -44,6 +44,9 @@ export interface FileInfo {
   sources?: string[];
   status?: FileStatus;
   extracted_text?: string;
+  translated_text?: string;
+  translation_lang?: string;
+  confirmed?: boolean;
   chat_history?: ChatHistory[];
   missing?: string[];
   suggested_path?: string;

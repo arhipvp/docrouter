@@ -45,19 +45,40 @@ export function setupChat() {
   });
 }
 
-function renderChat(history: ChatHistory[]) {
+function renderChat(
+  history: ChatHistory[],
+  translatedText?: string,
+  translationLang?: string,
+  confirmed?: boolean
+) {
   chatHistory.innerHTML = '';
   history.forEach((msg: ChatHistory) => {
     const div = document.createElement('div');
     div.textContent = `${msg.role}: ${msg.message}`;
     chatHistory.appendChild(div);
   });
+  if (translatedText) {
+    const transDiv = document.createElement('div');
+    transDiv.className = 'chat-translation';
+    const langLabel = translationLang ? ` (${translationLang})` : '';
+    transDiv.textContent = `Перевод${langLabel}: ${translatedText}`;
+    chatHistory.appendChild(transDiv);
+  }
+  if (typeof confirmed === 'boolean') {
+    const confDiv = document.createElement('div');
+    confDiv.className = 'chat-confirmed';
+    confDiv.textContent = confirmed ? 'Путь подтверждён' : 'Путь не подтверждён';
+    chatHistory.appendChild(confDiv);
+  }
 }
 
 export async function openChatModal(
   fileOrId: FileInfo | string,
   history?: ChatHistory[]
 ) {
+  let translatedText: string | undefined;
+  let translationLang: string | undefined;
+  let confirmed: boolean | undefined;
   if (typeof fileOrId === 'string') {
     currentChatId = fileOrId;
   } else {
@@ -68,10 +89,13 @@ export async function openChatModal(
       return;
     }
     history = fileOrId.chat_history && fileOrId.chat_history.length ? fileOrId.chat_history : history;
+    translatedText = fileOrId.translated_text;
+    translationLang = fileOrId.translation_lang;
+    confirmed = fileOrId.confirmed;
   }
   const hist = history && history.length ? history : null;
   if (hist) {
-    renderChat(hist);
+    renderChat(hist, translatedText, translationLang, confirmed);
     document.dispatchEvent(
       new CustomEvent('chat-updated', { detail: { id: currentChatId, history: hist } })
     );
@@ -87,7 +111,7 @@ export async function openChatModal(
       return;
     }
     const h = data.chat_history || [];
-    renderChat(h);
+    renderChat(h, data.translated_text, data.translation_lang, data.confirmed);
     document.dispatchEvent(
       new CustomEvent('chat-updated', { detail: { id: currentChatId, history: h } })
     );

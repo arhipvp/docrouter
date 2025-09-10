@@ -54,7 +54,8 @@ export function renderDialog(
   response?: string,
   history?: ChatHistory[],
   reviewComment?: string,
-  createdPath?: string
+  createdPath?: string,
+  confirmed?: boolean
 ) {
   container.innerHTML = '';
   if (history && history.length) {
@@ -75,6 +76,12 @@ export function renderDialog(
       pathDiv.className = 'ai-message system';
       pathDiv.textContent = createdPath;
       container.appendChild(pathDiv);
+    }
+    if (typeof confirmed === 'boolean') {
+      const confDiv = document.createElement('div');
+      confDiv.className = 'ai-message system';
+      confDiv.textContent = confirmed ? 'Путь подтверждён' : 'Путь не подтверждён';
+      container.appendChild(confDiv);
     }
     return;
   }
@@ -101,6 +108,12 @@ export function renderDialog(
     pathDiv.className = 'ai-message system';
     pathDiv.textContent = createdPath;
     container.appendChild(pathDiv);
+  }
+  if (typeof confirmed === 'boolean') {
+    const confDiv = document.createElement('div');
+    confDiv.className = 'ai-message system';
+    confDiv.textContent = confirmed ? 'Путь подтверждён' : 'Путь не подтверждён';
+    container.appendChild(confDiv);
   }
 }
 
@@ -317,7 +330,8 @@ export function setupUploadForm() {
             result.raw_response,
             result.chat_history,
             result.review_comment,
-            result.created_path
+            result.created_path,
+            result.confirmed
           );
           missingModal.style.display = 'flex';
           updateStep(2);
@@ -391,7 +405,8 @@ export function setupUploadForm() {
         undefined,
         detail.history,
         currentFile.review_comment,
-        currentFile.created_path
+        currentFile.created_path,
+        currentFile.confirmed
       );
     }
   });
@@ -419,9 +434,10 @@ function openPreviewModal(result: FileInfo) {
     result.raw_response,
     result.chat_history,
     result.review_comment,
-    result.created_path
+    result.created_path,
+    result.confirmed
   );
-  textPreview.value = result.metadata?.extracted_text || '';
+  textPreview.value = result.translated_text || result.metadata?.extracted_text || '';
   const saveBtn = editForm.querySelector('button[type="submit"]') as HTMLButtonElement;
   saveBtn.style.display = 'none';
   inputs.forEach((el) => (el.disabled = true));

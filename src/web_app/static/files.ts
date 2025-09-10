@@ -106,7 +106,15 @@ export function setupFiles() {
       });
       if (!resp.ok) throw new Error();
       const data: FileInfo = await resp.json();
-      renderDialog(aiExchange, data.prompt, data.raw_response);
+      renderDialog(
+        aiExchange,
+        data.prompt,
+        data.raw_response,
+        undefined,
+        undefined,
+        undefined,
+        data.confirmed
+      );
       closeModal(metadataModal);
       currentEditId = null;
       await refreshFiles();
@@ -127,7 +135,15 @@ export function setupFiles() {
       if (!resp.ok) throw new Error();
       const data: FileInfo = await resp.json();
       populateMetadataForm(data);
-      renderDialog(aiExchange, data.prompt, data.raw_response);
+      renderDialog(
+        aiExchange,
+        data.prompt,
+        data.raw_response,
+        undefined,
+        undefined,
+        undefined,
+        data.confirmed
+      );
     } catch {
       showNotification('Ошибка запроса');
     }
@@ -154,7 +170,11 @@ export function setupFiles() {
       const resp = await apiRequest(`/files/${id}/details`);
       if (!resp.ok) throw new Error();
       const data: FileInfo = await resp.json();
-      textPreview.textContent = data.extracted_text || '';
+      const text =
+        displayLang && data.translation_lang === displayLang && data.translated_text
+          ? data.translated_text
+          : data.extracted_text || '';
+      textPreview.textContent = text;
       (textPreview as HTMLElement).dataset.id = id;
     } catch {
       textPreview.textContent = '';
@@ -246,7 +266,11 @@ export async function refreshFiles(force = false, q = '') {
 
       const statusTd = document.createElement('td');
       const status: FileStatus | undefined = f.status;
-      statusTd.textContent = status || '';
+      let statusText = status || '';
+      if (typeof f.confirmed === 'boolean') {
+        statusText += f.confirmed ? ' (подтв.)' : ' (не подтв.)';
+      }
+      statusTd.textContent = statusText;
       tr.appendChild(statusTd);
 
       const actionsTd = document.createElement('td');
