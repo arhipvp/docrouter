@@ -1,5 +1,5 @@
 export interface ChatHistory {
-  role: string;
+  role: 'user' | 'assistant' | 'reviewer' | 'system';
   message: string;
 }
 

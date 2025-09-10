@@ -59,9 +59,15 @@ export function renderDialog(
 ) {
   container.innerHTML = '';
   if (history && history.length) {
+    const roleClassMap: Record<ChatHistory['role'], string> = {
+      user: 'user',
+      assistant: 'assistant',
+      reviewer: 'reviewer',
+      system: 'system',
+    };
     history.forEach((msg) => {
       const div = document.createElement('div');
-      div.className = `ai-message ${msg.role === 'user' ? 'user' : 'assistant'}`;
+      div.className = `ai-message ${roleClassMap[msg.role]}`;
       div.textContent = msg.message;
       container.appendChild(div);
     });
