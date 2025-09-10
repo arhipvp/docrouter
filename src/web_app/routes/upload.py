@@ -163,7 +163,11 @@ async def upload_file(
         prompt=meta_result.get("prompt"),
         raw_response=meta_result.get("raw_response"),
         suggested_path=str(dest_path),
-    )
+        chat_history=[],
+        review_comment=None,
+        created_path=None,
+        confirmed=None,
+    ).model_dump()
 
 
 @router.post("/upload/images", response_model=UploadResponse)
@@ -238,4 +242,8 @@ async def upload_images(
         prompt=meta_result.get("prompt"),
         raw_response=meta_result.get("raw_response"),
         suggested_path=str(dest_path),
-    )
+        chat_history=[],
+        review_comment=None,
+        created_path=None,
+        confirmed=None,
+    ).model_dump()

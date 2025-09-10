@@ -485,7 +485,8 @@ async def regenerate_file(file_id: str, message: str | None = Body(None, embed=T
         missing=missing,
         suggested_path=str(dest_path),
     )
-    return await run_db(database.get_file, file_id)
+    record = await run_db(database.get_file, file_id)
+    return record.model_dump()
 
 
 @router.post("/files/{file_id}/comment", response_model=FileRecord)
@@ -545,4 +546,5 @@ async def comment_file(file_id: str, message: str = Body(..., embed=True)):
         suggested_path=str(dest_path),
         review_comment=message,
     )
-    return await run_db(database.get_file, file_id)
+    record = await run_db(database.get_file, file_id)
+    return record.model_dump()
