@@ -34,7 +34,7 @@ const fieldMap: Record<string, string> = {
   'edit-needs-new-folder': 'needs_new_folder',
 };
 
-function updateStep(step: number) {
+export function updateStep(step: number) {
   currentStep = step;
   if (!stepIndicator) return;
   const steps = stepIndicator.querySelectorAll<HTMLElement>('.step');
@@ -471,7 +471,7 @@ export function setupUploadForm() {
   });
 }
 
-function openPreviewModal(result: FileInfo) {
+export function openPreviewModal(result: FileInfo) {
   currentFile = result;
   currentId = result.id;
   openMetadataModal(result);

@@ -7,10 +7,8 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
-import { refreshFiles } from './files.js';
-import { refreshFolderTree } from './folders.js';
 import { openImageEditModal } from './imageEditor.js';
-import { aiExchange, renderDialog } from './uploadForm.js';
+import { openPreviewModal, updateStep } from './uploadForm.js';
 export let currentImageIndex = -1;
 export let imageFiles = [];
 let fileInput;
@@ -62,6 +60,7 @@ export function uploadEditedImages() {
     return __awaiter(this, void 0, void 0, function* () {
         if (!imageFiles.length)
             return;
+        updateStep(1);
         const data = new FormData();
         imageFiles.forEach(f => {
             const file = new File([f.blob], f.name, { type: 'image/jpeg' });
@@ -69,16 +68,9 @@ export function uploadEditedImages() {
         });
         const resp = yield fetch('/upload/images', { method: 'POST', body: data });
         if (resp.ok) {
+            updateStep(2);
             const result = yield resp.json();
-            renderDialog(aiExchange, result.prompt, result.raw_response, result.chat_history, result.review_comment, result.created_path);
-            imageFiles = [];
-            currentImageIndex = -1;
-            fileInput.value = '';
-            imageBlock.style.display = 'none';
-            singleUploadBtn.style.display = '';
-            renderImageList();
-            refreshFiles();
-            refreshFolderTree();
+            openPreviewModal(result);
         }
         else {
             alert('Ошибка загрузки');

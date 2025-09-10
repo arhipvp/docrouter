@@ -40,7 +40,7 @@ const fieldMap = {
     'edit-new-name-translit': 'new_name_translit',
     'edit-needs-new-folder': 'needs_new_folder',
 };
-function updateStep(step) {
+export function updateStep(step) {
     currentStep = step;
     if (!stepIndicator)
         return;
@@ -462,7 +462,7 @@ export function setupUploadForm() {
         }
     });
 }
-function openPreviewModal(result) {
+export function openPreviewModal(result) {
     var _a;
     currentFile = result;
     currentId = result.id;
