@@ -1,4 +1,4 @@
-import { refreshFiles, openMetadataModal, openModal, closeModal } from './files.js';
+import { refreshFiles, openMetadataModal, closeModal } from './files.js';
 import { refreshFolderTree } from './folders.js';
 import { openChatModal } from './chat.js';
 import type { FileInfo, ChatHistory, UploadResponse } from './types.js';
@@ -18,9 +18,6 @@ let currentId: string | null = null;
 let currentFile: FileInfo | null = null;
 let inputs: NodeListOf<HTMLInputElement | HTMLTextAreaElement>;
 let stepIndicator: HTMLElement;
-let finalizeModal: HTMLElement;
-let finalizeConfirm: HTMLButtonElement;
-let finalizeCancel: HTMLButtonElement;
 let currentStep = 1;
 const fieldMap: Record<string, string> = {
   'edit-category': 'category',
@@ -150,21 +147,6 @@ export function setupUploadForm() {
   const suggestedPath = document.getElementById('suggested-path')!;
   metadataModal = document.getElementById('metadata-modal')!;
   editForm = document.getElementById('edit-form') as HTMLFormElement;
-  finalizeModal = document.createElement('div');
-  finalizeModal.id = 'finalize-modal';
-  finalizeModal.className = 'modal confirm-modal';
-  finalizeModal.innerHTML = `
-    <div class="modal__content">
-      <p>Финализировать документ?</p>
-      <div class="modal__buttons">
-        <button id="finalize-confirm">Да</button>
-        <button id="finalize-cancel" type="button">Отмена</button>
-      </div>
-    </div>`;
-  (document.body || container)?.appendChild(finalizeModal);
-  finalizeConfirm = finalizeModal.querySelector('#finalize-confirm') as HTMLButtonElement;
-  finalizeCancel = finalizeModal.querySelector('#finalize-cancel') as HTMLButtonElement;
-  finalizeCancel.addEventListener('click', () => closeModal(finalizeModal));
   const modalContent = metadataModal.querySelector('.modal__content')!;
   previewDialog = document.createElement('div');
   previewDialog.className = 'ai-dialog';
@@ -262,12 +244,7 @@ export function setupUploadForm() {
     });
   });
 
-  finalizeBtn.addEventListener('click', () => {
-    if (!currentId) return;
-    openModal(finalizeModal);
-  });
-
-  finalizeConfirm.addEventListener('click', async () => {
+  finalizeBtn.addEventListener('click', async () => {
     if (!currentId) return;
     const meta: Record<string, string | boolean> = {};
     inputs.forEach((el) => {
@@ -284,18 +261,74 @@ export function setupUploadForm() {
       const resp = await fetch(`/files/${currentId}/finalize`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ metadata: meta, confirm: true }),
+        body: JSON.stringify({ metadata: meta, confirm: false }),
       });
       if (!resp.ok) throw new Error();
-      closeModal(finalizeModal);
-      closeModal(metadataModal);
-      hidePreview();
-      form.reset();
-      progress.value = 0;
-      refreshFiles();
-      refreshFolderTree();
-      updateStep(3);
-      setTimeout(() => updateStep(1), 500);
+      const data: FileInfo = await resp.json();
+      if (data.missing && data.missing.length) {
+        suggestedPath.textContent = data.suggested_path || '';
+        missingList.innerHTML = '';
+        data.missing.forEach((path: string) => {
+          const li = document.createElement('li');
+          li.textContent = path;
+          missingList.appendChild(li);
+        });
+        renderDialog(
+          missingDialog,
+          data.prompt,
+          data.raw_response,
+          data.chat_history,
+          data.review_comment,
+          data.created_path,
+          data.confirmed
+        );
+        missingModal.style.display = 'flex';
+        missingConfirm.onclick = async () => {
+          try {
+            const resp2 = await fetch(`/files/${currentId}/finalize`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ metadata: meta, missing: data.missing, confirm: true }),
+            });
+            if (!resp2.ok) throw new Error();
+            const finalData: FileInfo = await resp2.json();
+            missingModal.style.display = 'none';
+            closeModal(metadataModal);
+            hidePreview();
+            form.reset();
+            progress.value = 0;
+            refreshFiles();
+            refreshFolderTree();
+            if (finalData.status === 'finalized' || finalData.status === 'rejected') {
+              finalizeBtn.style.display = 'none';
+              regenerateBtn.disabled = true;
+              rerunOcrBtn.disabled = true;
+              updateStep(3);
+              setTimeout(() => updateStep(1), 500);
+            }
+          } catch {
+            alert('Ошибка финализации');
+          }
+        };
+        missingCancel.onclick = () => {
+          missingModal.style.display = 'none';
+          if (currentFile?.status === 'finalized' || currentFile?.status === 'rejected') {
+            finalizeBtn.style.display = 'none';
+            regenerateBtn.disabled = true;
+            rerunOcrBtn.disabled = true;
+            updateStep(3);
+          }
+        };
+      } else {
+        closeModal(metadataModal);
+        hidePreview();
+        form.reset();
+        progress.value = 0;
+        refreshFiles();
+        refreshFolderTree();
+        updateStep(3);
+        setTimeout(() => updateStep(1), 500);
+      }
     } catch {
       alert('Ошибка финализации');
     }
@@ -352,6 +385,12 @@ export function setupUploadForm() {
               const finalData: FileInfo = await resp.json();
               missingModal.style.display = 'none';
               openPreviewModal(finalData);
+              if (finalData.status === 'finalized' || finalData.status === 'rejected') {
+                finalizeBtn.style.display = 'none';
+                regenerateBtn.disabled = true;
+                rerunOcrBtn.disabled = true;
+                updateStep(3);
+              }
             } catch {
               alert('Ошибка обработки');
             }
@@ -365,7 +404,14 @@ export function setupUploadForm() {
             missingModal.style.display = 'none';
             document.querySelector(`#files tr[data-id="${result.id}"]`)?.remove();
             refreshFiles();
-            updateStep(1);
+            if (currentFile?.status === 'finalized' || currentFile?.status === 'rejected') {
+              finalizeBtn.style.display = 'none';
+              regenerateBtn.disabled = true;
+              rerunOcrBtn.disabled = true;
+              updateStep(3);
+            } else {
+              updateStep(1);
+            }
           };
         } else {
           openPreviewModal(result as FileInfo);
@@ -433,7 +479,17 @@ function openPreviewModal(result: FileInfo) {
   textPreview.style.display = 'block';
   rerunOcrBtn.style.display = 'inline-block';
   buttonsWrap.style.display = 'flex';
-  updateStep(2);
+  if (result.status === 'finalized' || result.status === 'rejected') {
+    finalizeBtn.style.display = 'none';
+    regenerateBtn.disabled = true;
+    rerunOcrBtn.disabled = true;
+    updateStep(3);
+  } else {
+    finalizeBtn.style.display = '';
+    regenerateBtn.disabled = false;
+    rerunOcrBtn.disabled = false;
+    updateStep(2);
+  }
   renderDialog(
     previewDialog,
     result.prompt,
