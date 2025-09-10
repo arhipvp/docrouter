@@ -63,7 +63,10 @@ export async function openChatModal(
   } else {
     currentChatId = fileOrId.id;
     const fileStatus: FileStatus | undefined = fileOrId.status;
-    void fileStatus;
+    if (fileStatus === 'finalized' || fileStatus === 'rejected') {
+      showNotification('Чат недоступен для финализированных или отклонённых файлов');
+      return;
+    }
     history = fileOrId.chat_history && fileOrId.chat_history.length ? fileOrId.chat_history : history;
   }
   const hist = history && history.length ? history : null;
@@ -79,6 +82,10 @@ export async function openChatModal(
   try {
     const resp = await apiRequest(`/files/${currentChatId}/details`);
     const data: FileInfo = await resp.json();
+    if (data.status === 'finalized' || data.status === 'rejected') {
+      showNotification('Чат недоступен для финализированных или отклонённых файлов');
+      return;
+    }
     const h = data.chat_history || [];
     renderChat(h);
     document.dispatchEvent(
